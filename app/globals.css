@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+
+  /* TradePro Nexus brand palette */
+  --nexus-blue-deep:    #0f172a;
+  --nexus-blue-mid:     #1e3a5f;
+  --nexus-blue-bright:  #1d4ed8;
+  --nexus-orange:       #ea580c;
+  --nexus-orange-light: #fb923c;
+  --nexus-slate:        #475569;
+  --nexus-slate-light:  #94a3b8;
+  --nexus-green:        #16a34a;
+  --nexus-yellow:       #ca8a04;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--nexus-blue-deep);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #0f172a; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+/* Custom animations */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(234, 88, 12, 0); }
+  50% { box-shadow: 0 0 0 8px rgba(234, 88, 12, 0.15); }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes feed-slide {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-feed-slide {
+  animation: feed-slide 0.4s ease-out forwards;
+}
