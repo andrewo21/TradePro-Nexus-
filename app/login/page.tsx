@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { HardHat, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import { getSupabase } from "@/lib/supabase";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -18,11 +21,13 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     try {
-      // Supabase auth will be wired here
-      await new Promise((r) => setTimeout(r, 800));
-      setError("Auth not configured yet — add your Supabase credentials to .env.local");
-    } catch {
-      setError("Something went wrong. Please try again.");
+      const supabase = getSupabase();
+      const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
+      if (authError) throw authError;
+      router.push("/feed");
+      router.refresh();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }

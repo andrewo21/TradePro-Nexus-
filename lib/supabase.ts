@@ -1,17 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 import type { Database } from "@/types/database";
 
-const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || "").trim().replace(/\/$/, "");
-const supabaseAnonKey = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "").trim();
-
-let _client: ReturnType<typeof createClient<Database>> | null = null;
-
 export function getSupabase() {
-  if (!supabaseUrl || !supabaseAnonKey) return null;
-  if (!_client) {
-    _client = createClient<Database>(supabaseUrl, supabaseAnonKey);
-  }
-  return _client;
+  return createBrowserClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 }
-
-export const supabase = typeof window !== "undefined" ? getSupabase() : null;

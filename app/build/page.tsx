@@ -1,14 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   HardHat, ChevronRight, ChevronLeft, Upload, CheckCircle,
   User, Briefcase, ShieldCheck, ImageIcon, Calendar, ArrowRight,
-  AlertCircle, X
+  AlertCircle, X, Loader2
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
+import { getSupabase } from "@/lib/supabase";
 
 const TRADES = [
   "Electrician", "Plumber", "HVAC Technician", "Ironworker",
@@ -140,9 +142,13 @@ function FileUploadZone({
 }
 
 export default function BuildPage() {
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>(defaultForm);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [finalSlug, setFinalSlug] = useState("");
 
   function set<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -172,11 +178,125 @@ export default function BuildPage() {
     return true;
   }
 
-  function handleSubmit() {
-    setSubmitted(true);
+  async function handleSubmit() {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const supabase = getSupabase();
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push("/signup");
+        return;
+      }
+
+      const baseSlug = `${form.firstName.toLowerCase()}-${form.lastName.toLowerCase()}`
+        .replace(/\s+/g, "-")
+        .replace(/[^a-z0-9-]/g, "");
+
+      // Check for slug collision and append suffix if needed
+      let slug = baseSlug;
+      const { data: existing } = await supabase
+        .from("profiles")
+        .select("slug")
+        .eq("slug", baseSlug)
+        .maybeSingle();
+      if (existing) {
+        slug = `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
+      }
+
+      // Upload gallery images
+      const galleryUrls: string[] = [];
+      for (const file of form.galleryFiles) {
+        const ext = file.name.split(".").pop();
+        const path = `${user.id}/${slug}/${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("gallery")
+          .upload(path, file, { upsert: false });
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from("gallery").getPublicUrl(path);
+          galleryUrls.push(urlData.publicUrl);
+        }
+      }
+
+      // Upload verification documents and collect URLs
+      const docUploads: Array<{ type: string; file: File }> = [
+        { type: "bonding", file: form.bondingFile! },
+        { type: "insurance_coi", file: form.coiFile! },
+        { type: "w9", file: form.w9File! },
+      ].filter((d) => d.file != null);
+
+      const docRows: Array<{ owner_id: string; owner_type: "profile"; document_type: string; file_url: string; file_name: string }> = [];
+      for (const doc of docUploads) {
+        const ext = doc.file.name.split(".").pop();
+        const path = `${user.id}/${slug}/${doc.type}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("documents")
+          .upload(path, doc.file, { upsert: true });
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
+          docRows.push({
+            owner_id: "", // filled after profile insert
+            owner_type: "profile",
+            document_type: doc.type,
+            file_url: urlData.publicUrl,
+            file_name: doc.file.name,
+          });
+        }
+      }
+
+      // Insert profile — type cast needed until schema generates proper types
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const db = supabase as any;
+      const { data: profile, error: insertError } = await db
+        .from("profiles")
+        .insert({
+          user_id: user.id,
+          slug,
+          first_name: form.firstName.trim(),
+          last_name: form.lastName.trim(),
+          trade: form.trade,
+          years_experience: parseInt(form.yearsExperience) || 0,
+          location_city: form.locationCity.trim(),
+          location_state: form.locationState.trim().toUpperCase(),
+          location_zip: form.locationZip.trim(),
+          phone: form.phone.trim(),
+          email: form.email.trim(),
+          bio: form.bio.trim(),
+          osha_certifications: form.oshaSelected,
+          other_certifications: form.otherCerts
+            ? form.otherCerts.split(",").map((s) => s.trim()).filter(Boolean)
+            : [],
+          payroll_type: form.payrollType,
+          is_lead_foreman: form.isLeadForeman,
+          availability_status: form.availabilityStatus,
+          available_in_weeks: form.availableInWeeks ? parseInt(form.availableInWeeks) : null,
+          crew_size: form.crewSize ? parseInt(form.crewSize) : null,
+          gallery_urls: galleryUrls,
+          verification_status: "pending",
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Insert document rows with real owner_id
+      if (profile && docRows.length > 0) {
+        await db.from("documents").insert(
+          docRows.map((d) => ({ ...d, owner_id: profile.id }))
+        );
+      }
+
+      setFinalSlug(slug);
+      setSubmitted(true);
+    } catch (err: unknown) {
+      setSubmitError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
-  const slug = `${form.firstName.toLowerCase()}-${form.lastName.toLowerCase()}`.replace(/\s+/g, "-");
+  const slug = finalSlug || `${form.firstName.toLowerCase()}-${form.lastName.toLowerCase()}`.replace(/\s+/g, "-");
 
   if (submitted) {
     return (
@@ -663,7 +783,7 @@ export default function BuildPage() {
         <div className="flex items-center justify-between mt-6">
           <button
             onClick={() => setStep(Math.max(1, step - 1))}
-            disabled={step === 1}
+            disabled={step === 1 || submitting}
             className="flex items-center gap-2 px-4 py-2.5 border border-slate-600 text-slate-400 hover:text-white hover:border-slate-400 rounded-xl text-sm font-semibold transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <ChevronLeft className="w-4 h-4" /> Back
@@ -680,12 +800,24 @@ export default function BuildPage() {
           ) : (
             <button
               onClick={handleSubmit}
-              className="flex items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-xl text-sm font-bold transition-colors"
+              disabled={submitting}
+              className="flex items-center gap-2 px-6 py-2.5 bg-green-600 hover:bg-green-500 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Publish Trade Card <ArrowRight className="w-4 h-4" />
+              {submitting ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Publishing…</>
+              ) : (
+                <>Publish Trade Card <ArrowRight className="w-4 h-4" /></>
+              )}
             </button>
           )}
         </div>
+
+        {submitError && (
+          <div className="mt-4 bg-red-950/40 border border-red-800/50 text-red-400 text-sm rounded-xl px-4 py-3 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            {submitError}
+          </div>
+        )}
 
         <p className="text-center text-xs text-slate-600 mt-4">
           Step {step} of {STEPS.length} · Free forever · No subscription

@@ -98,10 +98,14 @@ export interface FeedPost {
 export interface Database {
   public: {
     Tables: {
-      profiles: { Row: Profile; Insert: Partial<Profile>; Update: Partial<Profile> };
-      companies: { Row: Company; Insert: Partial<Company>; Update: Partial<Company> };
-      documents: { Row: Document; Insert: Partial<Document>; Update: Partial<Document> };
-      feed_posts: { Row: FeedPost; Insert: Partial<FeedPost>; Update: Partial<FeedPost> };
+      profiles: { Row: Profile; Insert: Partial<Profile>; Update: Partial<Profile>; Relationships: [] };
+      companies: { Row: Company; Insert: Partial<Company>; Update: Partial<Company>; Relationships: [] };
+      documents: { Row: Document; Insert: Partial<Document>; Update: Partial<Document>; Relationships: [] };
+      feed_posts: { Row: FeedPost; Insert: Partial<FeedPost>; Update: Partial<FeedPost>; Relationships: [] };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
   };
 }

@@ -2,19 +2,23 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { HardHat, Building2, ArrowRight, Mail, Lock, User } from "lucide-react";
+import { HardHat, Building2, ArrowRight, Mail, Lock, User, CheckCircle } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import { getSupabase } from "@/lib/supabase";
 
 type AccountType = "tradepro" | "gc" | null;
 
 export default function SignupPage() {
+  const router = useRouter();
   const [accountType, setAccountType] = useState<AccountType>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkEmail, setCheckEmail] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,13 +26,53 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
     try {
-      await new Promise((r) => setTimeout(r, 800));
-      setError("Auth not configured yet — add your Supabase credentials to .env.local");
-    } catch {
-      setError("Something went wrong. Please try again.");
+      const supabase = getSupabase();
+      const { data, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { full_name: name, role: accountType },
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${accountType === "tradepro" ? "/build" : "/search"}`,
+        },
+      });
+      if (authError) throw authError;
+      if (data.session) {
+        router.push(accountType === "tradepro" ? "/build" : "/search");
+        router.refresh();
+      } else {
+        setCheckEmail(true);
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
+  }
+
+  if (checkEmail) {
+    return (
+      <div className="min-h-screen bg-[#0f172a] text-slate-100">
+        <Navbar />
+        <div className="flex items-center justify-center min-h-screen px-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="max-w-md w-full text-center"
+          >
+            <div className="w-16 h-16 bg-orange-600/20 border border-orange-600/40 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle className="w-8 h-8 text-orange-400" />
+            </div>
+            <h2 className="text-2xl font-black text-white mb-2">Check Your Email</h2>
+            <p className="text-slate-400 mb-2">
+              We sent a confirmation link to <span className="text-white font-semibold">{email}</span>.
+            </p>
+            <p className="text-slate-500 text-sm">
+              Click the link to activate your account. Check your spam folder if you don&apos;t see it.
+            </p>
+          </motion.div>
+        </div>
+      </div>
+    );
   }
 
   return (
