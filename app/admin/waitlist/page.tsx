@@ -1,0 +1,167 @@
+import { notFound } from "next/navigation";
+import { Users, HardHat, Building2, ArrowRight } from "lucide-react";
+import Link from "next/link";
+import Navbar from "@/components/Navbar";
+import { getSupabaseAdmin, getSupabaseServer } from "@/lib/supabaseServer";
+
+const ADMIN_EMAIL = "andrew@tradeprotech.ai";
+
+interface WaitlistRow {
+  id: string;
+  name: string;
+  email: string;
+  user_type: "pro" | "gc";
+  position: number;
+  referral_code: string;
+  referred_by: string | null;
+  created_at: string;
+}
+
+export default async function AdminWaitlistPage() {
+  const supabase = await getSupabaseServer() as any;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user?.email !== ADMIN_EMAIL) notFound();
+
+  const db = getSupabaseAdmin() as any;
+
+  const [
+    { count: totalCount },
+    { count: proCount },
+    { count: gcCount },
+    { data: recent },
+    { data: topReferrers },
+  ] = await Promise.all([
+    db.from("waitlist").select("*", { count: "exact", head: true }),
+    db.from("waitlist").select("*", { count: "exact", head: true }).eq("user_type", "pro"),
+    db.from("waitlist").select("*", { count: "exact", head: true }).eq("user_type", "gc"),
+    db.from("waitlist").select("name, email, user_type, position, referral_code, created_at").order("created_at", { ascending: false }).limit(20),
+    db.from("waitlist").select("referral_code, name").limit(500),
+  ]);
+
+  // Compute top referrers client-side from the data
+  const referralMap: Record<string, { name: string; count: number }> = {};
+  if (topReferrers) {
+    const { data: referredRows } = await db.from("waitlist").select("referred_by").not("referred_by", "is", null);
+    if (referredRows) {
+      for (const row of referredRows as { referred_by: string }[]) {
+        if (!row.referred_by) continue;
+        if (!referralMap[row.referred_by]) {
+          const referrer = (topReferrers as WaitlistRow[]).find(r => r.referral_code === row.referred_by);
+          referralMap[row.referred_by] = { name: referrer?.name ?? row.referred_by, count: 0 };
+        }
+        referralMap[row.referred_by].count++;
+      }
+    }
+  }
+
+  const sortedReferrers = Object.entries(referralMap)
+    .sort(([, a], [, b]) => b.count - a.count)
+    .slice(0, 10);
+
+  function timeAgo(iso: string) {
+    const diff = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 1) return "just now";
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `${h}h ago`;
+    return `${Math.floor(h / 24)}d ago`;
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0f172a] text-slate-100">
+      <Navbar />
+      <div className="max-w-4xl mx-auto px-4 pt-24 pb-16">
+
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-xl font-black text-white">Waitlist Admin</h1>
+            <p className="text-slate-400 text-sm">TradePro Nexus launch waitlist</p>
+          </div>
+          <span className="text-xs text-slate-600 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg font-mono">
+            admin only
+          </span>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-5 text-center">
+            <p className="text-3xl font-black text-white">{totalCount ?? 0}</p>
+            <p className="text-xs text-slate-400 mt-1 uppercase tracking-wide font-semibold">Total Signups</p>
+          </div>
+          <div className="bg-orange-950/30 border border-orange-900/50 rounded-xl p-5 text-center">
+            <div className="flex items-center justify-center gap-1.5 mb-1">
+              <HardHat className="w-4 h-4 text-orange-400" />
+            </div>
+            <p className="text-3xl font-black text-orange-400">{proCount ?? 0}</p>
+            <p className="text-xs text-slate-400 mt-1 uppercase tracking-wide font-semibold">Trade Pros</p>
+          </div>
+          <div className="bg-blue-950/30 border border-blue-900/50 rounded-xl p-5 text-center">
+            <div className="flex items-center justify-center gap-1.5 mb-1">
+              <Building2 className="w-4 h-4 text-blue-400" />
+            </div>
+            <p className="text-3xl font-black text-blue-400">{gcCount ?? 0}</p>
+            <p className="text-xs text-slate-400 mt-1 uppercase tracking-wide font-semibold">GCs</p>
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Recent signups */}
+          <div className="md:col-span-2">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Recent Signups</h2>
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl overflow-hidden">
+              {(recent as WaitlistRow[] | null)?.map((row, i) => (
+                <div
+                  key={row.id ?? i}
+                  className="flex items-center justify-between px-4 py-3 border-b border-slate-700/40 last:border-0"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold ${
+                      row.user_type === "pro"
+                        ? "bg-orange-600/20 text-orange-400 border border-orange-800/50"
+                        : "bg-blue-600/20 text-blue-400 border border-blue-800/50"
+                    }`}>
+                      {row.user_type === "pro" ? "P" : "G"}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-white truncate">{row.name}</p>
+                      <p className="text-xs text-slate-500 truncate">{row.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0 ml-2">
+                    <span className="text-xs text-slate-500 font-mono">#{row.position}</span>
+                    <span className="text-xs text-slate-600">{timeAgo(row.created_at)}</span>
+                  </div>
+                </div>
+              ))}
+              {(!recent || (recent as WaitlistRow[]).length === 0) && (
+                <p className="text-slate-500 text-sm text-center py-8">No signups yet.</p>
+              )}
+            </div>
+          </div>
+
+          {/* Top referrers */}
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Top Referrers</h2>
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl overflow-hidden">
+              {sortedReferrers.length === 0 ? (
+                <p className="text-slate-500 text-sm text-center py-8">No referrals yet.</p>
+              ) : (
+                sortedReferrers.map(([code, { name, count }], i) => (
+                  <div key={code} className="flex items-center justify-between px-4 py-3 border-b border-slate-700/40 last:border-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-xs text-slate-600 w-5 text-center font-mono">{i + 1}</span>
+                      <p className="text-sm text-white truncate">{name}</p>
+                    </div>
+                    <span className="text-sm font-bold text-green-400 flex-shrink-0 ml-2">{count}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}

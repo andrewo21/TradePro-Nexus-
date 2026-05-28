@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Suspense } from "react";
 import { motion } from "framer-motion";
 import {
   ShieldCheck, Search, Zap, HardHat, Building2, CheckCircle,
@@ -8,6 +9,7 @@ import {
   Bolt, Flame, Wind, ChevronRight
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import WaitlistForm from "@/components/WaitlistForm";
 
 // ── Mock Feed Data ─────────────────────────────────────────────────────────────
 
@@ -140,41 +142,38 @@ export default function LandingPage() {
             </p>
           </motion.div>
 
-          {/* Dual CTA */}
+          {/* Waitlist form — primary CTA */}
           <motion.div
+            id="waitlist"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.25 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center items-stretch sm:items-center max-w-2xl mx-auto mb-14"
+            className="max-w-md mx-auto mb-6"
           >
-            {/* Trade Pro path */}
-            <Link href="/build" className="flex-1 group">
-              <div className="h-full bg-gradient-to-br from-orange-600 to-orange-700 hover:from-orange-500 hover:to-orange-600 rounded-xl p-5 transition-all duration-200 shadow-lg shadow-orange-900/30 animate-pulse-glow">
-                <div className="flex items-center gap-2 mb-2">
-                  <HardHat className="w-5 h-5 text-orange-200" />
-                  <span className="text-xs font-bold uppercase tracking-widest text-orange-200">I am a Trade Pro</span>
-                </div>
-                <p className="text-white font-bold text-lg mb-1 leading-tight">Build Your Digital Trade Card</p>
-                <p className="text-orange-200 text-sm mb-3">Your free capability statement. Get seen by $30M+ GCs.</p>
-                <div className="flex items-center gap-1 text-white text-sm font-semibold group-hover:gap-2 transition-all">
-                  Start Free <ArrowRight className="w-4 h-4" />
-                </div>
-              </div>
-            </Link>
+            <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
+              <Suspense fallback={null}>
+                <WaitlistForm />
+              </Suspense>
+            </div>
+          </motion.div>
 
-            {/* GC/Sub path */}
-            <Link href="/search" className="flex-1 group">
-              <div className="h-full bg-gradient-to-br from-blue-800 to-blue-900 hover:from-blue-700 hover:to-blue-800 rounded-xl p-5 transition-all duration-200 border border-blue-700/50 shadow-lg shadow-blue-900/30">
-                <div className="flex items-center gap-2 mb-2">
-                  <Building2 className="w-5 h-5 text-blue-300" />
-                  <span className="text-xs font-bold uppercase tracking-widest text-blue-300">I am a GC / Sub</span>
-                </div>
-                <p className="text-white font-bold text-lg mb-1 leading-tight">Join the Verified Marketplace</p>
-                <p className="text-blue-200 text-sm mb-3">Find vetted crews with verified payroll in 3 seconds.</p>
-                <div className="flex items-center gap-1 text-blue-200 text-sm font-semibold group-hover:gap-2 transition-all">
-                  Search Now <ArrowRight className="w-4 h-4" />
-                </div>
-              </div>
+          {/* Secondary links */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.45 }}
+            className="flex items-center justify-center gap-4 text-xs text-slate-500 mb-10"
+          >
+            <Link href="/build" className="hover:text-orange-400 transition-colors flex items-center gap-1">
+              <HardHat className="w-3.5 h-3.5" /> Build Trade Card
+            </Link>
+            <span>·</span>
+            <Link href="/search" className="hover:text-blue-400 transition-colors flex items-center gap-1">
+              <Search className="w-3.5 h-3.5" /> Find Crews
+            </Link>
+            <span>·</span>
+            <Link href="/feed" className="hover:text-slate-300 transition-colors">
+              Live Feed
             </Link>
           </motion.div>
 
@@ -425,28 +424,19 @@ export default function LandingPage() {
       </section>
 
       {/* ── FINAL CTA ───────────────────────────────────────────────────────── */}
-      <section className="py-20 px-4 sm:px-6 border-t border-slate-800">
-        <div className="max-w-3xl mx-auto text-center">
+      <section className="py-20 px-4 sm:px-6 border-t border-slate-800" id="waitlist-bottom">
+        <div className="max-w-lg mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-black text-white mb-3">
             Your work speaks for itself.<br />
             <span className="text-orange-500">Now let the right people hear it.</span>
           </h2>
-          <p className="text-slate-400 mb-8 text-lg">
-            Build your Digital Trade Card free. No subscription. No fluff. Just verified credentials and real work.
+          <p className="text-slate-400 mb-8">
+            We&apos;re launching soon. Get your spot now — free forever.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/build"
-              className="px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-base transition-colors shadow-lg shadow-orange-900/30"
-            >
-              Build My Trade Card — Free
-            </Link>
-            <Link
-              href="/search"
-              className="px-8 py-4 border border-slate-600 hover:border-slate-400 text-slate-300 hover:text-white font-semibold rounded-xl text-base transition-colors"
-            >
-              I'm a GC — Find Crews
-            </Link>
+          <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6">
+            <Suspense fallback={null}>
+              <WaitlistForm />
+            </Suspense>
           </div>
           <p className="text-xs text-slate-600 mt-5">
             A TradePro Enterprises product. Also from us:{" "}

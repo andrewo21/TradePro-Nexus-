@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import WaitlistMobileBar from "@/components/WaitlistMobileBar";
+import { Suspense } from "react";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: {
@@ -29,6 +32,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen bg-[#0f172a] text-slate-100 antialiased">
         {children}
+
+        {/* Global waitlist CTA strip — every page */}
+        <div className="border-t border-slate-800 bg-slate-900/60 px-4 py-6 text-center">
+          <p className="text-slate-300 text-sm font-semibold mb-1">
+            TradePro Nexus is launching soon.
+          </p>
+          <p className="text-slate-500 text-xs mb-3">
+            Join the waitlist for early access and your verified spot.
+          </p>
+          <Link
+            href="/#waitlist"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-sm transition-colors"
+          >
+            Get Early Access — Free
+          </Link>
+        </div>
+
+        {/* Mobile floating bar */}
+        <Suspense fallback={null}>
+          <WaitlistMobileBar />
+        </Suspense>
       </body>
     </html>
   );
