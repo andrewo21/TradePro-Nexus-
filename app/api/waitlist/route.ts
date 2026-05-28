@@ -120,20 +120,20 @@ async function sendConfirmationEmail({
   referralCode: string;
   referralLink: string;
 }) {
-  const apiKey = process.env.RESEND_API_KEY;
+  const apiKey = process.env.SENDGRID_API_KEY;
   if (!apiKey) return;
 
-  await fetch("https://api.resend.com/emails", {
+  await fetch("https://api.sendgrid.com/v3/mail/send", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "TradePro Nexus <hello@tradepronexus.com>",
-      to: [to],
-      subject: `You're on the list — TradePro Nexus`,
-      html: buildEmail({ name, position, userType, referralCode, referralLink }),
+      personalizations: [{ to: [{ email: to }] }],
+      from: { email: "hello@tradepronexus.com", name: "TradePro Nexus" },
+      subject: "You're on the list — TradePro Nexus",
+      content: [{ type: "text/html", value: buildEmail({ name, position, userType, referralCode, referralLink }) }],
     }),
   });
 }
