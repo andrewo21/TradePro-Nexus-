@@ -402,14 +402,51 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── TRUST SECTION ───────────────────────────────────────────────────── */}
+      {/* ── TRUST STATEMENT ─────────────────────────────────────────────────── */}
+      {/* Roadmap: explicit callout that we are NOT a pay-to-play rating platform */}
       <section className="py-14 px-4 sm:px-6 bg-slate-900/50 border-t border-slate-800">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-xl font-bold text-white mb-6 text-center">Verification You Can Count On</h2>
-          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-10">
+            <span className="inline-block px-3 py-1.5 bg-orange-950/60 border border-orange-800/50 text-orange-400 text-xs font-bold rounded-full uppercase tracking-wider mb-4">
+              Trust Statement
+            </span>
+            <h2 className="text-2xl md:text-3xl font-black text-white mb-4">
+              We are not a pay-to-play platform.
+            </h2>
+            <p className="text-slate-300 text-lg max-w-2xl mx-auto leading-relaxed">
+              The construction industry has been burned by prequalification platforms that turned safety scores into a subscription business and charged contractors to maintain grades. We are not that.
+            </p>
+          </div>
+
+          <div className="grid sm:grid-cols-3 gap-4 mb-8">
             {[
-              { icon: ShieldCheck, label: "AI-Verified Bonding", desc: "Bonding certs read and verified automatically" },
-              { icon: CheckCircle, label: "COI & Insurance", desc: "Current certificates with expiration tracking" },
+              { label: "Not ISNetworld", desc: "No prequalification scores, no EMR ratings, no OCIP determinations" },
+              { label: "Not Avetta or Browz", desc: "No grading system. No ranking contractors above each other." },
+              { label: "Not a Rating Platform", desc: "Badge = eligible. Not rated. Lack of a badge is not a quality judgment." },
+            ].map(item => (
+              <div key={item.label} className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4">
+                <p className="text-red-400 font-bold text-sm mb-1 line-through opacity-60">{item.label}</p>
+                <p className="text-slate-300 text-sm">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-gradient-to-br from-orange-950/30 to-slate-900 border border-orange-800/40 rounded-2xl p-6 text-center">
+            <p className="text-white font-black text-lg mb-2">
+              "Verified by Paper. Not by Algorithm."
+            </p>
+            <p className="text-slate-400 text-sm max-w-xl mx-auto">
+              We check documents. We check references. We run a basic public web scan. A clear result gets a badge. That's it. We will never issue a grade, score, rank, or rating for any contractor on this platform. Ever.
+            </p>
+            <Link href="/policy/no-grades" className="inline-block mt-4 text-orange-400 hover:text-orange-300 text-sm font-semibold underline transition-colors">
+              Read Our No-Grade Policy →
+            </Link>
+          </div>
+
+          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+            {[
+              { icon: ShieldCheck, label: "AI-Verified Bonding", desc: "Bonding certs read and extracted automatically" },
+              { icon: CheckCircle, label: "COI & Insurance", desc: "Current certificates, expiration tracked" },
               { icon: Zap, label: "W9 on File", desc: "Tax compliance verified before first call" },
               { icon: Star, label: "OSHA Certifications", desc: "Safety credentials confirmed and displayed" },
             ].map(({ icon: Icon, label, desc }) => (
@@ -446,13 +483,53 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800 py-8 px-4 sm:px-6 text-center">
-        <p className="text-slate-600 text-xs">
-          © {new Date().getFullYear()} TradePro Enterprises. All rights reserved.
-          {" "}· <Link href="/feed" className="hover:text-slate-400 transition-colors">Live Feed</Link>
-          {" "}· <Link href="/search" className="hover:text-slate-400 transition-colors">Find Crews</Link>
-          {" "}· <Link href="/build" className="hover:text-slate-400 transition-colors">Build Trade Card</Link>
-        </p>
+      <footer className="border-t border-slate-800 py-10 px-4 sm:px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid sm:grid-cols-4 gap-6 mb-8 text-xs">
+            <div>
+              <p className="text-slate-300 font-bold mb-2">Platform</p>
+              <div className="space-y-1.5">
+                <Link href="/feed" className="block text-slate-500 hover:text-slate-300 transition-colors">Live Feed</Link>
+                <Link href="/search" className="block text-slate-500 hover:text-slate-300 transition-colors">Find Crews</Link>
+                <Link href="/build" className="block text-slate-500 hover:text-slate-300 transition-colors">Build Trade Card</Link>
+                <Link href="/pricing" className="block text-slate-500 hover:text-slate-300 transition-colors">GC Pricing</Link>
+                <Link href="/verify" className="block text-slate-500 hover:text-slate-300 transition-colors">Get Verified</Link>
+              </div>
+            </div>
+            <div>
+              <p className="text-slate-300 font-bold mb-2">Policies</p>
+              <div className="space-y-1.5">
+                <Link href="/policy/verification" className="block text-slate-500 hover:text-slate-300 transition-colors">Verification Process</Link>
+                <Link href="/policy/no-grades" className="block text-slate-500 hover:text-slate-300 transition-colors">No-Grade Policy</Link>
+                <Link href="/policy/how-it-works" className="block text-slate-500 hover:text-slate-300 transition-colors">How It Works</Link>
+                <Link href="/policy/disclaimer" className="block text-slate-500 hover:text-slate-300 transition-colors">Platform Disclaimer</Link>
+                <Link href="/policy/documents" className="block text-slate-500 hover:text-slate-300 transition-colors">Document Policy</Link>
+              </div>
+            </div>
+            <div>
+              <p className="text-slate-300 font-bold mb-2">More Policies</p>
+              <div className="space-y-1.5">
+                <Link href="/policy/web-scan" className="block text-slate-500 hover:text-slate-300 transition-colors">Web Scan Disclaimer</Link>
+                <Link href="/policy/supply-house" className="block text-slate-500 hover:text-slate-300 transition-colors">Supply House Policy</Link>
+                <Link href="/advertise/guidelines" className="block text-slate-500 hover:text-slate-300 transition-colors">Advertiser Guidelines</Link>
+              </div>
+            </div>
+            <div>
+              <p className="text-slate-300 font-bold mb-2">Advertise</p>
+              <div className="space-y-1.5">
+                <Link href="/advertise" className="block text-slate-500 hover:text-slate-300 transition-colors">Advertising Info</Link>
+                <Link href="/advertise/guidelines" className="block text-slate-500 hover:text-slate-300 transition-colors">Ad Standards</Link>
+              </div>
+            </div>
+          </div>
+          <div className="border-t border-slate-800 pt-6 text-center">
+            <p className="text-slate-600 text-xs">
+              © {new Date().getFullYear()} TradePro Enterprises. All rights reserved.
+              {" "}· A TradePro Enterprises product ·{" "}
+              <a href="https://tradeprotech.ai" className="hover:text-slate-400 transition-colors">TradePro Resume Builder</a>
+            </p>
+          </div>
+        </div>
       </footer>
     </div>
   );

@@ -12,6 +12,8 @@ import Navbar from "@/components/Navbar";
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
 import { SECTORS, TRADE_GROUPS } from "@/lib/constants";
+import FeedAdCard from "@/components/FeedAdCard";
+import DesktopAdRail from "@/components/DesktopAdRail";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -479,6 +481,9 @@ export default function FeedPage() {
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100">
       <Navbar />
+      {/* Desktop ad rails — hidden on mobile per roadmap */}
+      <DesktopAdRail side="left" />
+      <DesktopAdRail side="right" />
       <div className="max-w-2xl mx-auto px-4 pt-24 pb-24">
 
         {/* Header */}
@@ -544,7 +549,11 @@ export default function FeedPage() {
         ) : filtered.length > 0 ? (
           <div className="space-y-4">
             {filtered.map((post, i) => (
-              editingPost?.id === post.id ? (
+              // Inject sponsored card every 5 posts (after index 4, 9, 14…)
+              // Roadmap: "every 5-6 posts — sponsored/ad card, clearly labeled"
+              <div key={post.id}>
+                {i > 0 && i % 5 === 0 && <div className="mb-4"><FeedAdCard index={Math.floor(i / 5) - 1} /></div>}
+              {editingPost?.id === post.id ? (
                 <EditComposer key={post.id} post={post} onDone={() => { setEditingPost(null); fetchPosts(); }} onCancel={() => setEditingPost(null)} />
               ) : (
                 <motion.div key={post.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: i * 0.04 }}>
@@ -564,7 +573,8 @@ export default function FeedPage() {
                     onDM={() => dmPost(post)}
                   />
                 </motion.div>
-              )
+              )}
+              </div>
             ))}
           </div>
         ) : (
