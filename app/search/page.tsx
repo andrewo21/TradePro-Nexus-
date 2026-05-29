@@ -10,7 +10,7 @@ import {
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
-import { SECTORS, TRADE_GROUPS } from "@/lib/constants";
+import { SECTORS, TRADE_GROUPS, PROFILE_TYPES, type ProfileType } from "@/lib/constants";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -196,6 +196,7 @@ export default function SearchPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isGC, setIsGC] = useState<boolean | null>(null);
+  const [profileTypeFilter, setProfileTypeFilter] = useState<ProfileType | "all">("all");
 
   const handleSearch = useCallback(async () => {
     setLoading(true);
@@ -212,6 +213,45 @@ export default function SearchPage() {
 
       if (mode === "crews") {
         const db = supabase as any;
+
+        // Profile type filter determines whether to query companies or profiles
+        const isProfileTypeSearch = profileTypeFilter !== "all" && profileTypeFilter !== "sub";
+
+        if (isProfileTypeSearch) {
+          // Search individual profiles (inspectors, architects, engineers, tradepros)
+          let query = db
+            .from("profiles")
+            .select("id, slug, first_name, last_name, trade, profile_type, firm_name, license_number, location_city, location_state, location_zip, gallery_urls, availability_status, verification_status, years_experience, type_data")
+            .eq("verification_status", "verified")
+            .eq("profile_type", profileTypeFilter);
+
+          if (availableNow) query = query.eq("availability_status", "available");
+          if (zip.trim()) query = query.eq("location_zip", zip.trim());
+
+          query = query.order("availability_status").limit(30);
+          const { data: profiles } = await query;
+
+          const pv = parseDollar(projectValue);
+          const mapped: SearchResult[] = (profiles ?? []).map((p: any) => {
+            const r: SearchResult = {
+              id: p.id, name: `${p.first_name} ${p.last_name}`,
+              slug: p.slug, trade: p.trade ?? "",
+              location: [p.location_city, p.location_state].filter(Boolean).join(", "),
+              bondingCapacity: null, crewCapacity: p.years_experience ?? null,
+              directPayrollPct: 100, galleryCount: (p.gallery_urls ?? []).length,
+              availabilityStatus: p.availability_status ?? "available",
+              verificationStatus: p.verification_status,
+              sectorExperience: [], tier: "blue", leadForeman: null,
+            };
+            r.tier = computeTier(r, pv);
+            return r;
+          });
+          setResults(mapped);
+          setLoading(false);
+          return;
+        }
+
+        // Default: search companies (subs/contractors)
         let query = db
           .from("companies")
           .select("id, slug, name, trade_specialties, location_city, location_state, bonding_capacity, crew_capacity, direct_payroll_percentage, gallery_urls, availability_status, verification_status, sector_experience")
@@ -345,6 +385,25 @@ export default function SearchPage() {
 
         {/* Search form */}
         <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-5 mb-6">
+
+          {/* Profile Type Filter — Phase 10 */}
+          {mode === "crews" && (
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wide">Profile Type</label>
+              <div className="flex flex-wrap gap-2">
+                <button onClick={() => setProfileTypeFilter("all")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${profileTypeFilter === "all" ? "bg-blue-600 text-white" : "bg-slate-900 text-slate-400 border border-slate-600 hover:border-blue-600/50"}`}>
+                  All Types
+                </button>
+                {(Object.entries(PROFILE_TYPES) as [ProfileType, typeof PROFILE_TYPES["tradepro"]][]).map(([key, cfg]) => (
+                  <button key={key} onClick={() => setProfileTypeFilter(key)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${profileTypeFilter === key ? "bg-blue-600 text-white" : "bg-slate-900 text-slate-400 border border-slate-600 hover:border-blue-600/50"}`}>
+                    {cfg.short}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Sectors — clickable pills */}
           <div className="mb-4">

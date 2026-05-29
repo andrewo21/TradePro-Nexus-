@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
-import { ShieldCheck, MapPin, Users, Briefcase, Phone, Mail, Camera, CheckCircle, Building2, HardHat } from "lucide-react";
+import { ShieldCheck, MapPin, Users, Briefcase, Phone, Mail, Camera, CheckCircle, Building2, HardHat, FileText, Ruler, Wrench } from "lucide-react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import type { Profile, Company } from "@/types/database";
 import FollowButton from "@/components/FollowButton";
 import ProfileViewTracker from "@/components/ProfileViewTracker";
+import { PROFILE_TYPES } from "@/lib/constants";
 
 function VerificationBadge({ status }: { status: string }) {
   if (status !== "verified") {
@@ -44,6 +45,14 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
     : { data: null };
 
   const otherCerts = (profile.other_certifications ?? []).join(", ");
+
+  // Type-specific fields from JSONB column
+  const profileType = (profile as any).profile_type ?? "tradepro";
+  const typeData = (profile as any).type_data ?? {};
+  const licenseNumber = (profile as any).license_number;
+  const licenseStates = (profile as any).license_states ?? [];
+  const firmName = (profile as any).firm_name;
+  const typeConfig = PROFILE_TYPES[profileType as keyof typeof PROFILE_TYPES] ?? PROFILE_TYPES.tradepro;
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100">
@@ -113,6 +122,26 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
             </div>
           </div>
 
+          {/* Profile type badge + firm name */}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-[10px] font-bold text-slate-400 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded-full uppercase tracking-widest">
+              {typeConfig.label}
+            </span>
+            {firmName && <span className="text-xs text-slate-400">{firmName}</span>}
+          </div>
+
+          {/* License number — prominent for inspectors/architects/engineers */}
+          {licenseNumber && (
+            <div className="mt-3 bg-slate-900/60 border border-slate-700/50 rounded-xl px-4 py-2.5 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-green-400 flex-shrink-0" />
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">License</p>
+                <p className="text-sm font-bold text-white font-mono">{licenseNumber}</p>
+                {licenseStates.length > 0 && <p className="text-xs text-slate-400">{licenseStates.join(", ")}</p>}
+              </div>
+            </div>
+          )}
+
           {/* Follow button — shown to non-owners */}
           <div className="mt-4 pt-4 border-t border-slate-700/50 flex items-center gap-3">
             <FollowButton followingId={profile.id} followingType="profile" label={`Follow ${profile.first_name}`} />
@@ -159,6 +188,70 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Inspector-specific: inspection types and jurisdictions */}
+        {profileType === "inspector" && (typeData.inspection_types?.length > 0 || typeData.jurisdictions) && (
+          <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5 mb-4">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-1.5">
+              <FileText className="w-4 h-4 text-green-400" /> Inspection Services
+            </h2>
+            {typeData.inspection_types?.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {typeData.inspection_types.map((t: string) => (
+                  <span key={t} className="px-2.5 py-1 bg-green-900/30 border border-green-800/40 text-green-300 text-xs font-semibold rounded-full">{t}</span>
+                ))}
+              </div>
+            )}
+            {typeData.jurisdictions && (
+              <p className="text-sm text-slate-300"><span className="text-slate-500 font-semibold text-xs uppercase tracking-wide">Jurisdictions: </span>{typeData.jurisdictions}</p>
+            )}
+          </div>
+        )}
+
+        {/* Architect-specific: specializations and software */}
+        {profileType === "architect" && (typeData.specializations?.length > 0 || typeData.software?.length > 0) && (
+          <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5 mb-4">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-1.5">
+              <Ruler className="w-4 h-4 text-blue-400" /> Practice Areas &amp; Software
+            </h2>
+            {typeData.specializations?.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-3">
+                {typeData.specializations.map((s: string) => (
+                  <span key={s} className="px-2.5 py-1 bg-blue-900/30 border border-blue-800/40 text-blue-300 text-xs font-semibold rounded-full">{s}</span>
+                ))}
+              </div>
+            )}
+            {typeData.software?.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {typeData.software.map((sw: string) => (
+                  <span key={sw} className="px-2.5 py-1 bg-slate-900/60 border border-slate-700/50 text-slate-400 text-xs font-semibold rounded-full">{sw}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Engineer-specific: discipline, license, software */}
+        {profileType === "engineer" && (typeData.discipline || typeData.software?.length > 0) && (
+          <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-5 mb-4">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-1.5">
+              <Wrench className="w-4 h-4 text-purple-400" /> Engineering Discipline &amp; Software
+            </h2>
+            {typeData.discipline && (
+              <p className="text-sm font-bold text-white mb-2">{typeData.discipline} Engineer</p>
+            )}
+            {typeData.pe_license_number && (
+              <p className="text-xs text-slate-400 mb-3">PE License: <span className="text-slate-300 font-mono">{typeData.pe_license_number}</span></p>
+            )}
+            {typeData.software?.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {typeData.software.map((sw: string) => (
+                  <span key={sw} className="px-2.5 py-1 bg-slate-900/60 border border-slate-700/50 text-slate-400 text-xs font-semibold rounded-full">{sw}</span>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

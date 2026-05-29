@@ -12,17 +12,42 @@ import Navbar from "@/components/Navbar";
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
 
-const REQUIRED_DOCS = [
-  { key: "w9", label: "W9 Form", desc: "Valid EIN required — sole proprietors use SSN" },
-  { key: "coi", label: "Certificate of Insurance (COI)", desc: "Must be current — expiration tracked automatically" },
-  { key: "bonding", label: "Bonding Certificate", desc: "Capacity and bonding company extracted by AI" },
-  { key: "agreement", label: "Executed Sub Agreement", desc: "Signed, dated, with dollar amount — from any project" },
-];
+// Required docs vary by profile type:
+// Subs/tradepros: W9 + COI + bonding + executed agreement
+// Inspectors, architects, engineers: W9 + COI + license copy (no bonding, no sub agreement)
+const DOCS_BY_TYPE: Record<string, Array<{ key: string; label: string; desc: string }>> = {
+  sub: [
+    { key: "w9", label: "W9 Form", desc: "Valid EIN required — sole proprietors use SSN" },
+    { key: "coi", label: "Certificate of Insurance (COI)", desc: "Must be current — expiration tracked automatically" },
+    { key: "bonding", label: "Bonding Certificate", desc: "Capacity and bonding company extracted by AI" },
+    { key: "agreement", label: "Executed Sub Agreement", desc: "Signed, dated, with dollar amount — from any project" },
+  ],
+  tradepro: [
+    { key: "w9", label: "W9 Form", desc: "Valid EIN or SSN for sole proprietors" },
+    { key: "coi", label: "Certificate of Insurance (COI)", desc: "Current general liability insurance" },
+  ],
+  inspector: [
+    { key: "w9", label: "W9 Form", desc: "Valid EIN required" },
+    { key: "coi", label: "Certificate of Insurance (COI)", desc: "E&O and general liability — expiration tracked" },
+    { key: "license", label: "License Copy", desc: "State inspector or ICC card — AI reads license number and expiration" },
+  ],
+  architect: [
+    { key: "w9", label: "W9 Form", desc: "Valid EIN required" },
+    { key: "coi", label: "Certificate of Insurance (COI)", desc: "E&O and general liability — expiration tracked" },
+    { key: "license", label: "Architecture License", desc: "State license card or certificate — AI reads license number" },
+  ],
+  engineer: [
+    { key: "w9", label: "W9 Form", desc: "Valid EIN required" },
+    { key: "coi", label: "Certificate of Insurance (COI)", desc: "E&O and general liability — expiration tracked" },
+    { key: "license", label: "PE License", desc: "PE stamp or license certificate — AI reads license number and state" },
+  ],
+};
 
 function VerifyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [hasProfile, setHasProfile] = useState<boolean | null>(null);
+  const [profileType, setProfileType] = useState<string>("sub");
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,11 +59,12 @@ function VerifyContent() {
       if (!user) { setHasProfile(false); return; }
       const { data } = await (supabase as any)
         .from("profiles")
-        .select("id, verification_status")
+        .select("id, verification_status, profile_type")
         .eq("user_id", user.id)
         .single();
       setHasProfile(!!data);
       setVerificationStatus(data?.verification_status ?? null);
+      if (data?.profile_type) setProfileType(data.profile_type);
     });
   }, []);
 
@@ -146,7 +172,7 @@ function VerifyContent() {
             <FileText className="w-4 h-4 text-orange-400" /> Documents You&apos;ll Need
           </h2>
           <div className="space-y-3">
-            {REQUIRED_DOCS.map((doc) => (
+            {(DOCS_BY_TYPE[profileType] ?? DOCS_BY_TYPE.sub).map((doc) => (
               <div key={doc.key} className="flex items-start gap-3">
                 <div className="w-6 h-6 bg-orange-600/20 border border-orange-600/40 rounded flex items-center justify-center flex-shrink-0 mt-0.5">
                   <FileText className="w-3.5 h-3.5 text-orange-400" />

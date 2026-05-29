@@ -1,3 +1,40 @@
+// ── Profile Types ─────────────────────────────────────────────────────────────
+
+export type ProfileType = "tradepro" | "sub" | "inspector" | "architect" | "engineer";
+
+export const PROFILE_TYPES = {
+  tradepro: {
+    label: "Trade Pro / Worker",
+    description: "Individual tradeworker or laborer",
+    color: "orange",
+    short: "Trade Pro",
+  },
+  sub: {
+    label: "Sub / Contractor",
+    description: "Subcontracting company or contractor",
+    color: "orange",
+    short: "Sub",
+  },
+  inspector: {
+    label: "Inspector / Testing Agency",
+    description: "Special inspector, threshold inspector, testing lab, or firm",
+    color: "green",
+    short: "Inspector",
+  },
+  architect: {
+    label: "Architect",
+    description: "Design, interior, landscape architect, or code consultant",
+    color: "blue",
+    short: "Architect",
+  },
+  engineer: {
+    label: "Engineer",
+    description: "Structural, civil, MEP, geotechnical, or other discipline",
+    color: "purple",
+    short: "Engineer",
+  },
+} as const satisfies Record<ProfileType, { label: string; description: string; color: string; short: string }>;
+
 // ── Sectors ──────────────────────────────────────────────────────────────────
 
 export const SECTORS = [
@@ -12,7 +49,7 @@ export const SECTORS = [
   "Hospitality",
 ];
 
-// ── Trades ───────────────────────────────────────────────────────────────────
+// ── Trade + Discipline Groups ─────────────────────────────────────────────────
 
 export const TRADE_GROUPS = [
   {
@@ -72,15 +109,140 @@ export const TRADE_GROUPS = [
       "Scaffolding",
       "Crane / Rigging",
       "Survey",
-      "Testing & Inspection",
       "Commissioning",
       "Security Systems",
       "Parking Equipment",
     ],
   },
+  {
+    label: "Testing & Inspection",
+    trades: [
+      "Threshold Inspector (Florida)",
+      "Special Inspector — Structural",
+      "Special Inspector — Concrete",
+      "Special Inspector — Fireproofing",
+      "Special Inspector — Welding",
+      "Geotechnical / Soils Testing",
+      "Environmental Testing",
+      "Air Barrier Testing",
+      "Waterproofing Inspection",
+      "Building Envelope Consultant",
+      "Third Party Testing Lab",
+      "Materials Testing",
+      "Special Inspection Firm",
+    ],
+  },
+  {
+    label: "Architecture",
+    trades: [
+      "Design Architect",
+      "Interior Architect",
+      "Landscape Architect",
+      "Historic Preservation",
+      "Code Consultant",
+      "BIM / VDC Specialist",
+    ],
+  },
+  {
+    label: "Engineering",
+    trades: [
+      "Structural Engineer",
+      "Civil Engineer",
+      "MEP Engineer",
+      "Geotechnical Engineer",
+      "Environmental Engineer",
+      "Commissioning Engineer",
+      "Facade / Envelope Engineer",
+      "Fire Protection Engineer",
+      "Acoustical Engineer",
+      "Technology / Low Voltage Engineer",
+      "Cost Estimator",
+      "Owner's Rep",
+    ],
+  },
 ] as const;
 
 export const ALL_TRADES = TRADE_GROUPS.flatMap((g) => g.trades);
+
+// ── Certifications by profile type ───────────────────────────────────────────
+
+export const INSPECTOR_CERTS = [
+  "ICC — Building Inspector",
+  "ICC — Structural Steel & Bolting Inspector",
+  "ICC — Concrete Inspector",
+  "ICC — Reinforced Concrete Inspector",
+  "ICC — Spray-Applied Fireproofing Inspector",
+  "ACI — Concrete Field Testing Technician Grade I",
+  "ACI — Concrete Strength Testing Technician",
+  "AWS — Certified Welding Inspector (CWI)",
+  "NICET — Level I / II / III",
+  "PE — Professional Engineer",
+  "AIA — Associate / Member",
+  "ICBO Certification",
+  "Florida Threshold Inspector License",
+  "Geotechnical Testing Certification",
+  "Air Barrier QC Inspector",
+];
+
+export const ARCHITECT_CERTS = [
+  "AIA Member",
+  "LEED AP",
+  "NCARB Certified",
+  "Historic Preservation Specialist",
+  "Passive House Designer",
+  "WELL AP",
+];
+
+export const ARCHITECT_SOFTWARE = [
+  "Revit",
+  "AutoCAD",
+  "SketchUp",
+  "Rhino",
+  "ArchiCAD",
+  "Bluebeam",
+  "Navisworks",
+];
+
+export const ENGINEER_DISCIPLINES = [
+  "Structural",
+  "Civil",
+  "MEP — Mechanical",
+  "MEP — Electrical",
+  "MEP — Plumbing",
+  "Geotechnical",
+  "Environmental",
+  "Commissioning",
+  "Facade / Envelope",
+  "Fire Protection",
+  "Acoustical",
+  "Technology / Low Voltage",
+  "Cost Estimating",
+  "Owner's Rep",
+];
+
+export const ENGINEER_SOFTWARE = [
+  "ETABS",
+  "SAP2000",
+  "Revit Structure",
+  "Revit MEP",
+  "AutoCAD Civil 3D",
+  "RAM Structural System",
+  "SAFE",
+  "STAAD.Pro",
+  "Bluebeam",
+  "Navisworks",
+];
+
+export const OSHA_CERTS = [
+  "OSHA 10 — Construction",
+  "OSHA 30 — Construction",
+  "OSHA 10 — General Industry",
+  "OSHA 30 — General Industry",
+  "Fall Protection",
+  "Confined Space",
+  "Forklift / Equipment Operator",
+  "First Aid / CPR",
+];
 
 // ── Availability labels ───────────────────────────────────────────────────────
 
