@@ -7,6 +7,7 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import type { Company, Profile } from "@/types/database";
+import FollowButton from "@/components/FollowButton";
 
 function formatCurrency(value: number) {
   if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(0)}M`;
@@ -75,6 +76,10 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
                 )}
               </div>
             </div>
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-slate-700/50">
+            <FollowButton followingId={company.id} followingType="company" label={`Follow ${company.name}`} />
           </div>
 
           {company.description && (

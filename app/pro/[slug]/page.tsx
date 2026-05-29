@@ -4,6 +4,8 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { getSupabaseServer } from "@/lib/supabaseServer";
 import type { Profile, Company } from "@/types/database";
+import FollowButton from "@/components/FollowButton";
+import ProfileViewTracker from "@/components/ProfileViewTracker";
 
 function VerificationBadge({ status }: { status: string }) {
   if (status !== "verified") {
@@ -46,6 +48,8 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100">
       <Navbar />
+      {/* Records GC profile view client-side for push notification trigger */}
+      <ProfileViewTracker profileId={profile.id} />
       <div className="max-w-2xl mx-auto px-4 pt-24 pb-16">
 
         {/* Hero Card */}
@@ -107,6 +111,11 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Follow button — shown to non-owners */}
+          <div className="mt-4 pt-4 border-t border-slate-700/50 flex items-center gap-3">
+            <FollowButton followingId={profile.id} followingType="profile" label={`Follow ${profile.first_name}`} />
           </div>
 
           {profile.bio && (

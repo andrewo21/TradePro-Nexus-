@@ -8,10 +8,11 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
     const body = await request.json();
-    const { content, project_name, trade_tags, author_type } = body as {
+    const { content, project_name, trade_tags, image_urls, author_type } = body as {
       content: string;
       project_name?: string;
       trade_tags?: string[];
+      image_urls?: string[];
       author_type: "profile" | "company";
     };
 
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
       content: content.trim(),
       project_name: project_name?.trim() || null,
       trade_tags: trade_tags ?? [],
+      image_urls: image_urls ?? [],
       is_moderated: false,
     }).select().single();
 
