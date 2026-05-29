@@ -1,12 +1,19 @@
 // Server-only — web-push setup with VAPID keys
 // VAPID keys generated 2026-05-28 for tradepronexus.com
+// Lazy init: setVapidDetails only runs when actually sending a notification,
+// not at module load time — avoids crashing the build when keys aren't set.
 import webpush from "web-push";
 
-webpush.setVapidDetails(
-  "mailto:andrew@tradeprotech.ai",
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!,
-  process.env.VAPID_PRIVATE_KEY!
-);
+let vapidConfigured = false;
+
+function ensureVapid() {
+  if (vapidConfigured) return;
+  const pub = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const priv = process.env.VAPID_PRIVATE_KEY;
+  if (!pub || !priv) return; // graceful no-op when keys not configured
+  webpush.setVapidDetails("mailto:andrew@tradeprotech.ai", pub, priv);
+  vapidConfigured = true;
+}
 
 export interface NotificationPayload {
   title: string;
@@ -20,6 +27,7 @@ export async function sendPushToUser(
   userId: string,
   payload: NotificationPayload
 ): Promise<void> {
+  ensureVapid();
   const { data: subs } = await db
     .from("push_subscriptions")
     .select("endpoint, p256dh, auth")
