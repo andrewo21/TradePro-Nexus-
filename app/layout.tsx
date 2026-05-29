@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import WaitlistMobileBar from "@/components/WaitlistMobileBar";
+import PushNotificationProvider from "@/components/PushNotificationProvider";
 import { Suspense } from "react";
 import Link from "next/link";
 
@@ -29,6 +30,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className="min-h-screen bg-[#0f172a] text-slate-100 antialiased">
         {children}
@@ -49,10 +52,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </Link>
         </div>
 
-        {/* Mobile floating bar */}
+        {/* Mobile floating waitlist bar */}
         <Suspense fallback={null}>
           <WaitlistMobileBar />
         </Suspense>
+
+        {/* Push notification service worker registration */}
+        <PushNotificationProvider />
       </body>
     </html>
   );
