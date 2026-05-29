@@ -4,6 +4,7 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabaseServer";
 import { GC_TIERS, FOUNDER_LIMIT, type GCTier } from "@/lib/stripe-config";
+import ProfileCompletion from "@/components/ProfileCompletion";
 
 interface GCSubRow {
   id: string;
@@ -54,7 +55,7 @@ export default async function AccountPage() {
   const db = getSupabaseAdmin() as any;
 
   const [profileRes, companyRes] = await Promise.all([
-    db.from("profiles").select("id, first_name, last_name, slug, verification_status").eq("user_id", user.id).single(),
+    db.from("profiles").select("id, first_name, last_name, slug, profile_type, trade, years_experience, location_city, location_zip, bio, phone, avatar_url, gallery_urls, osha_certifications, other_certifications, verification_status, license_number, type_data, availability_status").eq("user_id", user.id).single(),
     db.from("companies").select("id, name, slug").eq("user_id", user.id).single(),
   ]);
 
@@ -80,6 +81,11 @@ export default async function AccountPage() {
       <div className="max-w-2xl mx-auto px-4 pt-24 pb-16">
 
         <h1 className="text-2xl font-black text-white mb-8">My Account</h1>
+
+        {/* Profile completion nudge — shown to trade pros / inspectors / architects / engineers */}
+        {profile && company === null && (
+          <ProfileCompletion profile={profile} />
+        )}
 
         {/* Trade Card status */}
         {profile && (
