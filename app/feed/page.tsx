@@ -72,13 +72,13 @@ function PostCard({
   const isOwner = post.author_id === currentAuthorId;
 
   return (
-    <div className="bg-slate-800/50 border border-slate-700/50 rounded-2xl overflow-hidden hover:border-slate-600 transition-colors">
+    <div className="bg-slate-800 border border-slate-600 rounded-2xl overflow-hidden hover:border-slate-500 transition-colors">
       <div className="p-4 pb-0">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex items-start gap-3">
             <Link
               href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`}
-              className="w-10 h-10 rounded-xl bg-orange-600/20 border border-orange-600/40 flex items-center justify-center font-black text-orange-400 text-sm flex-shrink-0 hover:border-orange-400 transition-colors"
+              className="w-10 h-10 rounded-xl bg-orange-600/30 border border-orange-600/60 flex items-center justify-center font-black text-orange-400 text-sm flex-shrink-0 hover:border-orange-400 transition-colors"
             >
               {post.author_type === "company" ? <Building2 className="w-5 h-5" /> : post.author_name.slice(0, 2).toUpperCase()}
             </Link>
@@ -88,18 +88,19 @@ function PostCard({
                   {post.author_name}
                 </Link>
                 {post.author_verified && (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-900/30 border border-green-800/40 px-1.5 py-0.5 rounded-full">
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-900/40 border border-green-700 px-1.5 py-0.5 rounded-full">
                     <ShieldCheck className="w-3 h-3" /> VERIFIED
                   </span>
                 )}
                 {post.author_availability === "available" && (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-900/20 px-1.5 py-0.5 rounded-full border border-green-800/30">
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-300 bg-green-900/40 px-1.5 py-0.5 rounded-full border border-green-700">
                     <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" /> Available Now
                   </span>
                 )}
               </div>
-              <p className="text-xs text-orange-400 font-medium">{post.author_trade}</p>
-              <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-orange-400 font-semibold mt-0.5">{post.author_trade}</p>
+              {/* slate-400 ≈ 4.8:1 on slate-800 — passes WCAG AA */}
+              <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
                 {post.author_location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{post.author_location}</span>}
                 <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo(post.created_at)}</span>
               </div>
@@ -108,7 +109,7 @@ function PostCard({
 
           {/* Actions menu */}
           <div className="relative flex-shrink-0">
-            <button onClick={() => setMenuOpen(!menuOpen)} className="text-slate-500 hover:text-slate-300 p-1 transition-colors">
+            <button onClick={() => setMenuOpen(!menuOpen)} className="text-slate-400 hover:text-slate-200 p-1 transition-colors">
               <MoreHorizontal className="w-4 h-4" />
             </button>
             {menuOpen && (
@@ -140,8 +141,8 @@ function PostCard({
           </div>
         </div>
 
-        {post.project_name && <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-1.5">Project: {post.project_name}</p>}
-        <p className="text-slate-200 text-sm leading-relaxed">{post.content}</p>
+        {post.project_name && <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1.5">Project: {post.project_name}</p>}
+        <p className="text-slate-100 text-sm leading-relaxed">{post.content}</p>
 
         {/* Gallery */}
         {post.image_urls?.length > 0 && (
@@ -157,23 +158,23 @@ function PostCard({
         {post.trade_tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-3">
             {post.trade_tags.map(tag => (
-              <span key={tag} className="px-2 py-0.5 bg-slate-900/60 border border-slate-700/50 text-slate-400 text-[10px] font-semibold rounded-full">#{tag.replace(/\s+/g, "")}</span>
+              <span key={tag} className="px-2 py-0.5 bg-slate-700 border border-slate-600 text-slate-300 text-[10px] font-semibold rounded-full">#{tag.replace(/\s+/g, "")}</span>
             ))}
           </div>
         )}
       </div>
 
-      <div className="flex items-center justify-between px-4 py-3 mt-3 border-t border-slate-700/50">
+      <div className="flex items-center justify-between px-4 py-3 mt-3 border-t border-slate-700">
         <div className="flex items-center gap-3">
-          <button onClick={onLike} className={`flex items-center gap-1.5 text-xs font-semibold transition-colors ${liked ? "text-red-400" : "text-slate-500 hover:text-red-400"}`}>
+          <button onClick={onLike} className={`flex items-center gap-1.5 text-xs font-semibold transition-colors ${liked ? "text-red-400" : "text-slate-400 hover:text-red-400"}`}>
             <Heart className={`w-4 h-4 ${liked ? "fill-red-400" : ""}`} />
             {post.likes_count + (liked ? 1 : 0)}
           </button>
-          <button onClick={onBookmark} className={`flex items-center gap-1 text-xs font-semibold transition-colors ${bookmarked ? "text-orange-400" : "text-slate-500 hover:text-orange-400"}`}>
+          <button onClick={onBookmark} className={`flex items-center gap-1 text-xs font-semibold transition-colors ${bookmarked ? "text-orange-400" : "text-slate-400 hover:text-orange-400"}`}>
             <Bookmark className={`w-4 h-4 ${bookmarked ? "fill-orange-400" : ""}`} />
           </button>
         </div>
-        <Link href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`} className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-orange-400 transition-colors">
+        <Link href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`} className="flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-orange-400 transition-colors">
           View {post.author_type === "company" ? "Company" : "Trade Card"} <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       </div>
@@ -260,7 +261,7 @@ function PostComposer({ onPost }: { onPost: () => void }) {
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="w-full flex items-center gap-3 text-left text-sm text-slate-500 hover:text-slate-300 transition-colors bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4">
+      <button onClick={() => setOpen(true)} className="w-full flex items-center gap-3 text-left text-sm text-slate-400 hover:text-slate-200 transition-colors bg-slate-800 border border-slate-600 rounded-2xl p-4">
         <div className="w-8 h-8 rounded-lg bg-orange-600/20 border border-orange-600/40 flex items-center justify-center">
           <PenLine className="w-4 h-4 text-orange-400" />
         </div>
@@ -270,24 +271,24 @@ function PostComposer({ onPost }: { onPost: () => void }) {
   }
 
   return (
-    <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 space-y-3">
+    <div className="bg-slate-800 border border-slate-600 rounded-2xl p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-widest text-slate-400">New Post</span>
-        <button onClick={handleDiscard} className="text-slate-500 hover:text-slate-300 transition-colors"><X className="w-4 h-4" /></button>
+        <span className="text-xs font-bold uppercase tracking-widest text-slate-300">New Post</span>
+        <button onClick={handleDiscard} className="text-slate-400 hover:text-slate-200 transition-colors"><X className="w-4 h-4" /></button>
       </div>
       <textarea
         value={content}
         onChange={e => setContent(e.target.value)}
         placeholder="What are you working on? Project update, milestone, crew availability…"
         rows={4}
-        className="w-full bg-slate-900 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 resize-none"
+        className="w-full bg-slate-900 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-orange-500 resize-none"
         autoFocus
       />
       <input
         value={project}
         onChange={e => setProject(e.target.value)}
         placeholder="Project name (optional)"
-        className="w-full bg-slate-900 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
+        className="w-full bg-slate-900 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-orange-500"
       />
 
       {/* Image previews */}
@@ -511,13 +512,13 @@ export default function FeedPage() {
 
         {/* Search */}
         <div className="relative mb-4">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search posts, names, projects…" className="w-full bg-slate-800/60 border border-slate-700/50 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search posts, names, projects…" className="w-full bg-slate-800 border border-slate-600 rounded-xl pl-9 pr-4 py-2.5 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-orange-500 transition-colors" />
         </div>
 
         {/* Filters */}
         {showFilters && (
-          <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 mb-5 space-y-3">
+          <div className="bg-slate-800 border border-slate-600 rounded-2xl p-4 mb-5 space-y-3">
             <button onClick={() => setAvailableNow(!availableNow)} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${availableNow ? "bg-green-900/40 border-green-700 text-green-400" : "bg-slate-900 border-slate-600 text-slate-400 hover:border-green-700/50"}`}>
               <span className={`w-2 h-2 rounded-full ${availableNow ? "bg-green-400 animate-pulse" : "bg-slate-600"}`} /> Available Now Only
             </button>
@@ -545,7 +546,7 @@ export default function FeedPage() {
 
         {/* Feed */}
         {loading ? (
-          <div className="space-y-4">{[1, 2, 3].map(i => <div key={i} className="bg-slate-800/40 border border-slate-700/30 rounded-2xl p-4 animate-pulse h-32" />)}</div>
+          <div className="space-y-4">{[1, 2, 3].map(i => <div key={i} className="bg-slate-800 border border-slate-700 rounded-2xl p-4 animate-pulse h-32" />)}</div>
         ) : filtered.length > 0 ? (
           <div className="space-y-4">
             {filtered.map((post, i) => (
