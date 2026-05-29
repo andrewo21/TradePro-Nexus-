@@ -3,7 +3,7 @@ import { ShieldCheck, Building2, Users, Calendar, Star, AlertCircle, CheckCircle
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabaseServer";
-import { GC_TIERS, FOUNDER_LIMIT, type GCTier } from "@/lib/stripe";
+import { GC_TIERS, FOUNDER_LIMIT, type GCTier } from "@/lib/stripe-config";
 
 interface GCSubRow {
   id: string;

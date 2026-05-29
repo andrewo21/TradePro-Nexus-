@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { stripe, GC_TIERS, type GCTier } from "@/lib/stripe";
+import { stripe, GC_TIERS_WITH_PRICES } from "@/lib/stripe";
+import type { GCTier } from "@/lib/stripe-config";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
 import type Stripe from "stripe";
 
@@ -27,7 +28,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
 
   if (type === "gc_subscription") {
     if (!company_id || !tier) return;
-    const tierConfig = GC_TIERS[tier as GCTier];
+    const tierConfig = GC_TIERS_WITH_PRICES[tier as GCTier];
     const isFounder = is_founder === "true";
 
     // Subscription record created by customer.subscription.created event
@@ -55,7 +56,7 @@ async function handleSubscriptionUpdate(sub: Stripe.Subscription) {
   const { company_id, tier, is_founder } = sub.metadata ?? {};
   if (!company_id) return;
 
-  const tierConfig = tier ? GC_TIERS[tier as GCTier] : null;
+  const tierConfig = tier ? GC_TIERS_WITH_PRICES[tier as GCTier] : null;
   const status = sub.status === "trialing" ? "trialing"
     : sub.status === "active" ? "active"
     : sub.status === "past_due" ? "past_due"

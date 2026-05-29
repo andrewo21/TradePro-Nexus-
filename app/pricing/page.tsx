@@ -9,7 +9,7 @@ import {
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
-import { GC_TIERS, FOUNDER_LIMIT, type GCTier } from "@/lib/stripe";
+import { GC_TIERS, FOUNDER_LIMIT, type GCTier } from "@/lib/stripe-config";
 
 const TIER_FEATURES = {
   solo: [

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseServer } from "@/lib/supabaseServer";
-import { stripe, GC_TIERS, FOUNDER_LIMIT, type GCTier } from "@/lib/stripe";
+import { stripe, GC_TIERS_WITH_PRICES, FOUNDER_LIMIT } from "@/lib/stripe";
+import type { GCTier } from "@/lib/stripe-config";
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
       .select("*", { count: "exact", head: true });
     const isFounder = (subCount ?? 0) < FOUNDER_LIMIT;
 
-    const tierConfig = GC_TIERS[tier];
+    const tierConfig = GC_TIERS_WITH_PRICES[tier];
 
     // Get or create Stripe customer
     let customerId = company.stripe_customer_id;
