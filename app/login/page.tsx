@@ -4,7 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { HardHat, Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
+import Image from "next/image";
 import Navbar from "@/components/Navbar";
 import { getSupabase } from "@/lib/supabase";
 
@@ -45,8 +46,12 @@ export default function LoginPage() {
         >
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-14 h-14 bg-orange-600/20 border-2 border-orange-600/40 rounded-2xl mb-4">
-              <HardHat className="w-7 h-7 text-orange-400" />
+            <div className="flex items-center justify-center gap-2.5 mb-4">
+              <Image src="/logo-mark.svg" alt="TradePro Nexus" width={40} height={40} className="rounded-xl" />
+              <span className="font-semibold text-lg tracking-tight">
+                <span className="text-slate-100">TradePro</span>
+                <span className="text-orange-400"> Nexus</span>
+              </span>
             </div>
             <h1 className="text-2xl font-black text-white">Sign In</h1>
             <p className="text-slate-400 text-sm mt-1">Welcome back to TradePro Nexus</p>

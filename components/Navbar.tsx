@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
-import { Menu, X, HardHat, Search, Rss, ChevronDown } from "lucide-react";
+import { Menu, X, Search, Rss, ChevronDown } from "lucide-react";
+import Image from "next/image";
 import { getSupabase } from "@/lib/supabase";
 import { AVAILABILITY_CONFIG } from "@/lib/constants";
 
@@ -82,13 +83,11 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
 
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 bg-orange-600 rounded flex items-center justify-center">
-            <HardHat className="w-5 h-5 text-white" />
-          </div>
-          <span className="font-bold text-lg tracking-tight">
-            <span className="text-white">TradePro</span>
-            <span className="text-orange-500"> Nexus</span>
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <Image src="/logo-mark.svg" alt="TradePro Nexus" width={32} height={32} className="rounded-lg" />
+          <span className="font-semibold text-base tracking-tight leading-none">
+            <span className="text-slate-100">TradePro</span>
+            <span className="text-orange-400"> Nexus</span>
           </span>
         </Link>
 
