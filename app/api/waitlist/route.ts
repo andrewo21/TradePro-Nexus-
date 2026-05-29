@@ -188,8 +188,17 @@ export async function POST(request: NextRequest) {
     }).catch(() => {});
 
     return NextResponse.json({ position, referral_code });
-  } catch (err) {
-    console.error("Waitlist error:", err);
+  } catch (err: unknown) {
+    // Log full details so we can diagnose from Vercel logs
+    const detail = {
+      message: err instanceof Error ? err.message : String(err),
+      code: (err as any)?.code,
+      details: (err as any)?.details,
+      hint: (err as any)?.hint,
+      url: (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "NOT_SET").replace(/\/rest\/v1\/?$/, "").slice(-20),
+      hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    };
+    console.error("Waitlist error full:", JSON.stringify(detail));
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }
