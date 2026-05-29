@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   ShieldCheck, Search, Zap, HardHat, Building2, CheckCircle,
@@ -61,12 +61,14 @@ const FEED_ITEMS = [
   },
 ];
 
-const STATS = [
-  { value: "$2.4B+", label: "Bonding Capacity Tracked" },
-  { value: "4,800+", label: "Verified Trade Pros" },
-  { value: "340+", label: "GCs & Developers" },
-  { value: "3 sec", label: "Avg. Match Time" },
-];
+// Stats are fetched live — see useEffect in LandingPage.
+// Shown only when real numbers exist; launch copy shown otherwise.
+interface LiveStats { profiles: number; companies: number; waitlist: number; verified: number; }
+
+function formatCount(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(".0", "")}k+`;
+  return `${n}`;
+}
 
 const TRADES = [
   { icon: Bolt, label: "Electrical" },
@@ -91,6 +93,42 @@ const SECTORS = [
 // ── Component ──────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
+  const [stats, setStats] = useState<LiveStats | null>(null);
+
+  useEffect(() => {
+    fetch("/api/stats")
+      .then(r => r.json())
+      .then(setStats)
+      .catch(() => {});
+  }, []);
+
+  // Threshold: only show a number if it's meaningful (> 0).
+  // Below that, show honest launch copy instead of zeros or fake numbers.
+  const hasProfiles  = (stats?.profiles  ?? 0) > 0;
+  const hasWaitlist  = (stats?.waitlist  ?? 0) > 0;
+  const hasVerified  = (stats?.verified  ?? 0) > 0;
+  const hasCompanies = (stats?.companies ?? 0) > 0;
+
+  // Build the 4 stat cards dynamically based on what's real
+  const statCards = [
+    {
+      value: hasWaitlist  ? formatCount(stats!.waitlist)  : "First 50",
+      label: hasWaitlist  ? "On the waitlist"            : "GCs get founder rate locked",
+    },
+    {
+      value: hasProfiles  ? formatCount(stats!.profiles)  : "Free",
+      label: hasProfiles  ? "Trade Pros & Inspectors"    : "Build your Trade Card — always",
+    },
+    {
+      value: hasVerified  ? formatCount(stats!.verified)  : "$99",
+      label: hasVerified  ? "Verified Pros"              : "One-time verification — no subscription",
+    },
+    {
+      value: hasCompanies ? formatCount(stats!.companies) : "Paper",
+      label: hasCompanies ? "GCs & Companies"            : "Verified by — not by algorithm",
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100">
       <Navbar />
@@ -184,10 +222,10 @@ export default function LandingPage() {
             transition={{ duration: 0.8, delay: 0.4 }}
             className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto"
           >
-            {STATS.map((s) => (
-              <div key={s.label} className="text-center bg-slate-800/50 border border-slate-700/50 rounded-lg py-3 px-2">
+            {statCards.map((s) => (
+              <div key={s.label} className="text-center bg-slate-800 border border-slate-700 rounded-lg py-3 px-2">
                 <p className="text-2xl font-black text-orange-400">{s.value}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{s.label}</p>
+                <p className="text-xs text-slate-300 mt-0.5">{s.label}</p>
               </div>
             ))}
           </motion.div>
