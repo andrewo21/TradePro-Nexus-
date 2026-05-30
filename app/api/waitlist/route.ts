@@ -178,14 +178,21 @@ export async function POST(request: NextRequest) {
     const origin = request.headers.get("origin") ?? "https://tradepronexus.com";
     const referralLink = `${origin}/?ref=${referral_code}`;
 
-    sendConfirmationEmail({
-      to: email.trim().toLowerCase(),
-      name: name.trim(),
-      position,
-      userType: user_type,
-      referralCode: referral_code,
-      referralLink,
-    }).catch(() => {});
+    // Await the email before returning — Vercel kills the function once the
+    // response is sent, so fire-and-forget never completes in serverless.
+    try {
+      await sendConfirmationEmail({
+        to: email.trim().toLowerCase(),
+        name: name.trim(),
+        position,
+        userType: user_type,
+        referralCode: referral_code,
+        referralLink,
+      });
+    } catch (emailErr) {
+      // Email failure never blocks signup — log it for debugging
+      console.error("Waitlist email failed:", emailErr instanceof Error ? emailErr.message : String(emailErr));
+    }
 
     return NextResponse.json({ position, referral_code });
   } catch (err: unknown) {
