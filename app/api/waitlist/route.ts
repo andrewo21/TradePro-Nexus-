@@ -141,11 +141,12 @@ async function sendConfirmationEmail({
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { name, email, user_type, referred_by } = body as {
+    const { name, email, user_type, referred_by, source } = body as {
       name: string;
       email: string;
       user_type: "pro" | "gc";
       referred_by?: string;
+      source?: string;
     };
 
     if (!name?.trim() || !email?.trim() || !["pro", "gc"].includes(user_type)) {
@@ -160,6 +161,7 @@ export async function POST(request: NextRequest) {
         email: email.trim().toLowerCase(),
         user_type,
         referred_by: referred_by?.trim() || null,
+        source: source?.trim() || null,
       })
       .select("position, referral_code")
       .single();

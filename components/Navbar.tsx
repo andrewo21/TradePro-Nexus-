@@ -99,6 +99,18 @@ export default function Navbar() {
           <Link href="/search" className="flex items-center gap-1.5 text-slate-400 hover:text-orange-400 transition-colors">
             <Search className="w-4 h-4" /> Find Crews
           </Link>
+          <Link href="/work" className="flex items-center gap-1.5 text-slate-400 hover:text-orange-400 transition-colors">
+            Work Opportunities
+          </Link>
+          {/* Cross-property link to Resume Builder */}
+          <a
+            href="https://www.tradeprotech.ai"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-slate-500 hover:text-slate-300 transition-colors text-xs border-l border-slate-700 pl-4"
+          >
+            Build Your Résumé → TradePro Tech
+          </a>
 
           {user && availability && availConfig ? (
             /* Availability quick-update */
@@ -167,6 +179,18 @@ export default function Navbar() {
           <Link href="/search" onClick={() => setOpen(false)} className="flex items-center gap-2 text-slate-300 hover:text-orange-400 py-2 transition-colors">
             <Search className="w-4 h-4" /> Find Crews
           </Link>
+          <Link href="/work" onClick={() => setOpen(false)} className="flex items-center gap-2 text-slate-300 hover:text-orange-400 py-2 transition-colors">
+            Work Opportunities
+          </Link>
+          <a
+            href="https://www.tradeprotech.ai"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 text-slate-500 hover:text-slate-300 py-2 transition-colors text-xs border-t border-slate-800 pt-3"
+          >
+            Build Your Résumé → TradePro Tech ↗
+          </a>
 
           {user && availability && availConfig && (
             <div>

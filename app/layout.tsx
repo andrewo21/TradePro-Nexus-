@@ -52,6 +52,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           >
             Get Early Access — Free
           </Link>
+          {/* Cross-property link — subtle, one direction only */}
+          <p className="mt-4 text-xs text-slate-600">
+            Need a construction résumé?{" "}
+            <a
+              href="https://www.tradeprotech.ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-500 hover:text-slate-300 transition-colors underline"
+            >
+              Build it free at TradePro Tech →
+            </a>
+          </p>
         </div>
 
         {/* Mobile floating waitlist bar */}
