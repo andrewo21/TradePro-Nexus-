@@ -9,10 +9,33 @@ const https = require('https');
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Connection pooler in transaction mode — set in .env.local for faster bulk imports.
+// Supabase Dashboard → Settings → Database → Connection pooling → Transaction mode URL
+// Format: postgres://postgres.PROJECT_REF:PASSWORD@aws-0-REGION.pooler.supabase.com:6543/postgres
+const POOLER_URL = process.env.SUPABASE_DB_POOLER_URL;
 
 if (!SUPABASE_URL || !SERVICE_KEY) {
   console.error('Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
   process.exit(1);
+}
+
+// Pooler client — used when SUPABASE_DB_POOLER_URL is set
+let pgPool = null;
+if (POOLER_URL) {
+  try {
+    const { Pool } = require('pg');
+    pgPool = new Pool({
+      connectionString: POOLER_URL,
+      max: 5,              // transaction mode: keep pool small
+      idleTimeoutMillis: 10000,
+      connectionTimeoutMillis: 5000,
+      ssl: { rejectUnauthorized: false },
+    });
+    console.log('  ✓ Using connection pooler (transaction mode) for bulk inserts\n');
+  } catch (e) {
+    console.warn('  ⚠ pg package not available, falling back to REST API:', e.message);
+    pgPool = null;
+  }
 }
 
 // ── CSV parser (handles quoted fields with commas/newlines) ───────────────────
@@ -119,9 +142,46 @@ function calcQualityScore(rec) {
   return Math.max(1, Math.min(10, score));
 }
 
-// ── Supabase REST call ────────────────────────────────────────────────────────
+// ── Bulk insert: pooler (transaction mode) preferred, REST API fallback ──────
 
-async function supabaseInsert(table, rows, chunkSize = 500) {
+async function bulkInsertViaPooler(table, rows) {
+  // Uses a single transaction with multi-row INSERT for maximum throughput.
+  // Supabase support recommends transaction mode pooler for bulk ops.
+  const client = await pgPool.connect();
+  let inserted = 0;
+  const CHUNK = 1000; // larger batches — single round trip per chunk
+  try {
+    await client.query('BEGIN');
+    for (let i = 0; i < rows.length; i += CHUNK) {
+      const chunk = rows.slice(i, i + CHUNK);
+      const cols = Object.keys(chunk[0]);
+      // Build $1, $2 … placeholders
+      let paramIdx = 1;
+      const valueSets = chunk.map(row => {
+        const placeholders = cols.map(() => `$${paramIdx++}`).join(', ');
+        return `(${placeholders})`;
+      }).join(', ');
+      const values = chunk.flatMap(row => cols.map(c => row[c] ?? null));
+      const colList = cols.map(c => `"${c}"`).join(', ');
+      await client.query(
+        `INSERT INTO ${table} (${colList}) VALUES ${valueSets} ON CONFLICT DO NOTHING`,
+        values
+      );
+      inserted += chunk.length;
+      process.stdout.write(`  Staged ${Math.min(i + CHUNK, rows.length)}/${rows.length}\r`);
+    }
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+  return inserted;
+}
+
+async function bulkInsertViaREST(table, rows, chunkSize = 500) {
+  // Fallback: Supabase REST API with 500-record batches.
   let inserted = 0;
   for (let i = 0; i < rows.length; i += chunkSize) {
     const chunk = rows.slice(i, i + chunkSize);
@@ -144,7 +204,7 @@ async function supabaseInsert(table, rows, chunkSize = 500) {
             inserted += chunk.length;
             resolve();
           } else {
-            reject(new Error(`Supabase ${res.statusCode}: ${data}`));
+            reject(new Error(`Supabase REST ${res.statusCode}: ${data}`));
           }
         });
       });
@@ -155,6 +215,13 @@ async function supabaseInsert(table, rows, chunkSize = 500) {
     process.stdout.write(`  Staged ${Math.min(i + chunkSize, rows.length)}/${rows.length}\r`);
   }
   return inserted;
+}
+
+async function supabaseInsert(table, rows) {
+  if (pgPool) {
+    return bulkInsertViaPooler(table, rows);
+  }
+  return bulkInsertViaREST(table, rows);
 }
 
 async function supabaseUpdate(table, id, data) {
@@ -375,6 +442,9 @@ async function main() {
   console.log(`  Import run ID:            ${importId}`);
   console.log('═══════════════════════════════════════════════\n');
   console.log('✅ Nothing promoted. Review counts above, then run promote when ready.\n');
+
+  // Close pooler connection if open
+  if (pgPool) await pgPool.end();
 }
 
 main().catch(err => {
