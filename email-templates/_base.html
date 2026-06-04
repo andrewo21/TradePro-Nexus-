@@ -1,0 +1,61 @@
+<!--
+  TradePro Nexus — Base Email Template
+  Uses table-based layout for maximum email client compatibility.
+  Replace CONTENT_BLOCK with the specific email body.
+  Supabase template variables: {{ .ConfirmationURL }}, {{ .Email }}, {{ .Token }}
+-->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TradePro Nexus</title>
+</head>
+<body style="margin:0;padding:0;background:#0f172a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f172a;min-height:100vh;">
+    <tr><td align="center" style="padding:40px 16px;">
+      <table width="100%" style="max-width:520px;">
+
+        <!-- Logo header -->
+        <tr><td align="center" style="padding-bottom:28px;">
+          <table cellpadding="0" cellspacing="0"><tr>
+            <td style="background:#0f172a;border-radius:10px;padding:10px;width:40px;height:40px;text-align:center;vertical-align:middle;">
+              <!-- A-frame mark: matches logo-mark.svg -->
+              <svg width="36" height="36" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="52" height="52" rx="10" fill="#1e293b"/>
+                <path d="M12 38 L26 14 L40 38" stroke="#f1f5f9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                <path d="M17 30 L35 30" stroke="#f1f5f9" stroke-width="3" stroke-linecap="round" fill="none"/>
+                <circle cx="26" cy="38" r="3.5" fill="#f97316"/>
+                <path d="M22 14 L30 14" stroke="#f97316" stroke-width="3" stroke-linecap="round"/>
+              </svg>
+            </td>
+            <td style="padding-left:10px;vertical-align:middle;">
+              <span style="font-size:18px;font-weight:600;color:#f1f5f9;letter-spacing:-0.01em;">TradePro</span>
+              <span style="font-size:18px;font-weight:600;color:#f97316;letter-spacing:-0.01em;"> Nexus</span>
+            </td>
+          </tr></table>
+        </td></tr>
+
+        <!-- Card -->
+        <tr><td style="background:#1e293b;border-radius:16px;border:1px solid #334155;overflow:hidden;">
+
+          CONTENT_BLOCK
+
+          <!-- Footer inside card -->
+          <tr><td style="padding:20px 32px 28px;border-top:1px solid #1e293b;text-align:center;">
+            <p style="margin:0;color:#475569;font-size:12px;line-height:1.5;">
+              TradePro Nexus &middot; A TradePro Enterprises product<br>
+              <span style="color:#334155;">Verified by Paper. Not by Algorithm.</span>
+            </p>
+            <p style="margin:8px 0 0;color:#334155;font-size:11px;">
+              If you didn't request this email, you can safely ignore it.
+            </p>
+          </td></tr>
+
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
