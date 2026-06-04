@@ -4,11 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Database, Upload, RefreshCw, AlertTriangle, CheckCircle,
-  ChevronDown, ChevronRight, AlertCircle, Shield,
-  Loader2, FileText, Eye, EyeOff, Mail, Ban
+  ChevronRight, AlertCircle, Loader2, Mail, Ban,
+  Search, ChevronLeft, ChevronDown, Eye, Building2
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
-import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -42,15 +41,26 @@ interface StagingSummary {
   avg_quality: number;
 }
 
-interface UnclaimedSummary {
+interface StagingRecord {
+  id: string;
+  import_id: string;
   source_state: string;
-  total: number;
-  claimed: number;
-  unclaimed: number;
-  visible: number;
-  outreach_sent: number;
-  outreach_eligible: number;
-  remove_requested: number;
+  business_name: string | null;
+  license_type: string | null;
+  license_number: string | null;
+  city: string | null;
+  state: string | null;
+  phone: string | null;
+  email: string | null;
+  license_status: string;
+  quality_score: number;
+  status: string;
+  duplicate_type: string | null;
+  flagged_for_review: boolean;
+  review_reason: string[] | null;
+  error_detail: string | null;
+  raw_data: Record<string, unknown> | null;
+  created_at: string;
 }
 
 interface OutreachSettings {
@@ -63,13 +73,17 @@ interface OutreachSettings {
 interface StatusData {
   imports: ImportRun[];
   staging: StagingSummary[];
-  unclaimed: UnclaimedSummary[];
+  unclaimed: any[];
   outreach: OutreachSettings;
 }
 
-// Available states — Florida is Session 1. Others added in Sessions 2-4.
-const IMPLEMENTED_STATES = ["FL"];
-const FUTURE_STATES = ["GA", "TX", "TN", "NY", "PA", "OH", "IL", "AZ", "NV", "CA", "WA"];
+interface RecordsPage {
+  records: StagingRecord[];
+  total: number;
+  page: number;
+  pages: number;
+  limit: number;
+}
 
 const STATE_NAMES: Record<string, string> = {
   FL: "Florida", GA: "Georgia", TX: "Texas", TN: "Tennessee",
@@ -77,15 +91,42 @@ const STATE_NAMES: Record<string, string> = {
   AZ: "Arizona", NV: "Nevada", CA: "California", WA: "Washington",
 };
 
-// ── Status badge ──────────────────────────────────────────────────────────────
+const IMPLEMENTED_STATES = ["FL"];
+
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+function QualityBadge({ score }: { score: number }) {
+  const color = score === 10 ? "text-green-400 bg-green-900/30 border-green-700"
+    : score >= 8 ? "text-blue-400 bg-blue-900/30 border-blue-700"
+    : score >= 6 ? "text-yellow-400 bg-yellow-900/30 border-yellow-700"
+    : "text-red-400 bg-red-900/20 border-red-800";
+  return (
+    <span className={`text-[10px] font-black px-1.5 py-0.5 rounded border ${color}`}>
+      {score}/10
+    </span>
+  );
+}
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
-    running:  "text-blue-400 bg-blue-900/30 border-blue-800/50",
-    complete: "text-green-400 bg-green-900/30 border-green-800/50",
-    failed:   "text-red-400 bg-red-900/20 border-red-800/40",
-    partial:  "text-yellow-400 bg-yellow-900/30 border-yellow-800/50",
-    blocked:  "text-orange-400 bg-orange-900/30 border-orange-800/50",
+    pending:   "text-blue-400 bg-blue-900/30 border-blue-800",
+    promoted:  "text-green-400 bg-green-900/30 border-green-800",
+    duplicate: "text-slate-400 bg-slate-800 border-slate-700",
+    flagged:   "text-orange-400 bg-orange-900/30 border-orange-800",
+    error:     "text-red-400 bg-red-900/20 border-red-800",
+    skipped:   "text-slate-500 bg-slate-800 border-slate-700",
+    running:   "text-blue-400 bg-blue-900/30 border-blue-800",
+    complete:  "text-green-400 bg-green-900/30 border-green-800",
+    failed:    "text-red-400 bg-red-900/20 border-red-800",
+    blocked:   "text-orange-400 bg-orange-900/30 border-orange-800",
   };
   return (
     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${map[status] ?? "text-slate-400 bg-slate-800 border-slate-700"}`}>
@@ -94,57 +135,66 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function timeAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
-  return `${Math.floor(m / 60)}h ago`;
-}
-
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function RegistryAdminPage() {
   const router = useRouter();
-  const [data, setData] = useState<StatusData | null>(null);
+  const [statusData, setStatusData] = useState<StatusData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [recordsData, setRecordsData] = useState<RecordsPage | null>(null);
+  const [recordsLoading, setRecordsLoading] = useState(false);
+  const [recordsFilter, setRecordsFilter] = useState({ state: "FL", status: "pending", search: "", page: 1 });
+  const [expandedRecord, setExpandedRecord] = useState<string | null>(null);
   const [actionState, setActionState] = useState<Record<string, boolean>>({});
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvState, setCsvState] = useState("FL");
-  const [outreachConfirmOpen, setOutreachConfirmOpen] = useState(false);
-  const [outreachPendingValue, setOutreachPendingValue] = useState(false);
   const [promoteState, setPromoteState] = useState("FL");
+  const [outreachConfirmOpen, setOutreachConfirmOpen] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<"records" | "imports" | "actions">("records");
+
+  function msg(type: "ok" | "err", text: string) {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 6000);
+  }
 
   const fetchStatus = useCallback(async () => {
     const res = await fetch("/api/admin/registry/status");
-    if (res.ok) setData(await res.json());
+    if (res.ok) setStatusData(await res.json());
     setLoading(false);
   }, []);
 
+  const fetchRecords = useCallback(async () => {
+    setRecordsLoading(true);
+    const params = new URLSearchParams({
+      state: recordsFilter.state,
+      status: recordsFilter.status,
+      page: String(recordsFilter.page),
+      limit: "50",
+      ...(recordsFilter.search ? { search: recordsFilter.search } : {}),
+    });
+    const res = await fetch(`/api/admin/registry/records?${params}`);
+    if (res.ok) setRecordsData(await res.json());
+    setRecordsLoading(false);
+  }, [recordsFilter]);
+
   useEffect(() => {
-    // Guard: check admin auth
     getSupabase()?.auth.getUser().then(({ data: { user } }) => {
       if (user?.email !== "andrew@tradeprotech.ai") router.push("/");
     });
     fetchStatus();
-    const interval = setInterval(fetchStatus, 15000); // poll every 15s
-    return () => clearInterval(interval);
   }, [fetchStatus, router]);
 
-  function msg(type: "ok" | "err", text: string) {
-    setMessage({ type, text });
-    setTimeout(() => setMessage(null), 5000);
-  }
-
-  // ── Actions ─────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (activeTab === "records") fetchRecords();
+  }, [fetchRecords, activeTab]);
 
   async function triggerScrape(state: string) {
     setActionState(p => ({ ...p, [`scrape_${state}`]: true }));
     try {
       const res = await fetch(`/api/admin/registry/import/${state}`, { method: "POST" });
       const d = await res.json();
-      if (res.ok) msg("ok", `${state} scrape started (importId: ${d.importId.slice(0, 8)}…)`);
+      if (res.ok) msg("ok", `${state} scrape started (${d.importId?.slice(0, 8)}…)`);
       else msg("err", d.error ?? "Scrape failed.");
     } catch { msg("err", "Network error."); }
     finally { setActionState(p => ({ ...p, [`scrape_${state}`]: false })); fetchStatus(); }
@@ -158,7 +208,7 @@ export default function RegistryAdminPage() {
     try {
       const res = await fetch(`/api/admin/registry/upload/${csvState}`, { method: "POST", body: form });
       const d = await res.json();
-      if (res.ok) msg("ok", `${d.staged} records staged from CSV (${d.skipped} skipped).`);
+      if (res.ok) { msg("ok", `${d.staged} records staged from CSV.`); fetchRecords(); }
       else msg("err", d.error ?? "Upload failed.");
     } catch { msg("err", "Upload error."); }
     finally { setActionState(p => ({ ...p, csv_upload: false })); setCsvFile(null); fetchStatus(); }
@@ -173,64 +223,45 @@ export default function RegistryAdminPage() {
         body: JSON.stringify({ state: promoteState, limit: 2000 }),
       });
       const d = await res.json();
-      if (res.ok) msg("ok", `Promoted: ${d.promoted} | Dup: ${d.duplicate} | Flagged: ${d.flagged} | Low quality: ${d.belowThreshold}`);
-      else msg("err", d.error ?? "Promote failed.");
+      if (res.ok) {
+        msg("ok", `Promoted: ${d.promoted} | Dup: ${d.duplicate} | Flagged: ${d.flagged} | Low quality: ${d.belowThreshold}`);
+        fetchStatus(); fetchRecords();
+      } else msg("err", d.error ?? "Promote failed.");
     } catch { msg("err", "Promote error."); }
-    finally { setActionState(p => ({ ...p, [`promote_${promoteState}`]: false })); fetchStatus(); }
-  }
-
-  // ── Outreach master switch ───────────────────────────────────────────────────
-  // CRITICAL: outreach is OFF by default and requires explicit confirmation.
-
-  function requestOutreachToggle(newValue: boolean) {
-    if (newValue === true) {
-      // Turning ON requires confirmation dialog
-      setOutreachPendingValue(true);
-      setOutreachConfirmOpen(true);
-    } else {
-      // Turning OFF is immediate, no confirmation needed
-      applyOutreachSetting(false);
-    }
+    finally { setActionState(p => ({ ...p, [`promote_${promoteState}`]: false })); }
   }
 
   async function applyOutreachSetting(enabled: boolean) {
     setOutreachConfirmOpen(false);
-    setActionState(p => ({ ...p, outreach_switch: true }));
-    try {
-      await fetch("/api/admin/registry/outreach-settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: "outreach_enabled", value: String(enabled) }),
-      });
-      msg(enabled ? "err" : "ok",
-        enabled ? "⚠️ Outreach ENABLED. Emails will send on next batch run." : "Outreach disabled.");
-      fetchStatus();
-    } catch { msg("err", "Failed to update outreach setting."); }
-    finally { setActionState(p => ({ ...p, outreach_switch: false })); }
+    await fetch("/api/admin/registry/outreach-settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: "outreach_enabled", value: String(enabled) }),
+    });
+    msg(enabled ? "err" : "ok", enabled ? "⚠️ Outreach ENABLED." : "Outreach disabled.");
+    fetchStatus();
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  const flSummary = statusData?.staging?.find(s => s.source_state === "FL");
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100">
       <Navbar />
-      <div className="max-w-6xl mx-auto px-4 pt-24 pb-16">
+      <div className="max-w-7xl mx-auto px-4 pt-24 pb-16">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-6">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <Database className="w-5 h-5 text-orange-400" />
               <h1 className="text-xl font-black text-white">Registry Import Admin</h1>
             </div>
-            <p className="text-slate-400 text-sm">Florida (Session 1) · 12 states total across 6 sessions</p>
+            <p className="text-slate-400 text-sm">Florida — Session 1</p>
           </div>
-          <div className="flex items-center gap-3">
-            <button onClick={fetchStatus} className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors">
-              <RefreshCw className="w-3.5 h-3.5" /> Refresh
-            </button>
-            <span className="text-[10px] text-slate-600 font-mono">admin only</span>
-          </div>
+          <button onClick={() => { fetchStatus(); fetchRecords(); }}
+            className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors">
+            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+          </button>
         </div>
 
         {/* Flash message */}
@@ -241,298 +272,334 @@ export default function RegistryAdminPage() {
           </div>
         )}
 
-        {loading ? (
-          <div className="flex items-center gap-2 text-slate-400"><Loader2 className="w-4 h-4 animate-spin" /> Loading registry status…</div>
-        ) : (
-          <div className="space-y-6">
+        {/* Stats bar */}
+        {flSummary && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            {[
+              { label: "Total Staged", value: flSummary.total?.toLocaleString(), color: "text-white" },
+              { label: "Pending Review", value: flSummary.pending?.toLocaleString(), color: "text-blue-400" },
+              { label: "Promoted", value: flSummary.promoted?.toLocaleString(), color: "text-green-400" },
+              { label: "Avg Quality", value: `${flSummary.avg_quality}/10`, color: "text-orange-400" },
+            ].map(s => (
+              <div key={s.label} className="bg-slate-800 border border-slate-700 rounded-xl p-4 text-center">
+                <p className={`text-2xl font-black ${s.color}`}>{s.value ?? "—"}</p>
+                <p className="text-xs text-slate-400 mt-0.5 uppercase tracking-wide font-semibold">{s.label}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
-            {/* ── OUTREACH MASTER SWITCH ────────────────────────────────────────────── */}
-            {/* CRITICAL SAFETY CONTROL — default OFF, confirmation required to enable */}
-            <div className={`rounded-2xl p-5 border-2 ${data?.outreach.enabled ? "border-red-700/60 bg-red-950/20" : "border-slate-700 bg-slate-800/60"}`}>
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-start gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${data?.outreach.enabled ? "bg-red-900/40 border border-red-700" : "bg-slate-900 border border-slate-700"}`}>
-                    <Mail className={`w-5 h-5 ${data?.outreach.enabled ? "text-red-400" : "text-slate-500"}`} />
+        {/* Outreach master switch */}
+        {statusData && (
+          <div className={`rounded-2xl p-4 border-2 mb-6 ${statusData.outreach.enabled ? "border-red-700/60 bg-red-950/20" : "border-slate-700 bg-slate-800/60"}`}>
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <Mail className={`w-5 h-5 ${statusData.outreach.enabled ? "text-red-400" : "text-slate-500"}`} />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-white text-sm">Outreach</p>
+                    <StatusBadge status={statusData.outreach.enabled ? "active" : "disabled"} />
+                    {statusData.outreach.testMode && <span className="text-[10px] text-yellow-400 font-semibold">TEST MODE</span>}
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="font-black text-white">Outreach Master Switch</h2>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${data?.outreach.enabled ? "text-red-400 bg-red-900/30 border-red-700" : "text-slate-400 bg-slate-800 border-slate-700"}`}>
-                        {data?.outreach.enabled ? "ENABLED" : "DISABLED"}
-                      </span>
-                    </div>
-                    <p className="text-slate-400 text-sm mt-0.5">
-                      {data?.outreach.enabled
-                        ? "⚠️ Outreach emails are ACTIVE. Batches will send on schedule."
-                        : "Outreach is OFF. No emails will send regardless of other settings."}
-                    </p>
-                    {data?.outreach.testMode && (
-                      <p className="text-yellow-400 text-xs mt-1 flex items-center gap-1">
-                        <Eye className="w-3 h-3" /> Test mode ON — all emails route to {data.outreach.testEmail}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  {data?.outreach.enabled ? (
-                    <button
-                      onClick={() => requestOutreachToggle(false)}
-                      disabled={actionState.outreach_switch}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
-                    >
-                      <Ban className="w-3.5 h-3.5" /> Disable Outreach
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => requestOutreachToggle(true)}
-                      disabled={actionState.outreach_switch}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-red-700 hover:bg-red-600 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
-                    >
-                      <Mail className="w-3.5 h-3.5" /> Enable Outreach
-                    </button>
-                  )}
+                  <p className="text-xs text-slate-400">{statusData.outreach.enabled ? "⚠️ Emails will send on next batch run." : "OFF — no emails will send."}</p>
                 </div>
               </div>
+              {statusData.outreach.enabled ? (
+                <button onClick={() => applyOutreachSetting(false)} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5">
+                  <Ban className="w-3.5 h-3.5" /> Disable
+                </button>
+              ) : (
+                <button onClick={() => setOutreachConfirmOpen(true)} className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5" /> Enable Outreach
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {outreachConfirmOpen && (
+          <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-800 border-2 border-red-700 rounded-2xl p-6 max-w-md w-full">
+              <div className="flex items-center gap-2 mb-4"><AlertTriangle className="w-6 h-6 text-red-400" /><h3 className="text-lg font-black text-white">Enable Outreach?</h3></div>
+              <p className="text-slate-300 text-sm mb-2">This will begin queuing emails to unclaimed profile contacts.</p>
+              {statusData?.outreach.testMode && <p className="text-yellow-400 text-sm mb-4">Test mode is ON — all emails go to {statusData.outreach.testEmail}</p>}
+              <div className="flex gap-3">
+                <button onClick={() => setOutreachConfirmOpen(false)} className="flex-1 py-2.5 border border-slate-600 text-slate-300 rounded-xl text-sm font-semibold transition-colors hover:border-slate-400">Cancel</button>
+                <button onClick={() => applyOutreachSetting(true)} className="flex-1 py-2.5 bg-red-700 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-colors">Confirm Enable</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="flex gap-1 mb-6 bg-slate-800/60 border border-slate-700/50 rounded-2xl p-1">
+          {[
+            { key: "records", label: `Records (${flSummary?.total?.toLocaleString() ?? "…"})` },
+            { key: "imports", label: `Import Runs (${statusData?.imports?.length ?? 0})` },
+            { key: "actions", label: "Actions" },
+          ].map(t => (
+            <button key={t.key} onClick={() => setActiveTab(t.key as typeof activeTab)}
+              className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${activeTab === t.key ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-300"}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── RECORDS TAB ────────────────────────────────────────────────────── */}
+        {activeTab === "records" && (
+          <div>
+            {/* Filters */}
+            <div className="flex flex-wrap gap-3 mb-4">
+              <div className="relative flex-1 min-w-48">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                <input
+                  value={recordsFilter.search}
+                  onChange={e => setRecordsFilter(p => ({ ...p, search: e.target.value, page: 1 }))}
+                  placeholder="Search name, license #, email…"
+                  className="w-full bg-slate-800 border border-slate-600 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
+                />
+              </div>
+              <select value={recordsFilter.status} onChange={e => setRecordsFilter(p => ({ ...p, status: e.target.value, page: 1 }))}
+                className="bg-slate-800 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
+                <option value="">All statuses</option>
+                <option value="pending">Pending</option>
+                <option value="promoted">Promoted</option>
+                <option value="duplicate">Duplicate</option>
+                <option value="flagged">Flagged</option>
+                <option value="error">Error</option>
+              </select>
+              <select value={recordsFilter.state} onChange={e => setRecordsFilter(p => ({ ...p, state: e.target.value, page: 1 }))}
+                className="bg-slate-800 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
+                {IMPLEMENTED_STATES.map(s => <option key={s} value={s}>{STATE_NAMES[s]} ({s})</option>)}
+              </select>
             </div>
 
-            {/* Outreach confirmation dialog */}
-            {outreachConfirmOpen && (
-              <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-                <div className="bg-slate-800 border-2 border-red-700 rounded-2xl p-6 max-w-md w-full">
-                  <div className="flex items-center gap-2 mb-4">
-                    <AlertTriangle className="w-6 h-6 text-red-400" />
-                    <h3 className="text-lg font-black text-white">Enable Outreach?</h3>
-                  </div>
-                  <p className="text-slate-300 text-sm mb-2">
-                    You are about to enable outreach emails. This will begin queuing emails to unclaimed profile contacts on the next batch run.
-                  </p>
-                  <p className="text-slate-400 text-sm mb-4">
-                    <strong className="text-yellow-400">Test mode is {data?.outreach.testMode ? "ON" : "OFF"}.</strong>{" "}
-                    {data?.outreach.testMode ? `All emails will go to ${data.outreach.testEmail} only.` : "Real contacts will receive emails."}
-                  </p>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => setOutreachConfirmOpen(false)}
-                      className="flex-1 py-2.5 border border-slate-600 text-slate-300 rounded-xl text-sm font-semibold transition-colors hover:border-slate-400"
-                    >
-                      Cancel
+            {/* Records table */}
+            <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden">
+              {/* Table header */}
+              <div className="grid grid-cols-[2fr_1fr_1fr_1fr_auto_auto_auto] gap-0 px-4 py-2.5 border-b border-slate-700 bg-slate-900/60">
+                {["Business Name", "License #", "Type", "Location", "Quality", "Source", "Status"].map(h => (
+                  <div key={h} className="text-[10px] font-bold uppercase tracking-widest text-slate-500">{h}</div>
+                ))}
+              </div>
+
+              {recordsLoading ? (
+                <div className="flex items-center justify-center py-16 gap-2 text-slate-400">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Loading records…
+                </div>
+              ) : !recordsData?.records?.length ? (
+                <div className="text-center py-16 text-slate-500">
+                  <Database className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                  No records match the current filter.
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-700/50">
+                  {recordsData.records.map(rec => (
+                    <div key={rec.id}>
+                      <button
+                        onClick={() => setExpandedRecord(expandedRecord === rec.id ? null : rec.id)}
+                        className="w-full grid grid-cols-[2fr_1fr_1fr_1fr_auto_auto_auto] gap-0 px-4 py-2.5 text-left hover:bg-slate-700/30 transition-colors"
+                      >
+                        <div className="min-w-0 pr-2">
+                          <p className="text-sm font-semibold text-white truncate">{rec.business_name || "—"}</p>
+                          {rec.email && <p className="text-[11px] text-slate-500 truncate">{rec.email}</p>}
+                        </div>
+                        <div className="min-w-0 pr-2">
+                          <p className="text-xs font-mono text-orange-400 truncate">{rec.license_number || "—"}</p>
+                        </div>
+                        <div className="min-w-0 pr-2">
+                          <p className="text-xs text-slate-300 truncate">{rec.license_type || "—"}</p>
+                        </div>
+                        <div className="min-w-0 pr-2">
+                          <p className="text-xs text-slate-300 truncate">{[rec.city, rec.state].filter(Boolean).join(", ") || "—"}</p>
+                          {rec.phone && <p className="text-[11px] text-slate-500">{rec.phone}</p>}
+                        </div>
+                        <div className="flex items-center pr-2">
+                          <QualityBadge score={rec.quality_score} />
+                        </div>
+                        <div className="flex items-center pr-2">
+                          <span className="text-[10px] text-slate-500 font-mono">
+                            {(rec.raw_data as any)?.source_file === "gc" ? "GC" : "CBC"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <StatusBadge status={rec.status} />
+                          <ChevronDown className={`w-3 h-3 text-slate-600 transition-transform ${expandedRecord === rec.id ? "rotate-180" : ""}`} />
+                        </div>
+                      </button>
+
+                      {/* Expanded detail row */}
+                      {expandedRecord === rec.id && (
+                        <div className="px-4 pb-4 pt-2 bg-slate-900/40 border-t border-slate-700/50">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                            {[
+                              { label: "License #", value: rec.license_number },
+                              { label: "License Type", value: rec.license_type },
+                              { label: "City", value: rec.city },
+                              { label: "State", value: rec.state },
+                              { label: "ZIP", value: (rec.raw_data as any)?.zip },
+                              { label: "Phone", value: rec.phone },
+                              { label: "Email", value: rec.email },
+                              { label: "License Status", value: rec.license_status },
+                              { label: "Quality Score", value: `${rec.quality_score}/10` },
+                              { label: "Source File", value: (rec.raw_data as any)?.source_file === "gc" ? "General Contractor (CGC)" : "Building Contractor (CBC)" },
+                              { label: "Import ID", value: rec.import_id?.slice(0, 8) + "…" },
+                              { label: "Staged", value: new Date(rec.created_at).toLocaleDateString() },
+                            ].map(f => (
+                              <div key={f.label} className="bg-slate-800 rounded-lg px-3 py-2">
+                                <p className="text-slate-500 text-[10px] uppercase tracking-wide mb-0.5">{f.label}</p>
+                                <p className="text-slate-200 font-medium truncate">{f.value || "—"}</p>
+                              </div>
+                            ))}
+                          </div>
+                          {rec.duplicate_type && (
+                            <div className="mt-2 text-xs text-orange-400 bg-orange-950/30 border border-orange-800/40 rounded-lg px-3 py-2">
+                              Duplicate type: {rec.duplicate_type}
+                            </div>
+                          )}
+                          {rec.error_detail && (
+                            <div className="mt-2 text-xs text-red-400 bg-red-950/30 border border-red-800/40 rounded-lg px-3 py-2">
+                              Error: {rec.error_detail}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Pagination */}
+              {recordsData && recordsData.pages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-slate-700/50 bg-slate-900/40">
+                  <span className="text-xs text-slate-500">
+                    Showing {((recordsData.page - 1) * recordsData.limit) + 1}–{Math.min(recordsData.page * recordsData.limit, recordsData.total)} of {recordsData.total.toLocaleString()}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button disabled={recordsData.page <= 1} onClick={() => setRecordsFilter(p => ({ ...p, page: p.page - 1 }))}
+                      className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white disabled:opacity-30 transition-colors">
+                      <ChevronLeft className="w-4 h-4" />
                     </button>
-                    <button
-                      onClick={() => applyOutreachSetting(true)}
-                      className="flex-1 py-2.5 bg-red-700 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-colors"
-                    >
-                      Confirm Enable
+                    <span className="text-xs text-slate-400 px-2">Page {recordsData.page} of {recordsData.pages}</span>
+                    <button disabled={recordsData.page >= recordsData.pages} onClick={() => setRecordsFilter(p => ({ ...p, page: p.page + 1 }))}
+                      className="p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white disabled:opacity-30 transition-colors">
+                      <ChevronRight className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── IMPORT RUNS TAB ───────────────────────────────────────────────── */}
+        {activeTab === "imports" && (
+          <div>
+            {loading ? (
+              <div className="flex items-center gap-2 text-slate-400 py-8 justify-center">
+                <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+              </div>
+            ) : !statusData?.imports?.length ? (
+              <div className="text-center py-16 bg-slate-800/40 border border-slate-700/50 rounded-2xl text-slate-500">No import runs yet.</div>
+            ) : (
+              <div className="bg-slate-800 border border-slate-700 rounded-2xl overflow-hidden divide-y divide-slate-700/50">
+                {statusData.imports.map(run => (
+                  <div key={run.id} className="px-5 py-3 flex items-start gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-white text-sm">{STATE_NAMES[run.source_state] ?? run.source_state}</span>
+                        <StatusBadge status={run.status} />
+                        <span className="text-[10px] text-slate-500 uppercase">{run.import_type}</span>
+                        {run.robots_blocked && <span className="text-[10px] text-orange-400 font-bold">ROBOTS BLOCKED</span>}
+                      </div>
+                      <div className="flex flex-wrap gap-3 mt-1 text-xs text-slate-500">
+                        <span>Fetched: <span className="text-slate-300">{run.records_fetched?.toLocaleString()}</span></span>
+                        <span>Promoted: <span className="text-green-400">{run.records_promoted?.toLocaleString()}</span></span>
+                        <span>Dup: <span className="text-slate-400">{run.records_duplicate?.toLocaleString()}</span></span>
+                        {run.error_message && <span className="text-red-400 truncate max-w-xs">{run.error_message}</span>}
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-slate-600 flex-shrink-0">{timeAgo(run.started_at)}</div>
+                  </div>
+                ))}
               </div>
             )}
+          </div>
+        )}
 
-            {/* ── IMPORT CONTROLS ─────────────────────────────────────────────────────── */}
-            <div className="grid md:grid-cols-2 gap-4">
+        {/* ── ACTIONS TAB ───────────────────────────────────────────────────── */}
+        {activeTab === "actions" && (
+          <div className="space-y-4">
 
-              {/* Scrape trigger */}
-              <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-5">
-                <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-1.5">
-                  <RefreshCw className="w-4 h-4 text-orange-400" /> Run Scraper
-                </h2>
-                <div className="space-y-3">
-                  {IMPLEMENTED_STATES.map(state => (
-                    <div key={state} className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-white">{STATE_NAMES[state]} ({state})</span>
-                      <button
-                        onClick={() => triggerScrape(state)}
-                        disabled={actionState[`scrape_${state}`]}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors"
-                      >
-                        {actionState[`scrape_${state}`] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                        Run Scraper
-                      </button>
-                    </div>
-                  ))}
-                  {FUTURE_STATES.map(state => (
-                    <div key={state} className="flex items-center justify-between opacity-40">
-                      <span className="text-sm text-slate-500">{STATE_NAMES[state]} ({state})</span>
-                      <span className="text-xs text-slate-600 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">Session 2-4</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* CSV Upload */}
-              <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-5">
-                <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1 flex items-center gap-1.5">
-                  <Upload className="w-4 h-4 text-blue-400" /> CSV Upload Fallback
-                </h2>
-                <p className="text-xs text-slate-500 mb-4">Use when scraper is blocked. Download CSV from state registry portal and upload here.</p>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wide">State</label>
-                    <select value={csvState} onChange={e => setCsvState(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
-                      {[...IMPLEMENTED_STATES, ...FUTURE_STATES].map(s => (
-                        <option key={s} value={s}>{STATE_NAMES[s]} ({s})</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wide">CSV File</label>
-                    <input type="file" accept=".csv" onChange={e => setCsvFile(e.target.files?.[0] ?? null)}
-                      className="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-slate-700 file:text-slate-200 file:text-xs file:font-semibold hover:file:bg-slate-600" />
-                  </div>
-                  {csvFile && (
-                    <div className="flex items-center gap-2 text-xs text-green-400">
-                      <CheckCircle className="w-3.5 h-3.5" /> {csvFile.name} ({(csvFile.size / 1024).toFixed(0)}KB)
-                    </div>
-                  )}
-                  <button
-                    onClick={uploadCSV}
-                    disabled={!csvFile || actionState.csv_upload}
-                    className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors"
-                  >
-                    {actionState.csv_upload ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-                    Upload & Stage Records
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* ── PROMOTE STAGING ────────────────────────────────────────────────────── */}
-            <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-5">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-1.5">
-                <ChevronRight className="w-4 h-4 text-green-400" /> Promote Staging → Live Directory
+            {/* Promote */}
+            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+              <h2 className="text-sm font-bold text-white mb-1 flex items-center gap-2">
+                <ChevronRight className="w-4 h-4 text-green-400" /> Promote to Live Directory
               </h2>
-              <p className="text-xs text-slate-500 mb-4">
-                Runs duplicate detection, quality scoring (min 6/10), and inactive filtering.
-                Only clean records with score ≥ 6 promote. Duplicates and low-quality records stay in staging.
+              <p className="text-xs text-slate-400 mb-4">
+                Runs duplicate detection, quality scoring (min 6/10). Only clean records with score ≥ 6 promote.
+                {flSummary && flSummary.pending > 0 && (
+                  <span className="text-blue-400 ml-1">{flSummary.pending.toLocaleString()} records ready.</span>
+                )}
               </p>
               <div className="flex items-center gap-3">
-                <select value={promoteState} onChange={e => setPromoteState(e.target.value)} className="bg-slate-900 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-green-500">
-                  {[...IMPLEMENTED_STATES, ...FUTURE_STATES].map(s => (
-                    <option key={s} value={s}>{STATE_NAMES[s]} ({s})</option>
-                  ))}
+                <select value={promoteState} onChange={e => setPromoteState(e.target.value)}
+                  className="bg-slate-900 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-green-500">
+                  {IMPLEMENTED_STATES.map(s => <option key={s} value={s}>{STATE_NAMES[s]} ({s})</option>)}
                 </select>
-                <button
-                  onClick={promoteRecords}
-                  disabled={actionState[`promote_${promoteState}`]}
-                  className="flex items-center gap-1.5 px-5 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors"
-                >
+                <button onClick={promoteRecords} disabled={actionState[`promote_${promoteState}`]}
+                  className="flex items-center gap-1.5 px-5 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors">
                   {actionState[`promote_${promoteState}`] ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
                   Promote 2,000 Records
                 </button>
               </div>
             </div>
 
-            {/* ── STAGING STATS ──────────────────────────────────────────────────────── */}
-            {data?.staging && data.staging.length > 0 && (
-              <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl overflow-hidden">
-                <div className="px-5 py-3 border-b border-slate-700/50">
-                  <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Staging Table</h2>
+            {/* CSV Upload */}
+            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+              <h2 className="text-sm font-bold text-white mb-1 flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-blue-400" /> CSV Upload
+              </h2>
+              <p className="text-xs text-slate-400 mb-4">Upload a DBPR export CSV directly.</p>
+              <div className="space-y-3">
+                <div className="flex gap-3">
+                  <select value={csvState} onChange={e => setCsvState(e.target.value)}
+                    className="bg-slate-900 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none">
+                    {IMPLEMENTED_STATES.map(s => <option key={s} value={s}>{STATE_NAMES[s]}</option>)}
+                  </select>
+                  <input type="file" accept=".csv" onChange={e => setCsvFile(e.target.files?.[0] ?? null)}
+                    className="flex-1 text-xs text-slate-400 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-slate-700 file:text-slate-200 file:text-xs file:font-semibold hover:file:bg-slate-600" />
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="text-slate-500 border-b border-slate-700/50">
-                        {["State","Total","Pending","Promoted","Duplicate","Flagged","Skipped","Errors","Avg Score"].map(h => (
-                          <th key={h} className="text-left px-4 py-2 font-semibold uppercase tracking-wide">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.staging.map(s => (
-                        <tr key={s.source_state} className="border-b border-slate-700/30 hover:bg-slate-700/20">
-                          <td className="px-4 py-3 font-bold text-white">{STATE_NAMES[s.source_state] ?? s.source_state}</td>
-                          <td className="px-4 py-3 text-slate-300">{s.total?.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-yellow-400">{s.pending?.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-green-400">{s.promoted?.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-slate-400">{s.duplicate?.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-orange-400">{s.flagged?.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-slate-500">{s.skipped?.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-red-400">{s.error_count?.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-slate-300">{s.avg_quality}/10</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <button onClick={uploadCSV} disabled={!csvFile || actionState.csv_upload}
+                  className="flex items-center justify-center gap-1.5 px-5 py-2 bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors">
+                  {actionState.csv_upload ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  Upload & Stage
+                </button>
               </div>
-            )}
+            </div>
 
-            {/* ── UNCLAIMED PROFILE COUNTS ───────────────────────────────────────────── */}
-            {data?.unclaimed && data.unclaimed.length > 0 && (
-              <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl overflow-hidden">
-                <div className="px-5 py-3 border-b border-slate-700/50">
-                  <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Live Directory</h2>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="text-slate-500 border-b border-slate-700/50">
-                        {["State","Total","Claimed","Unclaimed","Visible","Outreach Sent","Eligible","Remove Req"].map(h => (
-                          <th key={h} className="text-left px-4 py-2 font-semibold uppercase tracking-wide">{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.unclaimed.map(u => (
-                        <tr key={u.source_state} className="border-b border-slate-700/30 hover:bg-slate-700/20">
-                          <td className="px-4 py-3 font-bold text-white">{STATE_NAMES[u.source_state] ?? u.source_state}</td>
-                          <td className="px-4 py-3 text-slate-300">{u.total?.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-green-400">{u.claimed?.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-slate-300">{u.unclaimed?.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-blue-400">{u.visible?.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-orange-400">{u.outreach_sent?.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-slate-400">{u.outreach_eligible?.toLocaleString()}</td>
-                          <td className="px-4 py-3 text-red-400">{u.remove_requested?.toLocaleString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+            {/* Scrape trigger */}
+            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-5">
+              <h2 className="text-sm font-bold text-white mb-1 flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 text-orange-400" /> Run Scraper
+              </h2>
+              <p className="text-xs text-slate-400 mb-4">Attempt live scrape from DBPR. Checks robots.txt first.</p>
+              <div className="space-y-2">
+                {IMPLEMENTED_STATES.map(state => (
+                  <div key={state} className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-white">{STATE_NAMES[state]} ({state})</span>
+                    <button onClick={() => triggerScrape(state)} disabled={actionState[`scrape_${state}`]}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors">
+                      {actionState[`scrape_${state}`] ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                      Run Scraper
+                    </button>
+                  </div>
+                ))}
               </div>
-            )}
-
-            {/* ── RECENT IMPORT RUNS ─────────────────────────────────────────────────── */}
-            {data?.imports && data.imports.length > 0 && (
-              <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl overflow-hidden">
-                <div className="px-5 py-3 border-b border-slate-700/50">
-                  <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Recent Import Runs</h2>
-                </div>
-                <div className="divide-y divide-slate-700/30">
-                  {data.imports.map(run => (
-                    <div key={run.id} className="px-5 py-3 flex items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-semibold text-white text-sm">{STATE_NAMES[run.source_state] ?? run.source_state}</span>
-                          <StatusBadge status={run.status} />
-                          <span className="text-[10px] text-slate-500 uppercase">{run.import_type}</span>
-                          {run.robots_blocked && <span className="text-[10px] text-orange-400 font-bold">ROBOTS BLOCKED</span>}
-                        </div>
-                        <div className="flex flex-wrap gap-3 mt-1 text-xs text-slate-500">
-                          <span>Fetched: <span className="text-slate-300">{run.records_fetched}</span></span>
-                          <span>Promoted: <span className="text-green-400">{run.records_promoted}</span></span>
-                          <span>Dup: <span className="text-slate-400">{run.records_duplicate}</span></span>
-                          <span>Flagged: <span className="text-orange-400">{run.records_flagged}</span></span>
-                          {run.error_message && <span className="text-red-400 truncate max-w-xs">{run.error_message}</span>}
-                        </div>
-                      </div>
-                      <div className="text-[10px] text-slate-600 flex-shrink-0">{timeAgo(run.started_at)}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Empty state */}
-            {!loading && !data?.staging?.length && !data?.imports?.length && (
-              <div className="text-center py-16 bg-slate-800/40 border border-slate-700/50 rounded-2xl">
-                <Database className="w-10 h-10 text-slate-700 mx-auto mb-3" />
-                <p className="text-slate-400 font-semibold mb-1">No registry imports yet</p>
-                <p className="text-slate-600 text-sm">Run the Florida scraper or upload a CSV to get started.</p>
-              </div>
-            )}
-
+            </div>
           </div>
         )}
+
       </div>
     </div>
   );
