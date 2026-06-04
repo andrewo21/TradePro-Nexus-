@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
         headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           personalizations: [{ to: [{ email: "andrew@tradeprotech.ai" }] }],
-          from: { email: "andrew.oneill79@gmail.com", name: "TradePro Nexus" },
+          from: { email: "no-reply@tradepronexus.com", name: "TradePro Nexus" },
           subject: `New Ad Inquiry — ${company}`,
           content: [{
             type: "text/plain",

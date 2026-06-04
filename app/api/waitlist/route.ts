@@ -131,7 +131,7 @@ async function sendConfirmationEmail({
     },
     body: JSON.stringify({
       personalizations: [{ to: [{ email: to }] }],
-      from: { email: "andrew.oneill79@gmail.com", name: "TradePro Nexus" },
+      from: { email: "no-reply@tradepronexus.com", name: "TradePro Nexus" },
       subject: "You're on the list — TradePro Nexus",
       content: [{ type: "text/html", value: buildEmail({ name, position, userType, referralCode, referralLink }) }],
     }),
