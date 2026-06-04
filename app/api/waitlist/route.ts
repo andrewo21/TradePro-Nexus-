@@ -125,20 +125,26 @@ async function sendConfirmationEmail({
   console.log(apiKey ? `NEXUS_KEY_FOUND:${apiKey.slice(0, 5)}` : "NEXUS_KEY_MISSING");
   if (!apiKey) return;
 
-  const sgRes = await fetch("https://api.sendgrid.com/v3/mail/send", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      personalizations: [{ to: [{ email: to }] }],
-      from: { email: "no-reply@tradepronexus.com", name: "TradePro Nexus" },
-      subject: "You're on the list — TradePro Nexus",
-      content: [{ type: "text/html", value: buildEmail({ name, position, userType, referralCode, referralLink }) }],
-    }),
-  });
-  console.log("SendGrid response:", sgRes.status, await sgRes.text().catch(() => ""));
+  console.log("SG_BEFORE_FETCH");
+  try {
+    const sgRes = await fetch("https://api.sendgrid.com/v3/mail/send", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: to }] }],
+        from: { email: "no-reply@tradepronexus.com", name: "TradePro Nexus" },
+        subject: "Waitlist test — TradePro Nexus",
+        content: [{ type: "text/plain", value: `Hi ${name}, you are #${position} on the list. Code: ${referralCode}` }],
+      }),
+    });
+    const body = await sgRes.text();
+    console.log(`SG_STATUS:${sgRes.status} BODY:${body.slice(0, 100)}`);
+  } catch (fetchErr) {
+    console.error("SG_FETCH_ERROR:", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
+  }
 }
 
 export async function POST(request: NextRequest) {
