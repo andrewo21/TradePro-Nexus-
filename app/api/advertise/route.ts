@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Send notification email to andrew@tradeprotech.ai
-    const apiKey = process.env.SENDGRID_API_KEY;
+    const apiKey = process.env.SENDGRID_API_KEY_NEXUS;
     if (apiKey) {
       await fetch("https://api.sendgrid.com/v3/mail/send", {
         method: "POST",
