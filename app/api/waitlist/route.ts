@@ -121,9 +121,10 @@ async function sendConfirmationEmail({
   referralLink: string;
 }) {
   const apiKey = process.env.SENDGRID_API_KEY_NEXUS;
+  console.log("Email debug — key present:", !!apiKey, "| prefix:", apiKey?.slice(0, 6) ?? "MISSING");
   if (!apiKey) return;
 
-  await fetch("https://api.sendgrid.com/v3/mail/send", {
+  const sgRes = await fetch("https://api.sendgrid.com/v3/mail/send", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -136,6 +137,7 @@ async function sendConfirmationEmail({
       content: [{ type: "text/html", value: buildEmail({ name, position, userType, referralCode, referralLink }) }],
     }),
   });
+  console.log("SendGrid response:", sgRes.status, await sgRes.text().catch(() => ""));
 }
 
 export async function POST(request: NextRequest) {
