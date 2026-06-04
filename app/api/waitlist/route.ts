@@ -121,7 +121,8 @@ async function sendConfirmationEmail({
   referralLink: string;
 }) {
   const apiKey = process.env.SENDGRID_API_KEY_NEXUS;
-  console.log("Email debug — key present:", !!apiKey, "| prefix:", apiKey?.slice(0, 6) ?? "MISSING");
+  // Log key state at the START so truncation can't hide it
+  console.log(apiKey ? `NEXUS_KEY_FOUND:${apiKey.slice(0, 5)}` : "NEXUS_KEY_MISSING");
   if (!apiKey) return;
 
   const sgRes = await fetch("https://api.sendgrid.com/v3/mail/send", {
