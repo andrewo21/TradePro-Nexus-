@@ -152,6 +152,15 @@ export default function RegistryAdminPage() {
   const [outreachConfirmOpen, setOutreachConfirmOpen] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [activeTab, setActiveTab] = useState<"records" | "imports" | "actions">("records");
+  const [promoteProgress, setPromoteProgress] = useState<{
+    running: boolean;
+    total: number;
+    processed: number;
+    promoted: number;
+    duplicate: number;
+    flagged: number;
+    errors: number;
+  } | null>(null);
 
   function msg(type: "ok" | "err", text: string) {
     setMessage({ type, text });
@@ -215,20 +224,64 @@ export default function RegistryAdminPage() {
   }
 
   async function promoteRecords() {
+    const BATCH = 500;
+    const totals = { promoted: 0, duplicate: 0, flagged: 0, belowThreshold: 0, errors: 0 };
+
+    setPromoteProgress({ running: true, total: 0, processed: 0, ...totals });
     setActionState(p => ({ ...p, [`promote_${promoteState}`]: true }));
+
     try {
-      const res = await fetch("/api/admin/registry/promote", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ state: promoteState, limit: 2000 }),
-      });
-      const d = await res.json();
-      if (res.ok) {
-        msg("ok", `Promoted: ${d.promoted} | Dup: ${d.duplicate} | Flagged: ${d.flagged} | Low quality: ${d.belowThreshold}`);
-        fetchStatus(); fetchRecords();
-      } else msg("err", d.error ?? "Promote failed.");
-    } catch { msg("err", "Promote error."); }
-    finally { setActionState(p => ({ ...p, [`promote_${promoteState}`]: false })); }
+      let offset = 0;
+      let hasMore = true;
+      let grandTotal = 0;
+
+      while (hasMore) {
+        const res = await fetch("/api/admin/registry/promote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ state: promoteState, batchSize: BATCH, offset }),
+        });
+
+        if (!res.ok) {
+          const d = await res.json().catch(() => ({}));
+          msg("err", d.error ?? `Promote failed (batch at offset ${offset}).`);
+          break;
+        }
+
+        const d = await res.json();
+
+        // Capture total from first batch
+        if (offset === 0) grandTotal = d.total ?? 0;
+
+        totals.promoted    += d.promoted    ?? 0;
+        totals.duplicate   += d.duplicate   ?? 0;
+        totals.flagged     += d.flagged     ?? 0;
+        totals.belowThreshold += d.belowThreshold ?? 0;
+        totals.errors      += d.errors      ?? 0;
+
+        const processed = Math.min(offset + BATCH, grandTotal);
+        setPromoteProgress({ running: true, total: grandTotal, processed, ...totals });
+
+        hasMore = d.hasMore ?? false;
+        // Always restart from offset 0 — promoted records are marked and skipped by the API
+        // offset stays 0 because we process from the top of "pending" each time
+      }
+
+      msg("ok",
+        `Done! Promoted: ${totals.promoted.toLocaleString()} | ` +
+        `Dup: ${totals.duplicate.toLocaleString()} | ` +
+        `Flagged: ${totals.flagged.toLocaleString()} | ` +
+        `Low quality: ${totals.belowThreshold.toLocaleString()}` +
+        (totals.errors ? ` | Errors: ${totals.errors}` : "")
+      );
+      fetchStatus();
+      fetchRecords();
+    } catch (e) {
+      msg("err", "Network error during promote.");
+    } finally {
+      setPromoteProgress(p => p ? { ...p, running: false } : null);
+      setActionState(p => ({ ...p, [`promote_${promoteState}`]: false }));
+    }
   }
 
   async function applyOutreachSetting(enabled: boolean) {
@@ -537,22 +590,60 @@ export default function RegistryAdminPage() {
                 <ChevronRight className="w-4 h-4 text-green-400" /> Promote to Live Directory
               </h2>
               <p className="text-xs text-slate-400 mb-4">
-                Runs duplicate detection, quality scoring (min 6/10). Only clean records with score ≥ 6 promote.
+                Runs duplicate detection and quality scoring (min 6/10) in batches of 500. Processes all pending records automatically.
                 {flSummary && flSummary.pending > 0 && (
                   <span className="text-blue-400 ml-1">{flSummary.pending.toLocaleString()} records ready.</span>
                 )}
               </p>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 mb-4">
                 <select value={promoteState} onChange={e => setPromoteState(e.target.value)}
-                  className="bg-slate-900 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-green-500">
+                  disabled={!!promoteProgress?.running}
+                  className="bg-slate-900 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-green-500 disabled:opacity-50">
                   {IMPLEMENTED_STATES.map(s => <option key={s} value={s}>{STATE_NAMES[s]} ({s})</option>)}
                 </select>
-                <button onClick={promoteRecords} disabled={actionState[`promote_${promoteState}`]}
+                <button onClick={promoteRecords} disabled={!!promoteProgress?.running}
                   className="flex items-center gap-1.5 px-5 py-2 bg-green-700 hover:bg-green-600 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors">
-                  {actionState[`promote_${promoteState}`] ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
-                  Promote 2,000 Records
+                  {promoteProgress?.running
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Promoting…</>
+                    : <><ChevronRight className="w-4 h-4" /> Promote All Records</>
+                  }
                 </button>
               </div>
+
+              {/* Progress bar */}
+              {promoteProgress && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <span>
+                      {promoteProgress.running ? "Promoting…" : "Complete"}
+                      {promoteProgress.total > 0 && (
+                        <span className="ml-1 text-white font-semibold">
+                          {Math.min(promoteProgress.processed, promoteProgress.total).toLocaleString()} / {promoteProgress.total.toLocaleString()}
+                        </span>
+                      )}
+                    </span>
+                    {promoteProgress.total > 0 && (
+                      <span className="text-slate-500">
+                        {Math.round((Math.min(promoteProgress.processed, promoteProgress.total) / promoteProgress.total) * 100)}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                    <div
+                      className={`h-2 rounded-full transition-all duration-300 ${promoteProgress.running ? "bg-green-500" : "bg-green-400"}`}
+                      style={{ width: promoteProgress.total > 0 ? `${Math.min(100, Math.round((promoteProgress.processed / promoteProgress.total) * 100))}%` : "0%" }}
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-3 text-xs pt-1">
+                    <span className="text-green-400">✓ Promoted: <span className="font-bold">{promoteProgress.promoted.toLocaleString()}</span></span>
+                    <span className="text-slate-400">Dup: <span className="font-bold">{promoteProgress.duplicate.toLocaleString()}</span></span>
+                    <span className="text-yellow-400">Flagged: <span className="font-bold">{promoteProgress.flagged.toLocaleString()}</span></span>
+                    {promoteProgress.errors > 0 && (
+                      <span className="text-red-400">Errors: <span className="font-bold">{promoteProgress.errors.toLocaleString()}</span></span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* CSV Upload */}

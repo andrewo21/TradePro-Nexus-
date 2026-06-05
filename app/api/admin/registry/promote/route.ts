@@ -1,18 +1,16 @@
 // POST /api/admin/registry/promote
-// Promotes clean staging records to unclaimed_profiles.
-// Runs duplicate detection and quality scoring on each record.
-// Admin-only.
+// Promotes a single batch of staging records to unclaimed_profiles.
+// Call repeatedly with increasing `offset` until `hasMore` is false.
 //
-// Body: { importId?: string, state?: string, limit?: number }
-// If importId provided: promote records from that specific import.
-// If state provided: promote all pending records for that state.
+// Body: { state?: string, importId?: string, batchSize?: number, offset?: number }
+// Returns: { promoted, duplicate, flagged, belowThreshold, errors, offset, batchSize, total, hasMore }
 
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabaseServer";
 import { cleanPhone, isValidEmail } from "@/lib/scraper/utils";
 
 const ADMIN_EMAIL = "andrew@tradeprotech.ai";
-const QUALITY_THRESHOLD = 6; // records below this stay in staging for review
+const QUALITY_THRESHOLD = 6;
 
 export async function POST(request: NextRequest) {
   const authDb = (await getSupabaseServer()) as any;
@@ -22,36 +20,53 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await request.json().catch(() => ({}));
-  const { importId, state: stateCode, limit = 1000 } = body as {
+  const {
+    importId,
+    state: stateCode,
+    batchSize = 500,
+    offset = 0,
+  } = body as {
     importId?: string;
     state?: string;
-    limit?: number;
+    batchSize?: number;
+    offset?: number;
   };
 
   const db = getSupabaseAdmin() as any;
+  const safeSize = Math.min(Math.max(batchSize, 50), 500);
 
-  // Fetch pending staging records
+  // ── Count total pending records (only on first batch) ─────────────────────
+  let countQuery = db
+    .from("registry_staging")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "pending");
+  if (importId) countQuery = countQuery.eq("import_id", importId);
+  if (stateCode) countQuery = countQuery.eq("source_state", stateCode.toUpperCase());
+  const { count: total } = await countQuery;
+
+  // ── Fetch this batch ───────────────────────────────────────────────────────
   let query = db
     .from("registry_staging")
     .select("*")
     .eq("status", "pending")
-    .limit(Math.min(limit, 5000)); // Cap at 5k per run
-
+    .order("id")
+    .range(offset, offset + safeSize - 1);
   if (importId) query = query.eq("import_id", importId);
   if (stateCode) query = query.eq("source_state", stateCode.toUpperCase());
 
   const { data: stagingRecords, error: fetchErr } = await query;
   if (fetchErr) return NextResponse.json({ error: "Failed to fetch staging records." }, { status: 500 });
-  if (!stagingRecords?.length) return NextResponse.json({ promoted: 0, message: "No pending records." });
+  if (!stagingRecords?.length) {
+    return NextResponse.json({ promoted: 0, duplicate: 0, flagged: 0, belowThreshold: 0, errors: 0, offset, batchSize: safeSize, total: total ?? 0, hasMore: false });
+  }
 
   let promoted = 0, duplicate = 0, flagged = 0, belowThreshold = 0, errors = 0;
 
   for (const record of stagingRecords as any[]) {
     try {
-      // ── Quality check ─────────────────────────────────────────────────────
-      // Quality score is a generated column in the DB — read it directly
       const qualityScore = record.quality_score ?? 0;
 
+      // ── Quality check ──────────────────────────────────────────────────────
       if (qualityScore < QUALITY_THRESHOLD) {
         await db.from("registry_staging").update({
           status: "skipped",
@@ -62,7 +77,7 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // ── Duplicate detection ────────────────────────────────────────────────
+      // ── Duplicate detection via RPC ────────────────────────────────────────
       const { data: dupResult } = await db.rpc("check_registry_duplicate", {
         p_license_number: record.license_number,
         p_source_state:   record.source_state,
@@ -73,9 +88,7 @@ export async function POST(request: NextRequest) {
 
       if (dupResult?.length) {
         const dup = dupResult[0];
-
         if (dup.duplicate_type === "exact_license") {
-          // Exact match → auto-reject
           await db.from("registry_staging").update({
             status: "duplicate",
             duplicate_type: "exact_license",
@@ -84,8 +97,6 @@ export async function POST(request: NextRequest) {
           duplicate++;
           continue;
         }
-
-        // Fuzzy match or phone match → flag for review, don't promote
         await db.from("registry_staging").update({
           status: "flagged",
           flagged_for_review: true,
@@ -97,32 +108,29 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      // ── Promote to unclaimed_profiles ──────────────────────────────────────
+      // ── Promote ────────────────────────────────────────────────────────────
       const phone = record.phone ? cleanPhone(record.phone) : null;
       const email = record.email && isValidEmail(record.email)
         ? record.email.toLowerCase().trim()
         : null;
 
-      const { error: insertErr } = await db
-        .from("unclaimed_profiles")
-        .insert({
-          business_name:  record.business_name,
-          license_type:   record.license_type,
-          license_number: record.license_number,
-          city:           record.city,
-          state:          record.state || record.source_state,
-          phone,
-          email,
-          source:         "state_registry",
-          source_state:   record.source_state,
-          quality_score:  qualityScore,
-          license_status: record.license_status,
-          visible:        true,
-        });
+      const { error: insertErr } = await db.from("unclaimed_profiles").insert({
+        business_name:  record.business_name,
+        license_type:   record.license_type,
+        license_number: record.license_number,
+        city:           record.city,
+        state:          record.state || record.source_state,
+        phone,
+        email,
+        source:         "state_registry",
+        source_state:   record.source_state,
+        quality_score:  qualityScore,
+        license_status: record.license_status,
+        visible:        true,
+      });
 
       if (insertErr) {
         if (insertErr.code === "23505") {
-          // Race condition — exact dup appeared between check and insert
           await db.from("registry_staging").update({ status: "duplicate", duplicate_type: "exact_license" }).eq("id", record.id);
           duplicate++;
         } else {
@@ -144,16 +152,20 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Update import run totals if importId provided
-  if (importId) {
-    await db.from("registry_imports").update({
-      records_promoted:        db.rpc("coalesce_add", { a: promoted }),
-      records_duplicate:       db.rpc("coalesce_add", { a: duplicate }),
-      records_flagged:         db.rpc("coalesce_add", { a: flagged }),
-      records_below_threshold: db.rpc("coalesce_add", { a: belowThreshold }),
-      records_error:           db.rpc("coalesce_add", { a: errors }),
-    }).eq("id", importId);
-  }
+  // Because we mark records as promoted/dup/flagged as we go, the next call
+  // with offset=0 naturally picks up only remaining pending records.
+  // hasMore = we processed a full batch, so there may be more pending.
+  const hasMore = stagingRecords.length === safeSize;
 
-  return NextResponse.json({ promoted, duplicate, flagged, belowThreshold, errors });
+  return NextResponse.json({
+    promoted,
+    duplicate,
+    flagged,
+    belowThreshold,
+    errors,
+    offset,
+    batchSize: safeSize,
+    total: total ?? 0,
+    hasMore,
+  });
 }
