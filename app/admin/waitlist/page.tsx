@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Users, HardHat, Building2, ArrowRight } from "lucide-react";
+import { Users, HardHat, Building2, ArrowRight, Activity, TrendingUp, PenLine } from "lucide-react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { getSupabaseAdmin, getSupabaseServer } from "@/lib/supabaseServer";
@@ -30,13 +30,21 @@ export default async function AdminWaitlistPage() {
     { count: gcCount },
     { data: recent },
     { data: topReferrers },
+    { data: engagementData },
   ] = await Promise.all([
     db.from("waitlist").select("*", { count: "exact", head: true }),
     db.from("waitlist").select("*", { count: "exact", head: true }).eq("user_type", "pro"),
     db.from("waitlist").select("*", { count: "exact", head: true }).eq("user_type", "gc"),
     db.from("waitlist").select("name, email, user_type, position, referral_code, created_at").order("created_at", { ascending: false }).limit(20),
     db.from("waitlist").select("referral_code, name").limit(500),
+    db.rpc("get_platform_engagement_stats"),
   ]);
+
+  const engagement = engagementData as {
+    total_registered: number;
+    mau: number;
+    active_posting_users: number;
+  } | null;
 
   // Compute top referrers client-side from the data
   const referralMap: Record<string, { name: string; count: number }> = {};
@@ -83,7 +91,45 @@ export default async function AdminWaitlistPage() {
           </span>
         </div>
 
-        {/* Stats */}
+        {/* Platform Engagement — advertising metrics */}
+        <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Activity className="w-4 h-4 text-green-400" />
+            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Platform Engagement</h2>
+            <span className="text-[10px] text-slate-600 ml-auto">last 30 days</span>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="bg-slate-900/60 border border-slate-700/40 rounded-xl p-4 text-center">
+              <p className="text-3xl font-black text-white">{engagement?.total_registered ?? 0}</p>
+              <p className="text-xs text-slate-400 mt-1 font-semibold uppercase tracking-wide">Registered Users</p>
+              <p className="text-[10px] text-slate-600 mt-0.5">all time</p>
+            </div>
+            <div className="bg-green-950/30 border border-green-900/40 rounded-xl p-4 text-center">
+              <div className="flex items-center justify-center gap-1 mb-1">
+                <TrendingUp className="w-3.5 h-3.5 text-green-400" />
+              </div>
+              <p className="text-3xl font-black text-green-400">{engagement?.mau ?? 0}</p>
+              <p className="text-xs text-slate-400 mt-1 font-semibold uppercase tracking-wide">MAU</p>
+              <p className="text-[10px] text-slate-600 mt-0.5">logged in ≤ 30 days</p>
+            </div>
+            <div className="bg-orange-950/30 border border-orange-900/40 rounded-xl p-4 text-center">
+              <div className="flex items-center justify-center gap-1 mb-1">
+                <PenLine className="w-3.5 h-3.5 text-orange-400" />
+              </div>
+              <p className="text-3xl font-black text-orange-400">{engagement?.active_posting_users ?? 0}</p>
+              <p className="text-xs text-slate-400 mt-1 font-semibold uppercase tracking-wide">Active Posters</p>
+              <p className="text-[10px] text-slate-600 mt-0.5">posted ≤ 30 days</p>
+            </div>
+          </div>
+          {engagement && engagement.total_registered > 0 && (
+            <div className="mt-3 pt-3 border-t border-slate-700/40 flex gap-6 text-xs text-slate-500">
+              <span>MAU rate: <strong className="text-slate-300">{Math.round((engagement.mau / engagement.total_registered) * 100)}%</strong></span>
+              <span>Posting rate: <strong className="text-slate-300">{Math.round((engagement.active_posting_users / engagement.total_registered) * 100)}%</strong></span>
+            </div>
+          )}
+        </div>
+
+        {/* Waitlist stats */}
         <div className="grid grid-cols-3 gap-4 mb-8">
           <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-5 text-center">
             <p className="text-3xl font-black text-white">{totalCount ?? 0}</p>
