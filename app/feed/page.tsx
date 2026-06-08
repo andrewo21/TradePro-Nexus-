@@ -477,6 +477,11 @@ function FeedPageInner() {
       setCurrentUser(user);
       setIsGC(user.user_metadata?.role === "gc");
 
+      // Onboarding: show for any logged-in user who hasn't dismissed or posted yet
+      if (typeof window !== "undefined" && localStorage.getItem("feed_onboarding_dismissed") !== "1") {
+        setShowOnboarding(true);
+      }
+
       // Get author ID (profile or company)
       const db = supabase as any;
       const { data: prof } = await db.from("profiles").select("id").eq("user_id", user.id).single();
@@ -488,10 +493,11 @@ function FeedPageInner() {
       }
       setCurrentAuthorId(authorId);
 
-      // Onboarding: show if user has never posted and hasn't dismissed
-      if (typeof window !== "undefined" && localStorage.getItem("feed_onboarding_dismissed") !== "1") {
-        const { count } = await db.from("feed_posts").select("id", { count: "exact", head: true }).eq("author_id", authorId);
-        if ((count ?? 0) === 0) setShowOnboarding(true);
+      // If they already have posts, suppress onboarding silently
+      const { count } = await db.from("feed_posts").select("id", { count: "exact", head: true }).eq("author_id", authorId);
+      if ((count ?? 0) > 0) {
+        setShowOnboarding(false);
+        if (typeof window !== "undefined") localStorage.setItem("feed_onboarding_dismissed", "1");
       }
     });
 
