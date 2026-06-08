@@ -19,7 +19,7 @@ const FEED_ITEMS = [
     name: "Marcus T.",
     trade: "Commercial Electrician",
     location: "Chicago, IL",
-    project: "39-Story Mixed-Use Tower — Phase 2 Roughin Complete",
+    project: "39-Story Mixed-Use Tower: Phase 2 Roughin Complete",
     verified: true,
     time: "2h ago",
     color: "orange",
@@ -28,7 +28,7 @@ const FEED_ITEMS = [
     name: "Delta Mechanical Inc.",
     trade: "HVAC / Plumbing",
     location: "Houston, TX",
-    project: "Senior Living Facility — HVAC Ductwork Install, 84,000 SF",
+    project: "Senior Living Facility: HVAC Ductwork Install, 84,000 SF",
     verified: true,
     time: "4h ago",
     color: "blue",
@@ -37,7 +37,7 @@ const FEED_ITEMS = [
     name: "Ray V.",
     trade: "Ironworker / Structural Steel",
     location: "Newark, NJ",
-    project: "Federal Courthouse Structural Steel — Topped Out",
+    project: "Federal Courthouse Structural Steel: Topped Out",
     verified: true,
     time: "6h ago",
     color: "orange",
@@ -46,7 +46,7 @@ const FEED_ITEMS = [
     name: "Pacific Fire Protection LLC",
     trade: "Fire Suppression",
     location: "Los Angeles, CA",
-    project: "245-Unit Apartment Complex — Sprinkler System Complete",
+    project: "245-Unit Apartment Complex: Sprinkler System Complete",
     verified: true,
     time: "8h ago",
     color: "blue",
@@ -55,7 +55,7 @@ const FEED_ITEMS = [
     name: "Jerome K.",
     trade: "Superintendent",
     location: "Atlanta, GA",
-    project: "Hospital Renovation — TI Complete, Punch List Underway",
+    project: "Hospital Renovation: TI Complete, Punch List Underway",
     verified: true,
     time: "12h ago",
     color: "orange",
@@ -142,15 +142,15 @@ export default function LandingPage() {
     },
     {
       value: hasProfiles  ? formatCount(stats!.profiles)  : "Free",
-      label: hasProfiles  ? "Trade Pros & Inspectors"    : "Build your Trade Card — always",
+      label: hasProfiles  ? "Trade Pros & Inspectors"    : "Build your Trade Card. Always free.",
     },
     {
       value: hasVerified  ? formatCount(stats!.verified)  : "$99",
-      label: hasVerified  ? "Verified Pros"              : "One-time verification — no subscription",
+      label: hasVerified  ? "Verified Pros"              : "One-time verification, no subscription",
     },
     {
       value: hasCompanies ? formatCount(stats!.companies) : "Paper",
-      label: hasCompanies ? "GCs & Companies"            : "Verified by — not by algorithm",
+      label: hasCompanies ? "GCs & Companies"            : "Verified by paper, not algorithm",
     },
   ];
 
@@ -183,7 +183,7 @@ export default function LandingPage() {
           >
             <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-950/60 border border-orange-800/50 text-orange-400 text-xs font-semibold rounded-full tracking-wider uppercase">
               <ShieldCheck className="w-3.5 h-3.5" />
-              TradePro Enterprises — Verified Marketplace
+              TradePro Enterprises · Verified Marketplace
             </span>
           </motion.div>
 
@@ -201,7 +201,7 @@ export default function LandingPage() {
             </h1>
             <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
               Verified bonding. Verified payroll. Verified talent. Connect the right crews
-              to the right projects — in seconds, not weeks.
+              to the right projects. In seconds, not weeks.
             </p>
           </motion.div>
 
@@ -267,7 +267,7 @@ export default function LandingPage() {
                 <span className="text-xs font-bold uppercase tracking-widest text-green-400">Live Feed</span>
               </div>
               <h2 className="text-2xl md:text-3xl font-bold text-white">Work is Currency.</h2>
-              <p className="text-slate-400 text-sm mt-1">Real progress from Verified Pros — updated continuously.</p>
+              <p className="text-slate-400 text-sm mt-1">Real progress from Verified Pros, updated continuously.</p>
             </div>
             <Link
               href="/feed"
@@ -345,7 +345,7 @@ export default function LandingPage() {
               </div>
               <div className="space-y-3">
                 {[
-                  "Build a Digital Trade Card — your public capability statement",
+                  "Build a Digital Trade Card, your public capability statement",
                   "Upload OSHA certs, bonding proof, COI, and W9 for instant AI verification",
                   "Set your availability, crew size, and project capacity",
                   "Get a shareable URL: nexus.com/pro/your-name",
@@ -375,7 +375,7 @@ export default function LandingPage() {
                 {[
                   "Search by project sector, value, and zip code",
                   "See Green / Yellow / Blue match scores based on bonding and payroll",
-                  "View the lead foreman's Trade Card — see the actual talent, not just the company",
+                  "View the lead foreman's Trade Card to see the actual talent, not just the company",
                   "Filter by 'Available Now' to find crews ready to mobilize",
                   "Access verified COIs, bonding certs, and W9s before you make the call",
                 ].map((item) => (
@@ -534,7 +534,7 @@ export default function LandingPage() {
                   <span className="text-xs font-bold uppercase tracking-widest text-green-400">Available Now</span>
                 </div>
                 <h2 className="text-2xl font-black text-white">Get Discovered</h2>
-                <p className="text-slate-400 text-sm mt-1">Trade pros ready to mobilize — browse free</p>
+                <p className="text-slate-400 text-sm mt-1">Trade pros ready to mobilize. Browse free.</p>
               </div>
               <Link href="/feed?available=1" className="hidden sm:flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300 font-semibold transition-colors">
                 See All <ChevronRight className="w-3.5 h-3.5" />
@@ -588,7 +588,7 @@ export default function LandingPage() {
             <span className="text-orange-500">Now let the right people hear it.</span>
           </h2>
           <p className="text-slate-400 mb-8">
-            We&apos;re launching soon. Get your spot now — free forever.
+            We&apos;re launching soon. Get your spot now. Free forever.
           </p>
           <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6">
             <Suspense fallback={null}>
