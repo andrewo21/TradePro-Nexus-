@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ShieldCheck, MapPin, Clock, Heart, Filter,
@@ -14,6 +15,8 @@ import { getSupabase } from "@/lib/supabase";
 import { SECTORS, TRADE_GROUPS } from "@/lib/constants";
 import FeedAdCard from "@/components/FeedAdCard";
 import DesktopAdRail from "@/components/DesktopAdRail";
+import BadgeCelebration from "@/components/BadgeCelebration";
+import type { Badge } from "@/lib/badge-definitions";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -182,15 +185,63 @@ function PostCard({
   );
 }
 
+// ── Onboarding Card ───────────────────────────────────────────────────────────
+
+const ONBOARDING_PROMPTS = [
+  "Tell the community what trade you're in and where you work",
+  "Share a recent project you're proud of",
+  "Are you available for work? Let GCs know",
+  "What's your specialty?",
+];
+
+function OnboardingCard({ onDismiss, onPrompt }: { onDismiss: () => void; onPrompt: (p: string) => void }) {
+  return (
+    <div className="bg-gradient-to-br from-orange-950/40 to-slate-900 border border-orange-800/50 rounded-2xl p-4 relative">
+      <button onClick={onDismiss} className="absolute top-3 right-3 text-slate-500 hover:text-slate-300 transition-colors p-1">
+        <X className="w-4 h-4" />
+      </button>
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-7 h-7 bg-orange-600/20 border border-orange-600/40 rounded-lg flex items-center justify-center">
+          <PenLine className="w-3.5 h-3.5 text-orange-400" />
+        </div>
+        <div>
+          <p className="text-white font-bold text-sm">Introduce yourself to the community</p>
+          <p className="text-slate-400 text-xs">Post an update to get started</p>
+        </div>
+      </div>
+      <div className="space-y-2">
+        {ONBOARDING_PROMPTS.map((prompt) => (
+          <button
+            key={prompt}
+            onClick={() => onPrompt(prompt)}
+            className="w-full text-left px-3 py-2.5 bg-slate-800/60 border border-slate-700 hover:border-orange-600/50 hover:bg-slate-800 rounded-xl text-xs text-slate-300 hover:text-white transition-all flex items-center justify-between gap-2 group"
+          >
+            <span>"{prompt}"</span>
+            <ArrowRight className="w-3 h-3 text-slate-600 group-hover:text-orange-400 flex-shrink-0 transition-colors" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Post Composer ─────────────────────────────────────────────────────────────
 
-function PostComposer({ onPost }: { onPost: () => void }) {
+function PostComposer({ onPost, promptContent }: { onPost: (newBadges?: Badge[]) => void; promptContent?: string }) {
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState(() => {
     // Restore draft from localStorage (design choice: auto-load draft on open)
     if (typeof window !== "undefined") return localStorage.getItem("feed_draft_content") ?? "";
     return "";
   });
+
+  // Open and pre-fill when a prompt is passed in
+  useEffect(() => {
+    if (promptContent) {
+      setContent(promptContent);
+      setOpen(true);
+    }
+  }, [promptContent]);
   const [project, setProject] = useState("");
   const [images, setImages] = useState<File[]>([]);
   const [posting, setPosting] = useState(false);
@@ -251,7 +302,7 @@ function PostComposer({ onPost }: { onPost: () => void }) {
       setProject("");
       setImages([]);
       setOpen(false);
-      onPost();
+      onPost(data.newBadges ?? []);
     } catch {
       setError("Something went wrong.");
     } finally {
@@ -363,7 +414,8 @@ function EditComposer({ post, onDone, onCancel }: { post: FeedPost; onDone: () =
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-export default function FeedPage() {
+function FeedPageInner() {
+  const searchParams = useSearchParams();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
@@ -371,12 +423,15 @@ export default function FeedPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [tradeFilter, setTradeFilter] = useState("All Trades");
   const [sectorFilter, setSectorFilter] = useState("All Sectors");
-  const [availableNow, setAvailableNow] = useState(false);
+  const [availableNow, setAvailableNow] = useState(() => searchParams.get("available") === "1");
   const [search, setSearch] = useState("");
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentAuthorId, setCurrentAuthorId] = useState<string | null>(null);
   const [isGC, setIsGC] = useState(false);
   const [editingPost, setEditingPost] = useState<FeedPost | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [activePrompt, setActivePrompt] = useState<string | undefined>(undefined);
+  const [celebrationBadges, setCelebrationBadges] = useState<Badge[]>([]);
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -425,9 +480,19 @@ export default function FeedPage() {
       // Get author ID (profile or company)
       const db = supabase as any;
       const { data: prof } = await db.from("profiles").select("id").eq("user_id", user.id).single();
-      if (prof) { setCurrentAuthorId(prof.id); return; }
-      const { data: comp } = await db.from("companies").select("id").eq("user_id", user.id).single();
-      if (comp) setCurrentAuthorId(comp.id);
+      const authorId = prof?.id ?? null;
+      if (!authorId) {
+        const { data: comp } = await db.from("companies").select("id").eq("user_id", user.id).single();
+        if (comp) setCurrentAuthorId(comp.id);
+        return;
+      }
+      setCurrentAuthorId(authorId);
+
+      // Onboarding: show if user has never posted and hasn't dismissed
+      if (typeof window !== "undefined" && localStorage.getItem("feed_onboarding_dismissed") !== "1") {
+        const { count } = await db.from("feed_posts").select("id", { count: "exact", head: true }).eq("author_id", authorId);
+        if ((count ?? 0) === 0) setShowOnboarding(true);
+      }
     });
 
     // Load bookmarks
@@ -435,6 +500,16 @@ export default function FeedPage() {
       if (d.bookmarks) setBookmarkedPosts(new Set(d.bookmarks));
     }).catch(() => {});
   }, [fetchPosts]);
+
+  function dismissOnboarding() {
+    setShowOnboarding(false);
+    if (typeof window !== "undefined") localStorage.setItem("feed_onboarding_dismissed", "1");
+  }
+
+  function handleOnboardingPrompt(prompt: string) {
+    setActivePrompt(prompt);
+    setTimeout(() => setActivePrompt(undefined), 100); // reset so it can fire again
+  }
 
   async function toggleBookmark(postId: string) {
     setBookmarkedPosts(prev => {
@@ -485,6 +560,9 @@ export default function FeedPage() {
       {/* Desktop ad rails — hidden on mobile per roadmap */}
       <DesktopAdRail side="left" />
       <DesktopAdRail side="right" />
+      {celebrationBadges.length > 0 && (
+        <BadgeCelebration badges={celebrationBadges} onClose={() => setCelebrationBadges([])} />
+      )}
       <div className="max-w-2xl mx-auto px-4 pt-24 pb-24">
 
         {/* Header */}
@@ -542,7 +620,20 @@ export default function FeedPage() {
         )}
 
         {/* Composer */}
-        {currentUser && <div className="mb-5"><PostComposer onPost={fetchPosts} /></div>}
+        {currentUser && (
+          <div className="mb-5 space-y-3">
+            {showOnboarding && (
+              <OnboardingCard
+                onDismiss={dismissOnboarding}
+                onPrompt={handleOnboardingPrompt}
+              />
+            )}
+            <PostComposer
+              onPost={(newBadges) => { dismissOnboarding(); fetchPosts(); if (newBadges?.length) setCelebrationBadges(newBadges); }}
+              promptContent={activePrompt}
+            />
+          </div>
+        )}
 
         {/* Feed */}
         {loading ? (
@@ -588,4 +679,8 @@ export default function FeedPage() {
       </div>
     </div>
   );
+}
+
+export default function FeedPage() {
+  return <Suspense fallback={null}><FeedPageInner /></Suspense>;
 }

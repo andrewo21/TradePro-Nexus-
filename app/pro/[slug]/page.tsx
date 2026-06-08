@@ -7,6 +7,7 @@ import type { Profile, Company } from "@/types/database";
 import FollowButton from "@/components/FollowButton";
 import ProfileViewTracker from "@/components/ProfileViewTracker";
 import { PROFILE_TYPES } from "@/lib/constants";
+import BadgeDisplay from "@/components/BadgeDisplay";
 
 function VerificationBadge({ status }: { status: string }) {
   if (status !== "verified") {
@@ -45,6 +46,12 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
     : { data: null };
 
   const otherCerts = (profile.other_certifications ?? []).join(", ");
+
+  // Fetch earned badges for this profile's user
+  const { data: badgeRows } = profile.user_id
+    ? await db.from("user_badges").select("badge_slug").eq("user_id", profile.user_id)
+    : { data: [] };
+  const earnedBadgeSlugs: string[] = (badgeRows ?? []).map((r: any) => r.badge_slug);
 
   // Type-specific fields from JSONB column
   const profileType = (profile as any).profile_type ?? "tradepro";
@@ -129,6 +136,13 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
             </span>
             {firmName && <span className="text-xs text-slate-400">{firmName}</span>}
           </div>
+
+          {/* Community badges */}
+          {earnedBadgeSlugs.length > 0 && (
+            <div className="mt-3">
+              <BadgeDisplay badgeSlugs={earnedBadgeSlugs} size="md" />
+            </div>
+          )}
 
           {/* License number — prominent for inspectors/architects/engineers */}
           {licenseNumber && (

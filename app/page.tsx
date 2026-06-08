@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import WaitlistForm from "@/components/WaitlistForm";
+import { getSupabase } from "@/lib/supabase";
 
 // ── Mock Feed Data ─────────────────────────────────────────────────────────────
 
@@ -92,13 +93,37 @@ const SECTORS = [
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
+interface AvailablePro {
+  id: string;
+  slug: string;
+  first_name: string;
+  last_name: string;
+  trade: string;
+  location_city: string | null;
+  location_state: string | null;
+  verification_status: string;
+}
+
 export default function LandingPage() {
   const [stats, setStats] = useState<LiveStats | null>(null);
+  const [availablePros, setAvailablePros] = useState<AvailablePro[]>([]);
 
   useEffect(() => {
     fetch("/api/stats")
       .then(r => r.json())
       .then(setStats)
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const db = getSupabase() as any;
+    db.from("profiles")
+      .select("id, slug, first_name, last_name, trade, location_city, location_state, verification_status")
+      .eq("availability_status", "available")
+      .limit(6)
+      .then(({ data }: { data: AvailablePro[] | null }) => {
+        if (data?.length) setAvailablePros(data);
+      })
       .catch(() => {});
   }, []);
 
@@ -497,6 +522,63 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ── GET DISCOVERED ──────────────────────────────────────────────────── */}
+      {availablePros.length > 0 && (
+        <section className="py-16 px-4 sm:px-6 border-t border-slate-800">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                  <span className="text-xs font-bold uppercase tracking-widest text-green-400">Available Now</span>
+                </div>
+                <h2 className="text-2xl font-black text-white">Get Discovered</h2>
+                <p className="text-slate-400 text-sm mt-1">Trade pros ready to mobilize — browse free</p>
+              </div>
+              <Link href="/feed?available=1" className="hidden sm:flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300 font-semibold transition-colors">
+                See All <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {availablePros.map(pro => (
+                <Link
+                  key={pro.id}
+                  href={`/pro/${pro.slug}`}
+                  className="bg-slate-800/60 border border-slate-700 hover:border-green-700/60 rounded-2xl p-4 transition-all group"
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 bg-orange-600/20 border border-orange-600/40 rounded-xl flex items-center justify-center font-black text-orange-400 text-sm flex-shrink-0">
+                      {pro.first_name[0]}{pro.last_name[0]}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-white text-sm truncate group-hover:text-orange-300 transition-colors">
+                        {pro.first_name} {pro.last_name}
+                      </p>
+                      <p className="text-orange-400 text-xs truncate">{pro.trade}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1 text-xs text-slate-400">
+                      {pro.location_city && <><MapPin className="w-3 h-3" />{pro.location_city}{pro.location_state ? `, ${pro.location_state}` : ""}</>}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
+                      <span className="text-[10px] font-bold text-green-400">Available</span>
+                      {pro.verification_status === "verified" && <ShieldCheck className="w-3 h-3 text-green-400" />}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+            <div className="mt-4 text-center sm:hidden">
+              <Link href="/feed?available=1" className="text-xs text-orange-400 font-semibold">
+                See all available pros →
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ── FINAL CTA ───────────────────────────────────────────────────────── */}
       <section className="py-20 px-4 sm:px-6 border-t border-slate-800" id="waitlist-bottom">

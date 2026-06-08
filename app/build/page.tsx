@@ -292,6 +292,9 @@ export default function BuildPage() {
         if (valid.length) await db.from("documents").insert(valid);
       }
 
+      // Check for Profile Champion badge (fire-and-forget)
+      fetch("/api/badges/check?trigger=profile", { method: "POST" }).catch(() => {});
+
       setFinalSlug(slug);
       setSubmitted(true);
     } catch (err: unknown) {

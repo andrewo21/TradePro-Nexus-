@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseServer } from "@/lib/supabaseServer";
+import { checkAndAwardBadges } from "@/lib/badges";
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,7 +43,15 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error;
 
-    return NextResponse.json(post);
+    // Check for newly earned badges (fire-and-forget errors don't block the post)
+    let newBadges: import("@/lib/badges").Badge[] = [];
+    try {
+      newBadges = await checkAndAwardBadges(user.id, "post");
+    } catch (badgeErr) {
+      console.error("Badge check error:", badgeErr);
+    }
+
+    return NextResponse.json({ ...post, newBadges });
   } catch (err) {
     console.error("Feed post error:", err);
     return NextResponse.json({ error: "Something went wrong." }, { status: 500 });

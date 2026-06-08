@@ -5,6 +5,9 @@ import Navbar from "@/components/Navbar";
 import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabaseServer";
 import { GC_TIERS, FOUNDER_LIMIT, type GCTier } from "@/lib/stripe-config";
 import ProfileCompletion from "@/components/ProfileCompletion";
+import BadgeDisplay from "@/components/BadgeDisplay";
+import { BADGES } from "@/lib/badge-definitions";
+import AvailabilityToggle from "@/components/AvailabilityToggle";
 
 interface GCSubRow {
   id: string;
@@ -75,6 +78,19 @@ export default async function AccountPage() {
   const gcSub = sub as GCSubRow | null;
   const verification = verif as VerificationRow | null;
 
+  // Badge data — only for trade pros (profiles, not companies)
+  const [badgeRows, postCountRes] = profile
+    ? await Promise.all([
+        db.from("user_badges").select("badge_slug, coupon_code, awarded_at").eq("user_id", user.id),
+        db.from("feed_posts").select("id", { count: "exact", head: true }).eq("author_id", profile.id).eq("author_type", "profile"),
+      ])
+    : [{ data: [] }, { count: 0 }];
+
+  const earnedBadgeSlugs: string[] = (badgeRows.data ?? []).map((r: any) => r.badge_slug);
+  const earnedBadgeMap: Record<string, any> = {};
+  for (const r of badgeRows.data ?? []) earnedBadgeMap[r.badge_slug] = r;
+  const postCount: number = postCountRes.count ?? 0;
+
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100">
       <Navbar />
@@ -104,6 +120,11 @@ export default async function AccountPage() {
                   tradepronexus.com/pro/{profile.slug} <ArrowRight className="w-3 h-3" />
                 </Link>
               </div>
+            </div>
+
+            {/* Available for Work toggle */}
+            <div className="mt-4 pt-4 border-t border-slate-700/50">
+              <AvailabilityToggle initialStatus={profile.availability_status ?? "available"} />
             </div>
 
             {profile.verification_status === "pending" && !verification && (
@@ -232,6 +253,84 @@ export default async function AccountPage() {
             <Link href="/build" className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-sm transition-colors">
               Build My Trade Card
             </Link>
+          </div>
+        )}
+
+        {/* Badges & Progress — trade pros only */}
+        {profile && (
+          <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-5 mb-4">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">Badges &amp; Progress</h2>
+
+            {/* Earned badges */}
+            {earnedBadgeSlugs.length > 0 ? (
+              <div className="mb-4">
+                <BadgeDisplay badgeSlugs={earnedBadgeSlugs} size="md" />
+              </div>
+            ) : (
+              <p className="text-slate-500 text-sm mb-4">No badges earned yet. Post to the Live Feed to get started.</p>
+            )}
+
+            {/* Verified Contributor coupon */}
+            {earnedBadgeMap["verified_contributor"]?.coupon_code && !verification && (
+              <div className="bg-green-950/30 border border-green-800/40 rounded-xl p-3 flex items-start gap-3 mb-4">
+                <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-green-300 font-bold text-sm">10% Off Verification</p>
+                  <p className="text-slate-400 text-xs mb-2">Use this coupon at checkout for your Verified Pro badge.</p>
+                  <code className="text-green-400 font-mono text-sm font-bold bg-slate-900 px-3 py-1 rounded-lg border border-green-900">
+                    {earnedBadgeMap["verified_contributor"].coupon_code}
+                  </code>
+                </div>
+              </div>
+            )}
+
+            {/* Progress toward unearned badges */}
+            <div className="space-y-2">
+              {BADGES.filter(b => b.slug === "active_member" || b.slug === "community_pro" || b.slug === "verified_contributor").map(badge => {
+                const earned = earnedBadgeSlugs.includes(badge.slug);
+                let progress = "";
+                if (!earned) {
+                  if (badge.slug === "active_member") progress = postCount === 0 ? "Post your first update to earn this" : "";
+                  if (badge.slug === "community_pro") {
+                    const remaining = 10 - postCount;
+                    if (remaining > 0) progress = `${remaining} post${remaining !== 1 ? "s" : ""} away`;
+                  }
+                  if (badge.slug === "verified_contributor") {
+                    const remaining = 20 - postCount;
+                    if (remaining > 0) progress = `${remaining} post${remaining !== 1 ? "s" : ""} away (within 60 days)`;
+                  }
+                }
+                if (earned || !progress) return null;
+                return (
+                  <div key={badge.slug} className={`flex items-center gap-2.5 p-2.5 rounded-xl border ${badge.bg} ${badge.border} opacity-60`}>
+                    <span className="text-lg">{badge.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className={`font-bold text-xs ${badge.color}`}>{badge.label}</p>
+                      <p className="text-slate-400 text-xs">{progress}</p>
+                    </div>
+                    <span className="text-slate-600 text-xs font-mono whitespace-nowrap">{badge.slug === "active_member" ? `${postCount}/1` : badge.slug === "community_pro" ? `${postCount}/10` : `${postCount}/20`}</span>
+                  </div>
+                );
+              })}
+              {!earnedBadgeSlugs.includes("profile_champion") && (
+                <div className={`flex items-center gap-2.5 p-2.5 rounded-xl border ${BADGES.find(b => b.slug === "profile_champion")!.bg} ${BADGES.find(b => b.slug === "profile_champion")!.border} opacity-60`}>
+                  <span className="text-lg">⭐</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-xs text-blue-400">Profile Champion</p>
+                    <p className="text-slate-400 text-xs">Complete your Trade Card (bio, location, phone, photo, years exp)</p>
+                  </div>
+                </div>
+              )}
+              {!earnedBadgeSlugs.includes("networked") && (
+                <div className={`flex items-center gap-2.5 p-2.5 rounded-xl border ${BADGES.find(b => b.slug === "networked")!.bg} ${BADGES.find(b => b.slug === "networked")!.border} opacity-60`}>
+                  <span className="text-lg">🤝</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-xs text-purple-400">Networked</p>
+                    <p className="text-slate-400 text-xs">Follow someone on the platform to earn this</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

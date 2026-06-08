@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseServer } from "@/lib/supabaseServer";
+import { checkAndAwardBadges } from "@/lib/badges";
 
 // GET /api/follows?following_id=xxx — check follow status
 export async function GET(request: NextRequest) {
@@ -30,6 +31,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ following: false });
   } else {
     await db.from("follows").insert({ follower_user_id: user.id, following_id, following_type });
-    return NextResponse.json({ following: true });
+    let newBadges: import("@/lib/badges").Badge[] = [];
+    try {
+      newBadges = await checkAndAwardBadges(user.id, "follow");
+    } catch {}
+    return NextResponse.json({ following: true, newBadges });
   }
 }
