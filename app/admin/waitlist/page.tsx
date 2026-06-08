@@ -3,6 +3,7 @@ import { Users, HardHat, Building2, ArrowRight, Activity, TrendingUp, PenLine } 
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { getSupabaseAdmin, getSupabaseServer } from "@/lib/supabaseServer";
+import NewsFeedAdmin from "@/components/NewsFeedAdmin";
 
 const ADMIN_EMAIL = "andrew@tradeprotech.ai";
 
@@ -45,6 +46,14 @@ export default async function AdminWaitlistPage() {
     mau: number;
     active_posting_users: number;
   } | null;
+
+  // News feed settings
+  const { data: newsSettings } = await db
+    .from("admin_settings")
+    .select("key, value")
+    .in("key", ["news_feed_enabled", "news_feed_last_run", "news_feed_last_count"]);
+  const newsMap: Record<string, string> = {};
+  for (const r of newsSettings ?? []) newsMap[r.key] = r.value;
 
   // Compute top referrers client-side from the data
   const referralMap: Record<string, { name: string; count: number }> = {};
@@ -128,6 +137,13 @@ export default async function AdminWaitlistPage() {
             </div>
           )}
         </div>
+
+        {/* News Feed Admin */}
+        <NewsFeedAdmin
+          initialEnabled={newsMap["news_feed_enabled"] !== "false"}
+          lastRun={newsMap["news_feed_last_run"] ?? "never"}
+          lastCount={newsMap["news_feed_last_count"] ?? "0"}
+        />
 
         {/* Waitlist stats */}
         <div className="grid grid-cols-3 gap-4 mb-8">

@@ -7,7 +7,8 @@ import {
   ShieldCheck, MapPin, Clock, Heart, Filter,
   ChevronDown, Rss, HardHat, Building2, ArrowRight,
   Send, Loader2, PenLine, X, Camera, Bookmark,
-  Share2, MoreHorizontal, Edit3, Trash2, Pin, Search, MessageCircle
+  Share2, MoreHorizontal, Edit3, Trash2, Pin, Search, MessageCircle,
+  Newspaper, ExternalLink
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
@@ -22,8 +23,8 @@ import type { Badge } from "@/lib/badge-definitions";
 
 interface FeedPost {
   id: string;
-  author_id: string;
-  author_type: "profile" | "company";
+  author_id: string | null;
+  author_type: "profile" | "company" | "news";
   content: string;
   project_name: string | null;
   trade_tags: string[];
@@ -36,6 +37,9 @@ interface FeedPost {
   author_location: string;
   author_verified: boolean;
   author_availability: string;
+  is_industry_news: boolean;
+  news_source_name: string | null;
+  news_article_url: string | null;
 }
 
 function timeAgo(iso: string) {
@@ -72,37 +76,58 @@ function PostCard({
   onDM: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const isOwner = post.author_id === currentAuthorId;
+  const isOwner = post.author_id !== null && post.author_id === currentAuthorId;
+  const isNews = post.is_industry_news;
 
   return (
-    <div className="bg-slate-800 border border-slate-600 rounded-2xl overflow-hidden hover:border-slate-500 transition-colors">
+    <div className={`border rounded-2xl overflow-hidden transition-colors ${isNews ? "bg-slate-800/40 border-blue-900/50 hover:border-blue-800/70" : "bg-slate-800 border-slate-600 hover:border-slate-500"}`}>
+      {/* Industry News top bar */}
+      {isNews && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-blue-950/50 border-b border-blue-900/50">
+          <Newspaper className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">Industry News</span>
+          <span className="text-slate-600 text-[10px]">·</span>
+          <span className="text-[10px] text-slate-400">{post.news_source_name}</span>
+        </div>
+      )}
+
       <div className="p-4 pb-0">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex items-start gap-3">
-            <Link
-              href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`}
-              className="w-10 h-10 rounded-xl bg-orange-600/30 border border-orange-600/60 flex items-center justify-center font-black text-orange-400 text-sm flex-shrink-0 hover:border-orange-400 transition-colors"
-            >
-              {post.author_type === "company" ? <Building2 className="w-5 h-5" /> : post.author_name.slice(0, 2).toUpperCase()}
-            </Link>
+            {/* Avatar */}
+            {isNews ? (
+              <div className="w-10 h-10 rounded-xl bg-blue-900/30 border border-blue-800/50 flex items-center justify-center flex-shrink-0">
+                <Newspaper className="w-5 h-5 text-blue-400" />
+              </div>
+            ) : (
+              <Link
+                href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`}
+                className="w-10 h-10 rounded-xl bg-orange-600/30 border border-orange-600/60 flex items-center justify-center font-black text-orange-400 text-sm flex-shrink-0 hover:border-orange-400 transition-colors"
+              >
+                {post.author_type === "company" ? <Building2 className="w-5 h-5" /> : post.author_name.slice(0, 2).toUpperCase()}
+              </Link>
+            )}
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <Link href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`} className="font-bold text-white text-sm hover:text-orange-300 transition-colors">
-                  {post.author_name}
-                </Link>
-                {post.author_verified && (
+                {isNews ? (
+                  <span className="font-bold text-white text-sm">TradePro Nexus</span>
+                ) : (
+                  <Link href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`} className="font-bold text-white text-sm hover:text-orange-300 transition-colors">
+                    {post.author_name}
+                  </Link>
+                )}
+                {!isNews && post.author_verified && (
                   <span className="flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-900/40 border border-green-700 px-1.5 py-0.5 rounded-full">
                     <ShieldCheck className="w-3 h-3" /> VERIFIED
                   </span>
                 )}
-                {post.author_availability === "available" && (
+                {!isNews && post.author_availability === "available" && (
                   <span className="flex items-center gap-1 text-[10px] font-bold text-green-300 bg-green-900/40 px-1.5 py-0.5 rounded-full border border-green-700">
                     <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" /> Available Now
                   </span>
                 )}
               </div>
-              <p className="text-xs text-orange-400 font-semibold mt-0.5">{post.author_trade}</p>
-              {/* slate-400 ≈ 4.8:1 on slate-800 — passes WCAG AA */}
+              {!isNews && <p className="text-xs text-orange-400 font-semibold mt-0.5">{post.author_trade}</p>}
               <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
                 {post.author_location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{post.author_location}</span>}
                 <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo(post.created_at)}</span>
@@ -110,45 +135,53 @@ function PostCard({
             </div>
           </div>
 
-          {/* Actions menu */}
-          <div className="relative flex-shrink-0">
-            <button onClick={() => setMenuOpen(!menuOpen)} className="text-slate-400 hover:text-slate-200 p-1 transition-colors">
-              <MoreHorizontal className="w-4 h-4" />
-            </button>
-            {menuOpen && (
-              <div className="absolute right-0 top-6 w-40 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-20 overflow-hidden" onMouseLeave={() => setMenuOpen(false)}>
-                <button onClick={() => { onShare(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
-                  <Share2 className="w-3.5 h-3.5" /> Share
-                </button>
-                <button onClick={() => { onBookmark(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
-                  <Bookmark className={`w-3.5 h-3.5 ${bookmarked ? "fill-orange-400 text-orange-400" : ""}`} /> {bookmarked ? "Bookmarked" : "Bookmark"}
-                </button>
-                {isOwner && <>
-                  <button onClick={() => { onEdit(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
-                    <Edit3 className="w-3.5 h-3.5" /> Edit
+          {/* Actions menu — no edit/delete/DM for news */}
+          {!isNews && (
+            <div className="relative flex-shrink-0">
+              <button onClick={() => setMenuOpen(!menuOpen)} className="text-slate-400 hover:text-slate-200 p-1 transition-colors">
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+              {menuOpen && (
+                <div className="absolute right-0 top-6 w-40 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-20 overflow-hidden" onMouseLeave={() => setMenuOpen(false)}>
+                  <button onClick={() => { onShare(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
+                    <Share2 className="w-3.5 h-3.5" /> Share
                   </button>
-                  <button onClick={() => { onPin(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
-                    <Pin className="w-3.5 h-3.5" /> Pin to Profile
+                  <button onClick={() => { onBookmark(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
+                    <Bookmark className={`w-3.5 h-3.5 ${bookmarked ? "fill-orange-400 text-orange-400" : ""}`} /> {bookmarked ? "Bookmarked" : "Bookmark"}
                   </button>
-                  <button onClick={() => { onDelete(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-red-400 hover:bg-slate-700 transition-colors">
-                    <Trash2 className="w-3.5 h-3.5" /> Delete
-                  </button>
-                </>}
-                {isGC && !isOwner && (
-                  <button onClick={() => { onDM(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-blue-400 hover:bg-slate-700 transition-colors">
-                    <MessageCircle className="w-3.5 h-3.5" /> Send Message
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+                  {isOwner && <>
+                    <button onClick={() => { onEdit(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
+                      <Edit3 className="w-3.5 h-3.5" /> Edit
+                    </button>
+                    <button onClick={() => { onPin(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
+                      <Pin className="w-3.5 h-3.5" /> Pin to Profile
+                    </button>
+                    <button onClick={() => { onDelete(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-red-400 hover:bg-slate-700 transition-colors">
+                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                    </button>
+                  </>}
+                  {isGC && !isOwner && (
+                    <button onClick={() => { onDM(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-blue-400 hover:bg-slate-700 transition-colors">
+                      <MessageCircle className="w-3.5 h-3.5" /> Send Message
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {post.project_name && <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1.5">Project: {post.project_name}</p>}
-        <p className="text-slate-100 text-sm leading-relaxed">{post.content}</p>
+        {/* Headline for news posts; project label for user posts */}
+        {isNews && post.project_name && (
+          <p className="text-white font-bold text-sm leading-snug mb-2">{post.project_name}</p>
+        )}
+        {!isNews && post.project_name && (
+          <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1.5">Project: {post.project_name}</p>
+        )}
+        <p className="text-slate-300 text-sm leading-relaxed">{post.content}</p>
 
-        {/* Gallery */}
-        {post.image_urls?.length > 0 && (
+        {/* Gallery — user posts only */}
+        {!isNews && post.image_urls?.length > 0 && (
           <div className={`grid gap-1.5 mt-3 ${post.image_urls.length >= 3 ? "grid-cols-3" : post.image_urls.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
             {post.image_urls.slice(0, 3).map((url, i) => (
               <div key={i} className="aspect-video rounded-lg overflow-hidden bg-slate-900">
@@ -158,7 +191,7 @@ function PostCard({
           </div>
         )}
 
-        {post.trade_tags.length > 0 && (
+        {!isNews && post.trade_tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-3">
             {post.trade_tags.map(tag => (
               <span key={tag} className="px-2 py-0.5 bg-slate-700 border border-slate-600 text-slate-300 text-[10px] font-semibold rounded-full">#{tag.replace(/\s+/g, "")}</span>
@@ -177,9 +210,15 @@ function PostCard({
             <Bookmark className={`w-4 h-4 ${bookmarked ? "fill-orange-400" : ""}`} />
           </button>
         </div>
-        <Link href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`} className="flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-orange-400 transition-colors">
-          View {post.author_type === "company" ? "Company" : "Trade Card"} <ArrowRight className="w-3.5 h-3.5" />
-        </Link>
+        {isNews ? (
+          <a href={post.news_article_url ?? "#"} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors">
+            <ExternalLink className="w-3.5 h-3.5" /> Read Article
+          </a>
+        ) : (
+          <Link href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`} className="flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-orange-400 transition-colors">
+            View {post.author_type === "company" ? "Company" : "Trade Card"} <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        )}
       </div>
     </div>
   );
@@ -453,6 +492,9 @@ function FeedPageInner() {
       for (const c of compRes.data ?? []) cm[c.id] = c;
 
       const mapped: FeedPost[] = raw.map((p: any) => {
+        if (p.author_type === "news" || p.is_industry_news) {
+          return { ...p, author_name: p.news_source_name ?? "Industry News", author_slug: "", author_trade: "Industry News", author_location: "", author_verified: false, author_availability: "available" };
+        }
         if (p.author_type === "profile") {
           const prof = pm[p.author_id];
           return { ...p, author_name: prof ? `${prof.first_name} ${prof.last_name}` : "Unknown", author_slug: prof?.slug ?? "", author_trade: prof?.trade ?? "", author_location: prof ? [prof.location_city, prof.location_state].filter(Boolean).join(", ") : "", author_verified: prof?.verification_status === "verified", author_availability: prof?.availability_status ?? "available" };
