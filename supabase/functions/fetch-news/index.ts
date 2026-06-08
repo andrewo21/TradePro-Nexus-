@@ -4,18 +4,34 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // ── RSS sources ──────────────────────────────────────────────────────────────
 
 const SOURCES = [
-  { name: "Engineering News-Record",       url: "https://www.enr.com/rss" },
-  { name: "Construction Dive",             url: "https://www.constructiondive.com/feeds/news/" },
-  { name: "Construction Executive",        url: "https://constructionexec.com/feed" },
-  { name: "For Construction Pros",         url: "https://www.forconstructionpros.com/rss" },
-  { name: "Electrical Contractor",         url: "https://www.ecmweb.com/rss" },
-  { name: "Plumbing & Mechanical",         url: "https://www.pmmag.com/rss" },
-  { name: "HVACR Business",               url: "https://www.hvacrbusiness.com/rss" },
-  { name: "Roofing Contractor",            url: "https://www.roofingcontractor.com/rss" },
-  { name: "OSHA News",                    url: "https://www.osha.gov/rss" },
-  { name: "Safety+Health Magazine",        url: "https://www.safetyandhealthmagazine.com/rss" },
-  { name: "Associated General Contractors",url: "https://www.agc.org/rss" },
-  { name: "Bureau of Labor Statistics",    url: "https://www.bls.gov/feed/bls_latest.rss" },
+  // Industry news
+  { name: "Engineering News-Record",                  url: "https://www.enr.com/rss" },
+  { name: "Construction Dive",                        url: "https://www.constructiondive.com/feeds/news/" },
+  { name: "Construction Executive",                   url: "https://constructionexec.com/feed" },
+  { name: "For Construction Pros",                    url: "https://www.forconstructionpros.com/rss" },
+  { name: "Electrical Contractor",                    url: "https://www.ecmweb.com/rss" },
+  { name: "Plumbing & Mechanical",                    url: "https://www.pmmag.com/rss" },
+  { name: "HVACR Business",                          url: "https://www.hvacrbusiness.com/rss" },
+  { name: "Roofing Contractor",                       url: "https://www.roofingcontractor.com/rss" },
+  { name: "OSHA News",                               url: "https://www.osha.gov/rss" },
+  { name: "Safety+Health Magazine",                   url: "https://www.safetyandhealthmagazine.com/rss" },
+  { name: "Associated General Contractors",           url: "https://www.agc.org/rss" },
+  { name: "Bureau of Labor Statistics",               url: "https://www.bls.gov/feed/bls_latest.rss" },
+  // Skilled labor & workforce
+  { name: "SkillsUSA",                               url: "https://www.skillsusa.org/feed" },
+  { name: "NCCER",                                   url: "https://www.nccer.org/rss" },
+  { name: "Construction Labor Research Council",      url: "https://www.clrc.com/rss" },
+  { name: "Autodesk Construction Cloud",              url: "https://construction.autodesk.com/rss" },
+  // Trades & apprenticeship
+  { name: "United Brotherhood of Carpenters",         url: "https://www.carpenters.org/rss" },
+  { name: "IBEW",                                    url: "https://www.ibew.org/rss" },
+  { name: "United Association (Plumbers)",            url: "https://www.ua.org/rss" },
+  { name: "NRCA",                                    url: "https://www.nrca.net/rss" },
+  // Industry business & economy
+  { name: "CFMA",                                    url: "https://www.cfma.org/rss" },
+  { name: "Procore Jobsite",                         url: "https://www.procore.com/jobsite/rss" },
+  { name: "Building Design+Construction",             url: "https://www.bdcnetwork.com/rss" },
+  { name: "Constructor Magazine",                    url: "https://www.constructormagazine.com/rss" },
 ];
 
 const MAX_PER_SOURCE = 3;
