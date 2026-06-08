@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { ShieldCheck, Building2, Users, Calendar, Star, AlertCircle, CheckCircle, ArrowRight } from "lucide-react";
+import { ShieldCheck, Building2, Users, Calendar, Star, AlertCircle, CheckCircle, ArrowRight, Bookmark, Newspaper, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabaseServer";
@@ -90,6 +90,15 @@ export default async function AccountPage() {
   const earnedBadgeMap: Record<string, any> = {};
   for (const r of badgeRows.data ?? []) earnedBadgeMap[r.badge_slug] = r;
   const postCount: number = postCountRes.count ?? 0;
+
+  // Saved posts (bookmarks)
+  const { data: savedData } = await db
+    .from("bookmarks")
+    .select("post_id, created_at, feed_posts(id, content, project_name, is_industry_news, news_source_name, news_article_url, created_at)")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(10);
+  const savedPosts = (savedData ?? []).map((b: any) => b.feed_posts).filter(Boolean);
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100">
@@ -331,6 +340,48 @@ export default async function AccountPage() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Saved Posts */}
+        {savedPosts.length > 0 && (
+          <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-5 mb-4">
+            <div className="flex items-center gap-2 mb-4">
+              <Bookmark className="w-4 h-4 text-orange-400" />
+              <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Saved Posts</h2>
+              <span className="text-xs text-slate-600 ml-auto">{savedPosts.length} saved</span>
+            </div>
+            <div className="space-y-3">
+              {savedPosts.map((post: any) => (
+                <div key={post.id} className="bg-slate-900/60 border border-slate-700/40 rounded-xl p-3">
+                  {post.is_industry_news ? (
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Newspaper className="w-3 h-3 text-slate-500" />
+                        <span className="text-[10px] text-slate-500 font-semibold">{post.news_source_name}</span>
+                      </div>
+                      <p className="text-white text-xs font-semibold leading-snug mb-1.5">{post.project_name || post.content.slice(0, 80)}</p>
+                      {post.news_article_url && (
+                        <a href={post.news_article_url} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 transition-colors">
+                          <ExternalLink className="w-3 h-3" /> Read Article
+                        </a>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-slate-300 text-xs leading-relaxed line-clamp-2">{post.content}</p>
+                      {post.project_name && (
+                        <p className="text-[10px] text-slate-500 mt-1 uppercase tracking-wide">Project: {post.project_name}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <Link href="/feed" className="flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300 mt-3 transition-colors">
+              Go to Live Feed <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
         )}
 

@@ -4,11 +4,11 @@ import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
-  ShieldCheck, MapPin, Clock, Heart, Filter,
+  ShieldCheck, MapPin, Clock, Filter,
   ChevronDown, Rss, HardHat, Building2, ArrowRight,
   Send, Loader2, PenLine, X, Camera, Bookmark,
   Share2, MoreHorizontal, Edit3, Trash2, Pin, Search, MessageCircle,
-  Newspaper, ExternalLink
+  Newspaper, ExternalLink, Plus, Check
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
@@ -39,7 +39,33 @@ interface FeedPost {
   author_availability: string;
   is_industry_news: boolean;
   news_source_name: string | null;
+  news_source_domain: string | null;
   news_article_url: string | null;
+  featured_image_url: string | null;
+}
+
+type ReactionData = { counts: Record<string, number>; mine: string | null };
+
+const REACTIONS = [
+  { type: "like",       emoji: "👍", label: "Like" },
+  { type: "fire",       emoji: "🔥", label: "Fire" },
+  { type: "strong",     emoji: "💪", label: "Strong" },
+  { type: "on_the_job", emoji: "🏗️",  label: "On the Job" },
+  { type: "helpful",    emoji: "💡", label: "Helpful" },
+  { type: "connect",    emoji: "🤝", label: "Connect" },
+];
+
+function getNewsCategoryStyle(sourceName: string | null) {
+  const n = (sourceName ?? "").toLowerCase();
+  if (n.includes("osha") || n.includes("safety"))
+    return { border: "border-l-[3px] border-yellow-500/60", badge: "bg-yellow-950/40 border-yellow-900/50", dot: "bg-yellow-400" };
+  if (n.includes("ibew") || n.includes("carpenters") || n.includes("plumber") || n.includes("nccer") || n.includes("skills") || n.includes("labor") || n.includes("workforce") || n.includes("clrc") || n.includes("ua "))
+    return { border: "border-l-[3px] border-blue-500/60",   badge: "bg-blue-950/40 border-blue-900/50",   dot: "bg-blue-400" };
+  if (n.includes("enr") || n.includes("construction dive") || n.includes("for construction") || n.includes("constructor") || n.includes("agc") || n.includes("procore") || n.includes("building design") || n.includes("executive"))
+    return { border: "border-l-[3px] border-orange-500/60", badge: "bg-orange-950/40 border-orange-900/50", dot: "bg-orange-400" };
+  if (n.includes("electrical") || n.includes("plumbing") || n.includes("hvac") || n.includes("roofing") || n.includes("nrca") || n.includes("cfma") || n.includes("autodesk"))
+    return { border: "border-l-[3px] border-green-500/60",  badge: "bg-green-950/40 border-green-900/50",  dot: "bg-green-400" };
+  return { border: "border-l-[3px] border-slate-600/40", badge: "bg-slate-800/60 border-slate-700/50", dot: "bg-slate-400" };
 }
 
 function timeAgo(iso: string) {
@@ -58,17 +84,19 @@ const FEED_SECTORS = ["All Sectors", ...SECTORS];
 // ── Post card ─────────────────────────────────────────────────────────────────
 
 function PostCard({
-  post, liked, bookmarked, currentUserId, isGC, currentAuthorId,
-  onLike, onBookmark, onShare, onDelete, onEdit, onPin, onDM,
+  post, reactionData, saved, followed, currentUserId, isGC, currentAuthorId,
+  onReact, onSave, onFollow, onShare, onDelete, onEdit, onPin, onDM,
 }: {
   post: FeedPost;
-  liked: boolean;
-  bookmarked: boolean;
+  reactionData: ReactionData;
+  saved: boolean;
+  followed: boolean;
   currentUserId: string | null;
   isGC: boolean;
   currentAuthorId: string | null;
-  onLike: () => void;
-  onBookmark: () => void;
+  onReact: (type: string | null) => void;
+  onSave: () => void;
+  onFollow: () => void;
   onShare: () => void;
   onDelete: () => void;
   onEdit: () => void;
@@ -78,17 +106,60 @@ function PostCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const isOwner = post.author_id !== null && post.author_id === currentAuthorId;
   const isNews = post.is_industry_news;
+  const cat = isNews ? getNewsCategoryStyle(post.news_source_name) : null;
+  const totalReactions = Object.values(reactionData.counts).reduce((a, b) => a + b, 0);
 
   return (
-    <div className={`border rounded-2xl overflow-hidden transition-colors ${isNews ? "bg-slate-800/40 border-blue-900/50 hover:border-blue-800/70" : "bg-slate-800 border-slate-600 hover:border-slate-500"}`}>
-      {/* Industry News top bar */}
+    <div className={`border rounded-2xl overflow-hidden transition-colors ${
+      isNews
+        ? `bg-slate-800/50 border-slate-600/60 hover:border-slate-500/80 ${cat?.border ?? ""}`
+        : "bg-slate-800/70 border-slate-600/50 hover:border-slate-500 shadow-sm"
+    }`}>
+
+      {/* Industry News header bar */}
       {isNews && (
-        <div className="flex items-center gap-2 px-4 py-2 bg-blue-950/50 border-b border-blue-900/50">
-          <Newspaper className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />
-          <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">Industry News</span>
+        <div className={`flex items-center gap-2 px-3 py-1.5 border-b ${cat?.badge ?? "bg-slate-800/60 border-slate-700/50"}`}>
+          {post.news_source_domain ? (
+            <img
+              src={`https://www.google.com/s2/favicons?domain=${post.news_source_domain}&sz=32`}
+              alt=""
+              className="w-4 h-4 rounded flex-shrink-0"
+              onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+          ) : (
+            <Newspaper className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+          )}
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Industry News</span>
           <span className="text-slate-600 text-[10px]">·</span>
-          <span className="text-[10px] text-slate-400">{post.news_source_name}</span>
+          <span className="text-[10px] text-slate-400 truncate flex-1">{post.news_source_name}</span>
+          {/* Follow source button */}
+          {currentUserId && (
+            <button
+              onClick={onFollow}
+              className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border transition-colors flex-shrink-0 ${
+                followed
+                  ? "text-green-400 border-green-700/60 bg-green-900/20"
+                  : "text-slate-400 border-slate-600 hover:border-slate-500 hover:text-slate-200"
+              }`}
+            >
+              {followed ? <><Check className="w-2.5 h-2.5" /> Following</> : <><Plus className="w-2.5 h-2.5" /> Follow</>}
+            </button>
+          )}
         </div>
+      )}
+
+      {/* Featured image for news articles */}
+      {isNews && post.featured_image_url && (
+        <a href={post.news_article_url ?? "#"} target="_blank" rel="noopener noreferrer">
+          <div className="aspect-[3/1] overflow-hidden bg-slate-900">
+            <img
+              src={post.featured_image_url}
+              alt=""
+              className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity"
+              onError={e => { (e.target as HTMLImageElement).parentElement!.style.display = "none"; }}
+            />
+          </div>
+        </a>
       )}
 
       <div className="p-4 pb-0">
@@ -96,49 +167,49 @@ function PostCard({
           <div className="flex items-start gap-3">
             {/* Avatar */}
             {isNews ? (
-              <div className="w-10 h-10 rounded-xl bg-blue-900/30 border border-blue-800/50 flex items-center justify-center flex-shrink-0">
-                <Newspaper className="w-5 h-5 text-blue-400" />
+              <div className="w-9 h-9 rounded-xl bg-slate-700/60 border border-slate-600/50 flex items-center justify-center flex-shrink-0">
+                <Newspaper className="w-4 h-4 text-slate-400" />
               </div>
             ) : (
               <Link
                 href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`}
-                className="w-10 h-10 rounded-xl bg-orange-600/30 border border-orange-600/60 flex items-center justify-center font-black text-orange-400 text-sm flex-shrink-0 hover:border-orange-400 transition-colors"
+                className="w-9 h-9 rounded-xl bg-orange-600/20 border border-orange-600/40 flex items-center justify-center font-black text-orange-400 text-sm flex-shrink-0 hover:border-orange-400 transition-colors"
               >
-                {post.author_type === "company" ? <Building2 className="w-5 h-5" /> : post.author_name.slice(0, 2).toUpperCase()}
+                {post.author_type === "company" ? <Building2 className="w-4 h-4" /> : post.author_name.slice(0, 2).toUpperCase()}
               </Link>
             )}
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 {isNews ? (
-                  <span className="font-bold text-white text-sm">TradePro Nexus</span>
+                  <span className="font-semibold text-slate-200 text-sm">{post.news_source_name}</span>
                 ) : (
                   <Link href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`} className="font-bold text-white text-sm hover:text-orange-300 transition-colors">
                     {post.author_name}
                   </Link>
                 )}
                 {!isNews && post.author_verified && (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-900/40 border border-green-700 px-1.5 py-0.5 rounded-full">
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-900/30 border border-green-800/60 px-1.5 py-0.5 rounded-full">
                     <ShieldCheck className="w-3 h-3" /> VERIFIED
                   </span>
                 )}
                 {!isNews && post.author_availability === "available" && (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-300 bg-green-900/40 px-1.5 py-0.5 rounded-full border border-green-700">
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-300 bg-green-900/30 px-1.5 py-0.5 rounded-full border border-green-800/60">
                     <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" /> Available Now
                   </span>
                 )}
               </div>
               {!isNews && <p className="text-xs text-orange-400 font-semibold mt-0.5">{post.author_trade}</p>}
-              <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
+              <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
                 {post.author_location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{post.author_location}</span>}
                 <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo(post.created_at)}</span>
               </div>
             </div>
           </div>
 
-          {/* Actions menu — no edit/delete/DM for news */}
+          {/* Actions menu — user posts only */}
           {!isNews && (
             <div className="relative flex-shrink-0">
-              <button onClick={() => setMenuOpen(!menuOpen)} className="text-slate-400 hover:text-slate-200 p-1 transition-colors">
+              <button onClick={() => setMenuOpen(!menuOpen)} className="text-slate-500 hover:text-slate-300 p-1 transition-colors">
                 <MoreHorizontal className="w-4 h-4" />
               </button>
               {menuOpen && (
@@ -146,8 +217,8 @@ function PostCard({
                   <button onClick={() => { onShare(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
                     <Share2 className="w-3.5 h-3.5" /> Share
                   </button>
-                  <button onClick={() => { onBookmark(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
-                    <Bookmark className={`w-3.5 h-3.5 ${bookmarked ? "fill-orange-400 text-orange-400" : ""}`} /> {bookmarked ? "Bookmarked" : "Bookmark"}
+                  <button onClick={() => { onSave(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
+                    <Bookmark className={`w-3.5 h-3.5 ${saved ? "fill-orange-400 text-orange-400" : ""}`} /> {saved ? "Saved" : "Save Post"}
                   </button>
                   {isOwner && <>
                     <button onClick={() => { onEdit(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
@@ -171,16 +242,19 @@ function PostCard({
           )}
         </div>
 
-        {/* Headline for news posts; project label for user posts */}
+        {/* Headline (news) or project label (user) */}
         {isNews && post.project_name && (
-          <p className="text-white font-bold text-sm leading-snug mb-2">{post.project_name}</p>
+          <a href={post.news_article_url ?? "#"} target="_blank" rel="noopener noreferrer"
+            className="block text-white font-bold text-sm leading-snug mb-2 hover:text-slate-200 transition-colors">
+            {post.project_name}
+          </a>
         )}
         {!isNews && post.project_name && (
-          <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1.5">Project: {post.project_name}</p>
+          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-1.5">Project: {post.project_name}</p>
         )}
         <p className="text-slate-300 text-sm leading-relaxed">{post.content}</p>
 
-        {/* Gallery — user posts only */}
+        {/* User post gallery */}
         {!isNews && post.image_urls?.length > 0 && (
           <div className={`grid gap-1.5 mt-3 ${post.image_urls.length >= 3 ? "grid-cols-3" : post.image_urls.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
             {post.image_urls.slice(0, 3).map((url, i) => (
@@ -190,32 +264,61 @@ function PostCard({
             ))}
           </div>
         )}
-
         {!isNews && post.trade_tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-3">
             {post.trade_tags.map(tag => (
-              <span key={tag} className="px-2 py-0.5 bg-slate-700 border border-slate-600 text-slate-300 text-[10px] font-semibold rounded-full">#{tag.replace(/\s+/g, "")}</span>
+              <span key={tag} className="px-2 py-0.5 bg-slate-700/60 border border-slate-600/60 text-slate-400 text-[10px] font-semibold rounded-full">#{tag.replace(/\s+/g, "")}</span>
             ))}
           </div>
         )}
       </div>
 
-      <div className="flex items-center justify-between px-4 py-3 mt-3 border-t border-slate-700">
-        <div className="flex items-center gap-3">
-          <button onClick={onLike} className={`flex items-center gap-1.5 text-xs font-semibold transition-colors ${liked ? "text-red-400" : "text-slate-400 hover:text-red-400"}`}>
-            <Heart className={`w-4 h-4 ${liked ? "fill-red-400" : ""}`} />
-            {post.likes_count + (liked ? 1 : 0)}
-          </button>
-          <button onClick={onBookmark} className={`flex items-center gap-1 text-xs font-semibold transition-colors ${bookmarked ? "text-orange-400" : "text-slate-400 hover:text-orange-400"}`}>
-            <Bookmark className={`w-4 h-4 ${bookmarked ? "fill-orange-400" : ""}`} />
-          </button>
+      {/* Reaction bar */}
+      <div className="px-4 pt-3 pb-1">
+        <div className="flex items-center gap-1 flex-wrap">
+          {REACTIONS.map(r => {
+            const count = reactionData.counts[r.type] ?? 0;
+            const active = reactionData.mine === r.type;
+            return (
+              <button
+                key={r.type}
+                onClick={() => currentUserId && onReact(r.type)}
+                title={r.label}
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-all ${
+                  active
+                    ? "bg-orange-600/25 border border-orange-600/50 text-white"
+                    : "bg-slate-700/40 border border-slate-700/60 text-slate-400 hover:bg-slate-700/70 hover:text-slate-200"
+                } ${!currentUserId ? "opacity-50 cursor-default" : "cursor-pointer"}`}
+              >
+                <span>{r.emoji}</span>
+                {count > 0 && <span className="font-semibold">{count}</span>}
+              </button>
+            );
+          })}
+          {totalReactions > 0 && (
+            <span className="text-[10px] text-slate-600 ml-1">{totalReactions} reaction{totalReactions !== 1 ? "s" : ""}</span>
+          )}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-t border-slate-700/50 mt-2">
+        <div className="flex items-center gap-2">
+          {!isNews && (
+            <button onClick={onSave} className={`flex items-center gap-1 text-xs font-semibold transition-colors ${saved ? "text-orange-400" : "text-slate-500 hover:text-orange-400"}`}>
+              <Bookmark className={`w-3.5 h-3.5 ${saved ? "fill-orange-400" : ""}`} />
+              <span>{saved ? "Saved" : "Save"}</span>
+            </button>
+          )}
         </div>
         {isNews ? (
-          <a href={post.news_article_url ?? "#"} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors">
+          <a href={post.news_article_url ?? "#"} target="_blank" rel="noopener noreferrer"
+            className="flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-blue-400 transition-colors">
             <ExternalLink className="w-3.5 h-3.5" /> Read Article
           </a>
         ) : (
-          <Link href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`} className="flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-orange-400 transition-colors">
+          <Link href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`}
+            className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-orange-400 transition-colors">
             View {post.author_type === "company" ? "Company" : "Trade Card"} <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         )}
@@ -457,8 +560,9 @@ function FeedPageInner() {
   const searchParams = useSearchParams();
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [likedPosts, setLikedPosts] = useState<Set<string>>(new Set());
-  const [bookmarkedPosts, setBookmarkedPosts] = useState<Set<string>>(new Set());
+  const [reactions, setReactions] = useState<Record<string, ReactionData>>({});
+  const [savedPosts, setSavedPosts] = useState<Set<string>>(new Set());
+  const [followedSources, setFollowedSources] = useState<Set<string>>(new Set());
   const [showFilters, setShowFilters] = useState(false);
   const [tradeFilter, setTradeFilter] = useState("All Trades");
   const [sectorFilter, setSectorFilter] = useState("All Sectors");
@@ -503,6 +607,21 @@ function FeedPageInner() {
         return { ...p, author_name: co?.name ?? "Unknown", author_slug: co?.slug ?? "", author_trade: (co?.trade_specialties ?? [])[0] ?? "", author_location: co ? [co.location_city, co.location_state].filter(Boolean).join(", ") : "", author_verified: co?.verification_status === "verified", author_availability: co?.availability_status ?? "available" };
       });
 
+      // Fetch reaction counts for all posts
+      const postIds = raw.map((p: any) => p.id);
+      const { data: rxRows } = await db.from("post_reactions")
+        .select("post_id, reaction_type, user_id")
+        .in("post_id", postIds);
+
+      const currentUid = (await db.auth.getUser())?.data?.user?.id ?? null;
+      const rxMap: Record<string, ReactionData> = {};
+      for (const r of rxRows ?? []) {
+        if (!rxMap[r.post_id]) rxMap[r.post_id] = { counts: {}, mine: null };
+        rxMap[r.post_id].counts[r.reaction_type] = (rxMap[r.post_id].counts[r.reaction_type] ?? 0) + 1;
+        if (r.user_id === currentUid) rxMap[r.post_id].mine = r.reaction_type;
+      }
+      setReactions(rxMap);
+
       setPosts(mapped);
     } catch (err) {
       console.error("Feed fetch error:", err);
@@ -543,9 +662,12 @@ function FeedPageInner() {
       }
     });
 
-    // Load bookmarks
+    // Load saved posts and followed sources
     fetch("/api/bookmarks").then(r => r.json()).then(d => {
-      if (d.bookmarks) setBookmarkedPosts(new Set(d.bookmarks));
+      if (d.bookmarks) setSavedPosts(new Set(d.bookmarks));
+    }).catch(() => {});
+    fetch("/api/news/follow").then(r => r.json()).then(d => {
+      if (d.sources) setFollowedSources(new Set(d.sources));
     }).catch(() => {});
   }, [fetchPosts]);
 
@@ -559,13 +681,55 @@ function FeedPageInner() {
     setTimeout(() => setActivePrompt(undefined), 100); // reset so it can fire again
   }
 
-  async function toggleBookmark(postId: string) {
-    setBookmarkedPosts(prev => {
+  async function toggleSave(postId: string) {
+    setSavedPosts(prev => {
       const next = new Set(prev);
       next.has(postId) ? next.delete(postId) : next.add(postId);
       return next;
     });
     await fetch("/api/bookmarks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ post_id: postId }) });
+  }
+
+  async function handleReact(postId: string, type: string | null) {
+    // Optimistic update
+    setReactions(prev => {
+      const current = prev[postId] ?? { counts: {}, mine: null };
+      const next = { counts: { ...current.counts }, mine: current.mine };
+      if (current.mine) {
+        next.counts[current.mine] = Math.max(0, (next.counts[current.mine] ?? 1) - 1);
+        if (next.counts[current.mine] === 0) delete next.counts[current.mine];
+      }
+      if (type && type !== current.mine) {
+        next.counts[type] = (next.counts[type] ?? 0) + 1;
+        next.mine = type;
+      } else {
+        next.mine = null;
+      }
+      return { ...prev, [postId]: next };
+    });
+    const res = await fetch(`/api/feed/${postId}/react`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type }),
+    });
+    const data = await res.json();
+    if (data.counts !== undefined) {
+      setReactions(prev => ({ ...prev, [postId]: { counts: data.counts, mine: data.reaction } }));
+    }
+  }
+
+  async function toggleFollowSource(sourceName: string) {
+    const next = !followedSources.has(sourceName);
+    setFollowedSources(prev => {
+      const s = new Set(prev);
+      next ? s.add(sourceName) : s.delete(sourceName);
+      return s;
+    });
+    await fetch("/api/news/follow", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source_name: sourceName }),
+    });
   }
 
   async function deletePost(postId: string) {
@@ -699,13 +863,15 @@ function FeedPageInner() {
                 <motion.div key={post.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: i * 0.04 }}>
                   <PostCard
                     post={post}
-                    liked={likedPosts.has(post.id)}
-                    bookmarked={bookmarkedPosts.has(post.id)}
+                    reactionData={reactions[post.id] ?? { counts: {}, mine: null }}
+                    saved={savedPosts.has(post.id)}
+                    followed={followedSources.has(post.news_source_name ?? "")}
                     currentUserId={currentUser?.id ?? null}
                     isGC={isGC}
                     currentAuthorId={currentAuthorId}
-                    onLike={() => setLikedPosts(prev => { const n = new Set(prev); n.has(post.id) ? n.delete(post.id) : n.add(post.id); return n; })}
-                    onBookmark={() => toggleBookmark(post.id)}
+                    onReact={(type) => handleReact(post.id, type)}
+                    onSave={() => toggleSave(post.id)}
+                    onFollow={() => post.news_source_name && toggleFollowSource(post.news_source_name)}
                     onShare={() => sharePost(post)}
                     onDelete={() => deletePost(post.id)}
                     onEdit={() => setEditingPost(post)}
