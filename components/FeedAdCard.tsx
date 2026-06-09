@@ -36,18 +36,18 @@ export default function FeedAdCard({ index }: { index: number }) {
   const ad = PLACEHOLDER_ADS[index % PLACEHOLDER_ADS.length];
 
   return (
-    <div className="bg-slate-800/30 border border-slate-700/40 rounded-2xl overflow-hidden">
-      <div className="px-4 py-2 flex items-center justify-between border-b border-slate-700/30">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-600">Sponsored</span>
-        <span className="text-[10px] text-slate-600">{ad.category}</span>
+    <div className="bg-white border border-[#e2e8f0] rounded-2xl overflow-hidden shadow-sm">
+      <div className="px-4 py-2 flex items-center justify-between border-b border-[#e2e8f0] bg-slate-50">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Sponsored</span>
+        <span className="text-[10px] text-slate-400">{ad.category}</span>
       </div>
       <div className="p-4">
-        <p className="text-xs text-slate-500 mb-1 font-semibold">{ad.sponsor}</p>
-        <h3 className="text-base font-black text-white mb-2">{ad.headline}</h3>
-        <p className="text-slate-400 text-sm mb-4 leading-relaxed">{ad.body}</p>
+        <p className="text-xs text-slate-400 mb-1 font-semibold">{ad.sponsor}</p>
+        <h3 className="text-base font-black text-[#0f172a] mb-2">{ad.headline}</h3>
+        <p className="text-[#475569] text-sm mb-4 leading-relaxed">{ad.body}</p>
         <a
           href={ad.ctaUrl}
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold rounded-xl transition-colors"
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-colors border border-slate-200"
         >
           {ad.cta}
         </a>

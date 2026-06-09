@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -58,14 +58,142 @@ const REACTIONS = [
 function getNewsCategoryStyle(sourceName: string | null) {
   const n = (sourceName ?? "").toLowerCase();
   if (n.includes("osha") || n.includes("safety"))
-    return { border: "border-l-[3px] border-yellow-500/60", badge: "bg-yellow-950/40 border-yellow-900/50", dot: "bg-yellow-400" };
+    return { border: "border-l-4 border-l-amber-400", badge: "bg-amber-50 border-amber-200", text: "text-amber-800" };
   if (n.includes("ibew") || n.includes("carpenters") || n.includes("plumber") || n.includes("nccer") || n.includes("skills") || n.includes("labor") || n.includes("workforce") || n.includes("clrc") || n.includes("ua "))
-    return { border: "border-l-[3px] border-blue-500/60",   badge: "bg-blue-950/40 border-blue-900/50",   dot: "bg-blue-400" };
+    return { border: "border-l-4 border-l-blue-500",  badge: "bg-blue-50 border-blue-200",  text: "text-blue-800" };
   if (n.includes("enr") || n.includes("construction dive") || n.includes("for construction") || n.includes("constructor") || n.includes("agc") || n.includes("procore") || n.includes("building design") || n.includes("executive"))
-    return { border: "border-l-[3px] border-orange-500/60", badge: "bg-orange-950/40 border-orange-900/50", dot: "bg-orange-400" };
+    return { border: "border-l-4 border-l-orange-500", badge: "bg-orange-50 border-orange-200", text: "text-orange-800" };
   if (n.includes("electrical") || n.includes("plumbing") || n.includes("hvac") || n.includes("roofing") || n.includes("nrca") || n.includes("cfma") || n.includes("autodesk"))
-    return { border: "border-l-[3px] border-green-500/60",  badge: "bg-green-950/40 border-green-900/50",  dot: "bg-green-400" };
-  return { border: "border-l-[3px] border-slate-600/40", badge: "bg-slate-800/60 border-slate-700/50", dot: "bg-slate-400" };
+    return { border: "border-l-4 border-l-green-500",  badge: "bg-green-50 border-green-200",  text: "text-green-800" };
+  return { border: "border-l-4 border-l-slate-400", badge: "bg-slate-100 border-slate-200", text: "text-slate-700" };
+}
+
+// ── Feed Algorithm ────────────────────────────────────────────────────────────
+
+type FeedCategory = "Safety" | "Labor Market" | "Project News" | "Trade Specific" | "General Construction";
+
+const FEED_CATEGORY_ORDER: FeedCategory[] = [
+  "Safety", "Labor Market", "Project News", "Trade Specific", "General Construction",
+];
+
+function getNewsCategory(sourceName: string | null): FeedCategory {
+  const n = (sourceName ?? "").toLowerCase();
+  if (n.includes("osha") || n.includes("safety")) return "Safety";
+  if (n.includes("ibew") || n.includes("carpenters") || n.includes("plumber") || n.includes("nccer") || n.includes("skills") || n.includes("labor") || n.includes("workforce") || n.includes("clrc") || n.includes("ua ")) return "Labor Market";
+  if (n.includes("enr") || n.includes("construction dive") || n.includes("for construction") || n.includes("constructor") || n.includes("agc") || n.includes("procore") || n.includes("building design") || n.includes("executive")) return "Project News";
+  if (n.includes("electrical") || n.includes("plumbing") || n.includes("hvac") || n.includes("roofing") || n.includes("nrca") || n.includes("cfma") || n.includes("autodesk")) return "Trade Specific";
+  return "General Construction";
+}
+
+function buildFeedAlgorithm(
+  allPosts: FeedPost[],
+  reactionsMap: Record<string, ReactionData>,
+  followedSources: Set<string>,
+): FeedPost[] {
+  const now = Date.now();
+  const maxAge = 60 * 24 * 60 * 60 * 1000;
+
+  function calcScore(p: FeedPost): number {
+    const ageMs = now - new Date(p.created_at).getTime();
+    const recency = Math.max(0, 10 - (ageMs / maxAge) * 10);
+    const rxCount = Object.values(reactionsMap[p.id]?.counts ?? {}).reduce((a, b) => a + b, 0);
+    const followBonus = p.news_source_name && followedSources.has(p.news_source_name) ? 2 : 0;
+    return recency + rxCount * 0.5 + followBonus;
+  }
+
+  const newsPosts = allPosts
+    .filter(p => p.is_industry_news)
+    .sort((a, b) => calcScore(b) - calcScore(a));
+
+  const userPosts = allPosts
+    .filter(p => !p.is_industry_news)
+    .sort((a, b) => calcScore(b) - calcScore(a));
+
+  const byCategory = new Map<FeedCategory, FeedPost[]>();
+  for (const cat of FEED_CATEGORY_ORDER) byCategory.set(cat, []);
+  for (const p of newsPosts) byCategory.get(getNewsCategory(p.news_source_name))!.push(p);
+
+  const result: FeedPost[] = [];
+  const usedIds = new Set<string>();
+  const sourceLastPos = new Map<string, number>();
+  let catIdx = 0;
+  let lastCat: FeedCategory | null = null;
+  let newsSlot = true;
+  let userIdx = 0;
+
+  function pickNews(pos: number): FeedPost | null {
+    for (let offset = 0; offset < FEED_CATEGORY_ORDER.length; offset++) {
+      const idx = (catIdx + offset) % FEED_CATEGORY_ORDER.length;
+      const cat = FEED_CATEGORY_ORDER[idx];
+      if (cat === lastCat) continue;
+      const pool = byCategory.get(cat)!;
+      const pick = pool.find(p => {
+        if (usedIds.has(p.id)) return false;
+        const last = sourceLastPos.get(p.news_source_name ?? "");
+        return last === undefined || pos - last >= 6;
+      });
+      if (pick) {
+        usedIds.add(pick.id);
+        sourceLastPos.set(pick.news_source_name ?? "", pos);
+        lastCat = cat;
+        catIdx = (idx + 1) % FEED_CATEGORY_ORDER.length;
+        return pick;
+      }
+    }
+    return null;
+  }
+
+  for (let pos = 0; pos < allPosts.length; pos++) {
+    if (newsSlot) {
+      const news = pickNews(pos);
+      if (news) {
+        result.push(news);
+        newsSlot = false;
+      } else if (userIdx < userPosts.length) {
+        const up = userPosts[userIdx++];
+        usedIds.add(up.id);
+        result.push(up);
+        newsSlot = false;
+      } else break;
+    } else {
+      if (userIdx < userPosts.length) {
+        const up = userPosts[userIdx++];
+        usedIds.add(up.id);
+        result.push(up);
+        newsSlot = true;
+      } else {
+        const news = pickNews(pos);
+        if (news) { result.push(news); newsSlot = true; }
+        else break;
+      }
+    }
+  }
+
+  if (process.env.NODE_ENV === "development") {
+    console.group("[Feed Algorithm] First 30 posts:");
+    result.slice(0, 30).forEach((p, i) =>
+      console.log(`  [${String(i + 1).padStart(2)}] ${p.is_industry_news ? p.news_source_name ?? "news" : `@${p.author_name}`}`)
+    );
+    const srcPos: Record<string, number[]> = {};
+    result.forEach((p, i) => {
+      if (!p.is_industry_news) return;
+      const src = p.news_source_name ?? "";
+      (srcPos[src] ??= []).push(i + 1);
+    });
+    let violations = 0;
+    for (const [src, positions] of Object.entries(srcPos)) {
+      for (let i = 1; i < positions.length; i++) {
+        if (positions[i] - positions[i - 1] < 6) {
+          console.warn(`  VIOLATION: "${src}" at positions ${positions[i-1]} and ${positions[i]} (gap: ${positions[i] - positions[i-1]})`);
+          violations++;
+        }
+      }
+    }
+    if (violations === 0) console.log("  ✓ No source cooldown violations");
+    console.groupEnd();
+  }
+
+  return result;
 }
 
 function timeAgo(iso: string) {
@@ -112,15 +240,15 @@ function PostCard({
   const totalReactions = Object.values(reactionData.counts).reduce((a, b) => a + b, 0);
 
   return (
-    <div className={`border rounded-2xl overflow-hidden transition-colors ${
+    <div className={`border rounded-2xl overflow-hidden transition-colors shadow-sm ${
       isNews
-        ? `bg-slate-800/50 border-slate-600/60 hover:border-slate-500/80 ${cat?.border ?? ""}`
-        : "bg-slate-800/70 border-slate-600/50 hover:border-slate-500 shadow-sm"
+        ? `bg-[#f1f5f9] border-[#e2e8f0] ${cat?.border ?? "border-l-4 border-l-slate-400"}`
+        : "bg-white border-[#e2e8f0] hover:border-[#cbd5e1]"
     }`}>
 
       {/* Industry News header bar */}
       {isNews && (
-        <div className={`flex items-center gap-2 px-3 py-1.5 border-b ${cat?.badge ?? "bg-slate-800/60 border-slate-700/50"}`}>
+        <div className={`flex items-center gap-2 px-3 py-1.5 border-b ${cat?.badge ?? "bg-slate-100 border-slate-200"}`}>
           {post.news_source_domain ? (
             <img
               src={`https://www.google.com/s2/favicons?domain=${post.news_source_domain}&sz=32`}
@@ -129,19 +257,18 @@ function PostCard({
               onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
             />
           ) : (
-            <Newspaper className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+            <Newspaper className={`w-3.5 h-3.5 flex-shrink-0 ${cat?.text ?? "text-slate-500"}`} />
           )}
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">Industry News</span>
-          <span className="text-slate-600 text-[10px]">·</span>
-          <span className="text-[10px] text-slate-400 truncate flex-1">{post.news_source_name}</span>
-          {/* Follow source button */}
+          <span className={`text-[10px] font-bold uppercase tracking-widest ${cat?.text ?? "text-slate-700"}`}>Industry News</span>
+          <span className="text-slate-300 text-[10px]">·</span>
+          <span className="text-[10px] text-slate-500 truncate flex-1">{post.news_source_name}</span>
           {currentUserId && (
             <button
               onClick={onFollow}
               className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border transition-colors flex-shrink-0 ${
                 followed
-                  ? "text-green-400 border-green-700/60 bg-green-900/20"
-                  : "text-slate-400 border-slate-600 hover:border-slate-500 hover:text-slate-200"
+                  ? "text-green-700 border-green-400 bg-green-50"
+                  : "text-slate-500 border-slate-300 hover:border-slate-400 hover:text-slate-700"
               }`}
             >
               {followed ? <><Check className="w-2.5 h-2.5" /> Following</> : <><Plus className="w-2.5 h-2.5" /> Follow</>}
@@ -153,11 +280,11 @@ function PostCard({
       {/* Featured image for news articles */}
       {isNews && post.featured_image_url && (
         <a href={post.news_article_url ?? "#"} target="_blank" rel="noopener noreferrer">
-          <div className="aspect-[3/1] overflow-hidden bg-slate-900">
+          <div className="aspect-[3/1] overflow-hidden bg-slate-200">
             <img
               src={post.featured_image_url}
               alt=""
-              className="w-full h-full object-cover opacity-90 hover:opacity-100 transition-opacity"
+              className="w-full h-full object-cover hover:opacity-90 transition-opacity"
               onError={e => { (e.target as HTMLImageElement).parentElement!.style.display = "none"; }}
             />
           </div>
@@ -169,13 +296,13 @@ function PostCard({
           <div className="flex items-start gap-3">
             {/* Avatar */}
             {isNews ? (
-              <div className="w-9 h-9 rounded-xl bg-slate-700/60 border border-slate-600/50 flex items-center justify-center flex-shrink-0">
-                <Newspaper className="w-4 h-4 text-slate-400" />
+              <div className="w-9 h-9 rounded-xl bg-slate-200 border border-slate-300 flex items-center justify-center flex-shrink-0">
+                <Newspaper className="w-4 h-4 text-slate-500" />
               </div>
             ) : (
               <Link
                 href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`}
-                className="w-9 h-9 rounded-xl bg-orange-600/20 border border-orange-600/40 flex items-center justify-center font-black text-orange-400 text-sm flex-shrink-0 hover:border-orange-400 transition-colors"
+                className="w-9 h-9 rounded-xl bg-orange-100 border border-orange-300 flex items-center justify-center font-black text-orange-600 text-sm flex-shrink-0 hover:border-orange-400 transition-colors"
               >
                 {post.author_type === "company" ? <Building2 className="w-4 h-4" /> : post.author_name.slice(0, 2).toUpperCase()}
               </Link>
@@ -183,64 +310,63 @@ function PostCard({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 {isNews ? (
-                  <span className="font-semibold text-slate-200 text-sm">{post.news_source_name}</span>
+                  <span className="font-semibold text-[#0f172a] text-sm">{post.news_source_name}</span>
                 ) : (
-                  <Link href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`} className="font-bold text-white text-sm hover:text-orange-300 transition-colors">
+                  <Link href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`} className="font-bold text-[#0f172a] text-sm hover:text-orange-600 transition-colors">
                     {post.author_name}
                   </Link>
                 )}
                 {!isNews && post.author_verified && (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-900/30 border border-green-800/60 px-1.5 py-0.5 rounded-full">
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-100 border border-green-300 px-1.5 py-0.5 rounded-full">
                     <ShieldCheck className="w-3 h-3" /> VERIFIED
                   </span>
                 )}
                 {!isNews && post.author_availability === "available" && (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-300 bg-green-900/30 px-1.5 py-0.5 rounded-full border border-green-800/60">
-                    <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" /> Available Now
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-100 px-1.5 py-0.5 rounded-full border border-green-300">
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Available Now
                   </span>
                 )}
               </div>
-              {!isNews && <p className="text-xs text-orange-400 font-semibold mt-0.5">{post.author_trade}</p>}
-              <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+              {!isNews && <p className="text-xs text-orange-600 font-semibold mt-0.5">{post.author_trade}</p>}
+              <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
                 {post.author_location && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{post.author_location}</span>}
                 <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo(post.created_at)}</span>
               </div>
             </div>
           </div>
 
-          {/* Actions menu — shown to owners, admins, and GCs */}
           {(!isNews || isAdmin) && (
             <div className="relative flex-shrink-0">
-              <button onClick={() => setMenuOpen(!menuOpen)} className="text-slate-500 hover:text-slate-300 p-1 transition-colors">
+              <button onClick={() => setMenuOpen(!menuOpen)} className="text-slate-400 hover:text-slate-600 p-1 transition-colors">
                 <MoreHorizontal className="w-4 h-4" />
               </button>
               {menuOpen && (
-                <div className="absolute right-0 top-6 w-44 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-20 overflow-hidden" onMouseLeave={() => setMenuOpen(false)}>
+                <div className="absolute right-0 top-6 w-44 bg-white border border-[#e2e8f0] rounded-xl shadow-xl z-20 overflow-hidden" onMouseLeave={() => setMenuOpen(false)}>
                   {!isNews && (
                     <>
-                      <button onClick={() => { onShare(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
+                      <button onClick={() => { onShare(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-600 hover:bg-slate-50 transition-colors">
                         <Share2 className="w-3.5 h-3.5" /> Share
                       </button>
-                      <button onClick={() => { onSave(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
-                        <Bookmark className={`w-3.5 h-3.5 ${saved ? "fill-orange-400 text-orange-400" : ""}`} /> {saved ? "Saved" : "Save Post"}
+                      <button onClick={() => { onSave(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-600 hover:bg-slate-50 transition-colors">
+                        <Bookmark className={`w-3.5 h-3.5 ${saved ? "fill-orange-500 text-orange-500" : ""}`} /> {saved ? "Saved" : "Save Post"}
                       </button>
                     </>
                   )}
                   {isOwner && !isNews && <>
-                    <button onClick={() => { onEdit(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
+                    <button onClick={() => { onEdit(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-600 hover:bg-slate-50 transition-colors">
                       <Edit3 className="w-3.5 h-3.5" /> Edit
                     </button>
-                    <button onClick={() => { onPin(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
+                    <button onClick={() => { onPin(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-600 hover:bg-slate-50 transition-colors">
                       <Pin className="w-3.5 h-3.5" /> Pin to Profile
                     </button>
                   </>}
                   {isGC && !isOwner && !isAdmin && !isNews && (
-                    <button onClick={() => { onDM(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-blue-400 hover:bg-slate-700 transition-colors">
+                    <button onClick={() => { onDM(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-blue-600 hover:bg-slate-50 transition-colors">
                       <MessageCircle className="w-3.5 h-3.5" /> Send Message
                     </button>
                   )}
                   {canDelete && (
-                    <button onClick={() => { onDelete(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-red-400 hover:bg-slate-700 transition-colors border-t border-slate-700/50">
+                    <button onClick={() => { onDelete(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-red-600 hover:bg-slate-50 transition-colors border-t border-[#e2e8f0]">
                       <Trash2 className="w-3.5 h-3.5" /> {isAdmin && !isOwner ? "Remove Post" : "Delete"}
                     </button>
                   )}
@@ -253,20 +379,20 @@ function PostCard({
         {/* Headline (news) or project label (user) */}
         {isNews && post.project_name && (
           <a href={post.news_article_url ?? "#"} target="_blank" rel="noopener noreferrer"
-            className="block text-white font-bold text-sm leading-snug mb-2 hover:text-slate-200 transition-colors">
+            className="block text-[#0f172a] font-bold text-sm leading-snug mb-2 hover:text-slate-600 transition-colors">
             {post.project_name}
           </a>
         )}
         {!isNews && post.project_name && (
-          <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-1.5">Project: {post.project_name}</p>
+          <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide mb-1.5">Project: {post.project_name}</p>
         )}
-        <p className="text-slate-300 text-sm leading-relaxed">{post.content}</p>
+        <p className="text-[#475569] text-sm leading-relaxed">{post.content}</p>
 
         {/* User post gallery */}
         {!isNews && post.image_urls?.length > 0 && (
           <div className={`grid gap-1.5 mt-3 ${post.image_urls.length >= 3 ? "grid-cols-3" : post.image_urls.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
             {post.image_urls.slice(0, 3).map((url, i) => (
-              <div key={i} className="aspect-video rounded-lg overflow-hidden bg-slate-900">
+              <div key={i} className="aspect-video rounded-lg overflow-hidden bg-slate-200">
                 <img src={url} alt="Work photo" className="w-full h-full object-cover" />
               </div>
             ))}
@@ -275,7 +401,7 @@ function PostCard({
         {!isNews && post.trade_tags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-3">
             {post.trade_tags.map(tag => (
-              <span key={tag} className="px-2 py-0.5 bg-slate-700/60 border border-slate-600/60 text-slate-400 text-[10px] font-semibold rounded-full">#{tag.replace(/\s+/g, "")}</span>
+              <span key={tag} className="px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-500 text-[10px] font-semibold rounded-full">#{tag.replace(/\s+/g, "")}</span>
             ))}
           </div>
         )}
@@ -294,8 +420,8 @@ function PostCard({
                 title={r.label}
                 className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-all ${
                   active
-                    ? "bg-orange-600/25 border border-orange-600/50 text-white"
-                    : "bg-slate-700/40 border border-slate-700/60 text-slate-400 hover:bg-slate-700/70 hover:text-slate-200"
+                    ? "bg-orange-100 border border-orange-300 text-orange-700"
+                    : "bg-slate-100 border border-slate-200 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
                 } ${!currentUserId ? "opacity-50 cursor-default" : "cursor-pointer"}`}
               >
                 <span>{r.emoji}</span>
@@ -304,29 +430,29 @@ function PostCard({
             );
           })}
           {totalReactions > 0 && (
-            <span className="text-[10px] text-slate-600 ml-1">{totalReactions} reaction{totalReactions !== 1 ? "s" : ""}</span>
+            <span className="text-[10px] text-slate-400 ml-1">{totalReactions} reaction{totalReactions !== 1 ? "s" : ""}</span>
           )}
         </div>
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-t border-slate-700/50 mt-2">
+      <div className="flex items-center justify-between px-4 py-2.5 border-t border-[#e2e8f0] mt-2">
         <div className="flex items-center gap-2">
           {!isNews && (
-            <button onClick={onSave} className={`flex items-center gap-1 text-xs font-semibold transition-colors ${saved ? "text-orange-400" : "text-slate-500 hover:text-orange-400"}`}>
-              <Bookmark className={`w-3.5 h-3.5 ${saved ? "fill-orange-400" : ""}`} />
+            <button onClick={onSave} className={`flex items-center gap-1 text-xs font-semibold transition-colors ${saved ? "text-orange-600" : "text-slate-400 hover:text-orange-600"}`}>
+              <Bookmark className={`w-3.5 h-3.5 ${saved ? "fill-orange-500" : ""}`} />
               <span>{saved ? "Saved" : "Save"}</span>
             </button>
           )}
         </div>
         {isNews ? (
           <a href={post.news_article_url ?? "#"} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-blue-400 transition-colors">
+            className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors">
             <ExternalLink className="w-3.5 h-3.5" /> Read Article
           </a>
         ) : (
           <Link href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`}
-            className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-orange-400 transition-colors">
+            className="flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-orange-600 transition-colors">
             View {post.author_type === "company" ? "Company" : "Trade Card"} <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         )}
@@ -774,7 +900,12 @@ function FeedPageInner() {
     window.location.href = `/messages?to=${post.author_id}&type=${post.author_type}&name=${encodeURIComponent(post.author_name)}`;
   }
 
-  const filtered = posts.filter(p => {
+  const sortedPosts = useMemo(
+    () => buildFeedAlgorithm(posts, reactions, followedSources),
+    [posts, reactions, followedSources],
+  );
+
+  const filtered = sortedPosts.filter(p => {
     if (availableNow && p.author_availability !== "available") return false;
     if (tradeFilter !== "All Trades" && p.author_trade !== tradeFilter && !p.trade_tags.some(t => t === tradeFilter)) return false;
     if (sectorFilter !== "All Sectors" && !p.trade_tags.some(t => t === sectorFilter)) return false;
@@ -865,7 +996,7 @@ function FeedPageInner() {
 
         {/* Feed */}
         {loading ? (
-          <div className="space-y-4">{[1, 2, 3].map(i => <div key={i} className="bg-slate-800 border border-slate-700 rounded-2xl p-4 animate-pulse h-32" />)}</div>
+          <div className="space-y-4">{[1, 2, 3].map(i => <div key={i} className="bg-white border border-[#e2e8f0] rounded-2xl p-4 animate-pulse h-32 shadow-sm" />)}</div>
         ) : filtered.length > 0 ? (
           <div className="space-y-4">
             {filtered.map((post, i) => (
