@@ -84,7 +84,7 @@ const FEED_SECTORS = ["All Sectors", ...SECTORS];
 // ── Post card ─────────────────────────────────────────────────────────────────
 
 function PostCard({
-  post, reactionData, saved, followed, currentUserId, isGC, currentAuthorId,
+  post, reactionData, saved, followed, currentUserId, isGC, isAdmin, currentAuthorId,
   onReact, onSave, onFollow, onShare, onDelete, onEdit, onPin, onDM,
 }: {
   post: FeedPost;
@@ -93,6 +93,7 @@ function PostCard({
   followed: boolean;
   currentUserId: string | null;
   isGC: boolean;
+  isAdmin: boolean;
   currentAuthorId: string | null;
   onReact: (type: string | null) => void;
   onSave: () => void;
@@ -106,6 +107,7 @@ function PostCard({
   const [menuOpen, setMenuOpen] = useState(false);
   const isOwner = post.author_id !== null && post.author_id === currentAuthorId;
   const isNews = post.is_industry_news;
+  const canDelete = isOwner || isAdmin;
   const cat = isNews ? getNewsCategoryStyle(post.news_source_name) : null;
   const totalReactions = Object.values(reactionData.counts).reduce((a, b) => a + b, 0);
 
@@ -206,34 +208,40 @@ function PostCard({
             </div>
           </div>
 
-          {/* Actions menu — user posts only */}
-          {!isNews && (
+          {/* Actions menu — shown to owners, admins, and GCs */}
+          {(!isNews || isAdmin) && (
             <div className="relative flex-shrink-0">
               <button onClick={() => setMenuOpen(!menuOpen)} className="text-slate-500 hover:text-slate-300 p-1 transition-colors">
                 <MoreHorizontal className="w-4 h-4" />
               </button>
               {menuOpen && (
-                <div className="absolute right-0 top-6 w-40 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-20 overflow-hidden" onMouseLeave={() => setMenuOpen(false)}>
-                  <button onClick={() => { onShare(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
-                    <Share2 className="w-3.5 h-3.5" /> Share
-                  </button>
-                  <button onClick={() => { onSave(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
-                    <Bookmark className={`w-3.5 h-3.5 ${saved ? "fill-orange-400 text-orange-400" : ""}`} /> {saved ? "Saved" : "Save Post"}
-                  </button>
-                  {isOwner && <>
+                <div className="absolute right-0 top-6 w-44 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-20 overflow-hidden" onMouseLeave={() => setMenuOpen(false)}>
+                  {!isNews && (
+                    <>
+                      <button onClick={() => { onShare(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
+                        <Share2 className="w-3.5 h-3.5" /> Share
+                      </button>
+                      <button onClick={() => { onSave(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
+                        <Bookmark className={`w-3.5 h-3.5 ${saved ? "fill-orange-400 text-orange-400" : ""}`} /> {saved ? "Saved" : "Save Post"}
+                      </button>
+                    </>
+                  )}
+                  {isOwner && !isNews && <>
                     <button onClick={() => { onEdit(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
                       <Edit3 className="w-3.5 h-3.5" /> Edit
                     </button>
                     <button onClick={() => { onPin(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-slate-300 hover:bg-slate-700 transition-colors">
                       <Pin className="w-3.5 h-3.5" /> Pin to Profile
                     </button>
-                    <button onClick={() => { onDelete(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-red-400 hover:bg-slate-700 transition-colors">
-                      <Trash2 className="w-3.5 h-3.5" /> Delete
-                    </button>
                   </>}
-                  {isGC && !isOwner && (
+                  {isGC && !isOwner && !isAdmin && !isNews && (
                     <button onClick={() => { onDM(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-blue-400 hover:bg-slate-700 transition-colors">
                       <MessageCircle className="w-3.5 h-3.5" /> Send Message
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button onClick={() => { onDelete(); setMenuOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-red-400 hover:bg-slate-700 transition-colors border-t border-slate-700/50">
+                      <Trash2 className="w-3.5 h-3.5" /> {isAdmin && !isOwner ? "Remove Post" : "Delete"}
                     </button>
                   )}
                 </div>
@@ -571,6 +579,7 @@ function FeedPageInner() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentAuthorId, setCurrentAuthorId] = useState<string | null>(null);
   const [isGC, setIsGC] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [editingPost, setEditingPost] = useState<FeedPost | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [activePrompt, setActivePrompt] = useState<string | undefined>(undefined);
@@ -607,8 +616,14 @@ function FeedPageInner() {
         return { ...p, author_name: co?.name ?? "Unknown", author_slug: co?.slug ?? "", author_trade: (co?.trade_specialties ?? [])[0] ?? "", author_location: co ? [co.location_city, co.location_state].filter(Boolean).join(", ") : "", author_verified: co?.verification_status === "verified", author_availability: co?.availability_status ?? "available" };
       });
 
+      // Drop industry news older than 60 days
+      const sixtyDaysAgo = Date.now() - 60 * 24 * 60 * 60 * 1000;
+      const mapped60 = mapped.filter(p =>
+        !p.is_industry_news || new Date(p.created_at).getTime() > sixtyDaysAgo
+      );
+
       // Fetch reaction counts for all posts
-      const postIds = raw.map((p: any) => p.id);
+      const postIds = mapped60.map((p: any) => p.id);
       const { data: rxRows } = await db.from("post_reactions")
         .select("post_id, reaction_type, user_id")
         .in("post_id", postIds);
@@ -622,7 +637,7 @@ function FeedPageInner() {
       }
       setReactions(rxMap);
 
-      setPosts(mapped);
+      setPosts(mapped60);
     } catch (err) {
       console.error("Feed fetch error:", err);
     } finally {
@@ -637,6 +652,7 @@ function FeedPageInner() {
       if (!user) return;
       setCurrentUser(user);
       setIsGC(user.user_metadata?.role === "gc");
+      setIsAdmin(user.email === "andrew@tradeprotech.ai");
 
       // Onboarding: show for any logged-in user who hasn't dismissed or posted yet
       if (typeof window !== "undefined" && localStorage.getItem("feed_onboarding_dismissed") !== "1") {
@@ -868,6 +884,7 @@ function FeedPageInner() {
                     followed={followedSources.has(post.news_source_name ?? "")}
                     currentUserId={currentUser?.id ?? null}
                     isGC={isGC}
+                    isAdmin={isAdmin}
                     currentAuthorId={currentAuthorId}
                     onReact={(type) => handleReact(post.id, type)}
                     onSave={() => toggleSave(post.id)}

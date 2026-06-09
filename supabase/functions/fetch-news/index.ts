@@ -69,14 +69,34 @@ function truncate(text: string, max = 220): string {
   return text.slice(0, max).replace(/\s+\S*$/, "") + "…";
 }
 
-interface RSSItem { title: string; link: string; summary: string; }
+function extractPubDate(xml: string): Date | null {
+  const raw = extractTag(xml, "pubDate") ||
+              extractTag(xml, "published") ||
+              extractTag(xml, "dc:date") ||
+              extractTag(xml, "updated");
+  if (!raw) return null;
+  try {
+    const d = new Date(raw.trim());
+    return isNaN(d.getTime()) ? null : d;
+  } catch { return null; }
+}
+
+const SIXTY_DAYS_MS = 60 * 24 * 60 * 60 * 1000;
+
+interface RSSItem { title: string; link: string; summary: string; imageUrl: string; }
 
 function parseItems(xml: string): RSSItem[] {
   const items: RSSItem[] = [];
+  const cutoff = Date.now() - SIXTY_DAYS_MS;
   const pattern = /<(?:item|entry)[^>]*>([\s\S]*?)<\/(?:item|entry)>/gi;
   let m: RegExpExecArray | null;
   while ((m = pattern.exec(xml)) !== null) {
     const block = m[1];
+
+    // Skip articles older than 60 days
+    const pubDate = extractPubDate(block);
+    if (pubDate && pubDate.getTime() < cutoff) continue;
+
     const title = cleanText(extractTag(block, "title"));
     const link =
       extractTag(block, "link") ||
@@ -88,10 +108,11 @@ function parseItems(xml: string): RSSItem[] {
       extractTag(block, "content:encoded") ||
       extractTag(block, "content");
     const summary = truncate(cleanText(rawSummary));
+    const imageUrl = extractImage(block);
     if (title && link && link.startsWith("http")) {
-      items.push({ title, link: link.trim(), summary });
+      items.push({ title, link: link.trim(), summary, imageUrl });
     }
-    if (items.length >= MAX_PER_SOURCE * 4) break;
+    if (items.length >= MAX_PER_SOURCE * 5) break;
   }
   return items;
 }

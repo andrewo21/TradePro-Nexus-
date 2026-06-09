@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getSupabaseServer } from "@/lib/supabaseServer";
+import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabaseServer";
+
+const ADMIN_EMAIL = "andrew@tradeprotech.ai";
 
 async function getAuthorId(db: any, user: any): Promise<{ id: string; type: "profile" | "company" } | null> {
   const [profRes, compRes] = await Promise.all([
@@ -36,13 +38,23 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   return NextResponse.json(data);
 }
 
-// DELETE /api/feed/[id] — delete post (owner only)
+// DELETE /api/feed/[id] — delete post (owner or admin)
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const db = (await getSupabaseServer()) as any;
   const { data: { user } } = await db.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
+  const isAdmin = user.email === ADMIN_EMAIL;
+
+  if (isAdmin) {
+    // Admin can delete any post — use service role to bypass RLS
+    const adminDb = getSupabaseAdmin() as any;
+    await adminDb.from("feed_posts").delete().eq("id", id);
+    return NextResponse.json({ deleted: true });
+  }
+
+  // Regular user: owner check enforced
   const author = await getAuthorId(db, user);
   if (!author) return NextResponse.json({ error: "No profile found." }, { status: 404 });
 

@@ -95,9 +95,14 @@ export default async function AdminWaitlistPage() {
             <h1 className="text-xl font-black text-white">Waitlist Admin</h1>
             <p className="text-slate-400 text-sm">TradePro Nexus launch waitlist</p>
           </div>
-          <span className="text-xs text-slate-600 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg font-mono">
-            admin only
-          </span>
+          <div className="flex items-center gap-2">
+            <Link href="/admin/moderation" className="text-xs text-red-400 hover:text-red-300 bg-red-950/30 border border-red-900/40 px-3 py-1.5 rounded-lg font-semibold transition-colors">
+              Moderation →
+            </Link>
+            <span className="text-xs text-slate-600 bg-slate-800 border border-slate-700 px-3 py-1.5 rounded-lg font-mono">
+              admin only
+            </span>
+          </div>
         </div>
 
         {/* Platform Engagement — advertising metrics */}
