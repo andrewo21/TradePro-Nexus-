@@ -173,16 +173,25 @@ export default function BuildPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [finalSlug, setFinalSlug] = useState("");
 
-  // Detect profile type from auth metadata
+  // If the user already has a profile, send them straight to their Trade Card
   useEffect(() => {
-    getSupabase()?.auth.getUser().then(({ data: { user } }) => {
-      const pt = (user?.user_metadata?.profile_type ?? user?.user_metadata?.role ?? "tradepro") as ProfileType;
+    getSupabase()?.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return;
+      const pt = (user.user_metadata?.profile_type ?? user.user_metadata?.role ?? "tradepro") as ProfileType;
       const validTypes: ProfileType[] = ["tradepro", "sub", "inspector", "architect", "engineer"];
       const resolved = validTypes.includes(pt) ? pt : "tradepro";
       setProfileType(resolved);
       setForm(defaultForm(resolved));
+
+      const db = getSupabase() as any;
+      const { data: existing } = await db
+        .from("profiles")
+        .select("slug")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (existing?.slug) router.replace(`/pro/${existing.slug}`);
     });
-  }, []);
+  }, [router]);
 
   function set<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm(prev => ({ ...prev, [key]: value }));

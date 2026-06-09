@@ -13,6 +13,7 @@ export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [availability, setAvailability] = useState<AvailStatus | null>(null);
+  const [profileSlug, setProfileSlug] = useState<string | null>(null);
   const [showAvailPicker, setShowAvailPicker] = useState(false);
   const [updatingAvail, setUpdatingAvail] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
@@ -26,11 +27,14 @@ export default function Navbar() {
       if (user) {
         (supabase as any)
           .from("profiles")
-          .select("availability_status")
+          .select("slug, availability_status")
           .eq("user_id", user.id)
           .single()
           .then(({ data }: any) => {
-            if (data) setAvailability(data.availability_status);
+            if (data) {
+              setAvailability(data.availability_status);
+              setProfileSlug(data.slug ?? null);
+            }
           });
       }
     });
@@ -73,6 +77,7 @@ export default function Navbar() {
     await getSupabase()?.auth.signOut();
     setUser(null);
     setAvailability(null);
+    setProfileSlug(null);
     setOpen(false);
   }
 
@@ -145,7 +150,7 @@ export default function Navbar() {
 
           {user ? (
             <>
-              <Link href="/build" className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md transition-colors font-semibold">
+              <Link href={profileSlug ? `/pro/${profileSlug}` : "/build"} className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md transition-colors font-semibold">
                 My Trade Card
               </Link>
               <button onClick={handleSignOut} className="px-4 py-2 border border-slate-600 hover:border-slate-400 text-slate-300 hover:text-white rounded-md transition-colors text-sm">
@@ -214,7 +219,7 @@ export default function Navbar() {
 
           {user ? (
             <>
-              <Link href="/build" onClick={() => setOpen(false)} className="block w-full text-center py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-semibold transition-colors">
+              <Link href={profileSlug ? `/pro/${profileSlug}` : "/build"} onClick={() => setOpen(false)} className="block w-full text-center py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-md font-semibold transition-colors">
                 My Trade Card
               </Link>
               <button onClick={handleSignOut} className="block w-full text-center py-3 border border-slate-600 text-slate-300 rounded-md transition-colors">
