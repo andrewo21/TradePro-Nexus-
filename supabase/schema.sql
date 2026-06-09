@@ -187,6 +187,15 @@ create policy "Moderated feed is public" on feed_posts
 create policy "Authenticated users can post to feed" on feed_posts
   for insert with check (auth.uid() is not null);
 
+create policy "Authors can delete their own posts" on feed_posts
+  for delete using (
+    author_id in (
+      select id from profiles where user_id = auth.uid()
+      union
+      select id from companies where user_id = auth.uid()
+    )
+  );
+
 -- ─── STORAGE BUCKETS ─────────────────────────────────────────────────────────
 -- Run these separately in the Supabase Storage UI or via API:
 -- 1. Create bucket "documents"    (private)
