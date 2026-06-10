@@ -41,10 +41,47 @@ Inspector, Architect, Engineer profile types. Type-specific build form, Trading 
 - /admin/registry dashboard: import controls, staging stats, unclaimed counts, re-run and CSV upload
 - Outreach master switch: hardcoded OFF by default, confirmation dialog required to enable, test mode routes all emails to admin address only
 
-### ⏳ SESSION 2 — Southeast + South Central (FUTURE)
-- Georgia: https://sos.ga.gov/index.php/licensing
-- Texas: https://www.tdlr.texas.gov
-- Tennessee: https://www.tn.gov/commerce/regboards/contractors.html
+### 🔄 SESSION 2 — Southeast + South Central (IN PROGRESS)
+
+**Florida (Session 1): ✅ complete — 5,924 records promoted to live directory.**
+
+- **Georgia** (https://sos.ga.gov/index.php/licensing): ✅ done for this session — **blocked**.
+  Entire `sos.ga.gov` domain returns 403 Forbidden to automated requests, including
+  `robots.txt` itself (WAF/bot protection). `lib/scraper/georgia.ts` built and registered
+  in `STATE_SCRAPERS` — it probes the licensing page, detects the block, and returns
+  `robotsBlocked: true`. A `registry_imports` row was logged
+  (`source_state='GA', status='blocked', robots_blocked=true, records_fetched=0`).
+  **0 records staged.** CSV upload fallback required — source GA contractor license
+  data via an open-records request to the GA Secretary of State / State Licensing
+  Board for Residential and General Contractors, then use `/api/admin/registry/upload/GA`.
+
+- **Texas** (https://www.tdlr.texas.gov): 🔄 **IN PROGRESS — left off here.**
+  TDLR publishes daily bulk CSV extracts (robots.txt allows `/dbproduction2/`).
+  `lib/scraper/texas.ts` built and registered in `STATE_SCRAPERS` — downloads
+  `Lteecele.csv` (Electrical Contractor), `Ltescele.csv` (Electrical Sign Contractor),
+  and `ltairref.csv` (A/C & Refrigeration Contractor), filters to active licenses via
+  `LICENSE EXPIRATION DATE >= today`, dedupes within TX on `license_number`.
+  `scripts/import-texas.js` written but **NOT YET RUN**.
+
+  **Next steps to resume Texas:**
+  1. Run `node scripts/import-texas.js` — downloads ~7.5MB across 3 CSVs, stages to
+     `registry_staging` (`source_state='TX', status='pending'`), creates a
+     `registry_imports` row, and prints `IMPORT_ID=<uuid>` at the end.
+  2. Run the cross-state duplicate detection pass (3-layer: exact `license_number`,
+     fuzzy name+location via `pg_trgm` `similarity()`, phone match) comparing the new
+     TX staging rows against ALL existing `registry_staging` rows (especially the
+     5,924 FL rows) — mark matches `status='duplicate'`/`'flagged'` with
+     `duplicate_type` + `duplicate_of`.
+  3. Report TX staging counts to the user and **wait for go-ahead before Tennessee**.
+
+- **Tennessee** (https://www.tn.gov/commerce/regboards/contractors.html): ⏳ not started.
+  Investigated: contractor license verification redirects
+  `verify.tn.gov` → `search.cloud.commerce.tn.gov`, a Tyler Technologies "Forge"
+  Next.js SPA with no static/bulk data export found in its JS bundles — likely needs
+  CSV upload fallback. `lib/scraper/tennessee.ts` not yet built.
+
+**Reminder for next session: STAGE ONLY.** Do not call `/api/admin/registry/promote`
+for any Session 2 records until explicitly authorized by the user.
 
 ### ⏳ SESSION 3 — Northeast + Midwest (FUTURE)
 - New York: https://www.license.ny.gov/public/licquery.htm

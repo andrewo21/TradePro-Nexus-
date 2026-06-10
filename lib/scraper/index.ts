@@ -4,12 +4,14 @@
 // Sessions 2-4: Additional states added here.
 
 import { FloridaScraper } from "./florida";
+import { GeorgiaScraper } from "./georgia";
+import { TexasScraper } from "./texas";
 import type { StateScraperModule } from "./types";
 
 export const STATE_SCRAPERS: Record<string, StateScraperModule> = {
   FL: FloridaScraper,
-  // GA: GeorgiaScraper,   // Session 2
-  // TX: TexasScraper,     // Session 2
+  GA: GeorgiaScraper,    // Session 2
+  TX: TexasScraper,      // Session 2
   // TN: TennesseeScraper, // Session 2
   // NY: NewYorkScraper,   // Session 3
   // PA: PennsylvaniaScraper, // Session 3
@@ -21,6 +23,6 @@ export const STATE_SCRAPERS: Record<string, StateScraperModule> = {
   // WA: WashingtonScraper, // Session 4
 };
 
-export { FloridaScraper };
+export { FloridaScraper, GeorgiaScraper, TexasScraper };
 export * from "./types";
 export * from "./utils";
