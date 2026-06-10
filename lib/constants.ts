@@ -35,6 +35,20 @@ export const PROFILE_TYPES = {
   },
 } as const satisfies Record<ProfileType, { label: string; description: string; color: string; short: string }>;
 
+// ── Verification eligibility ─────────────────────────────────────────────────
+// Only business / licensed-professional profile types (and companies) can ever
+// carry a VERIFIED badge. Individual trade workers ("tradepro") are never
+// verified — they earn engagement badges instead.
+
+export const VERIFIABLE_PROFILE_TYPES: ProfileType[] = ["sub", "inspector", "architect", "engineer"];
+
+export function canBeVerified(profileType: string | null | undefined): boolean {
+  return !!profileType && (VERIFIABLE_PROFILE_TYPES as string[]).includes(profileType);
+}
+
+export const VERIFICATION_INELIGIBLE_MESSAGE =
+  "Verification is available for subcontracting businesses and licensed professional entities. Individual trade worker profiles are not eligible for verification.";
+
 // ── Sectors ──────────────────────────────────────────────────────────────────
 
 export const SECTORS = [

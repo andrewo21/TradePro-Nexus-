@@ -6,10 +6,13 @@ import { getSupabaseServer } from "@/lib/supabaseServer";
 import type { Profile, Company } from "@/types/database";
 import FollowButton from "@/components/FollowButton";
 import ProfileViewTracker from "@/components/ProfileViewTracker";
-import { PROFILE_TYPES } from "@/lib/constants";
+import { PROFILE_TYPES, canBeVerified } from "@/lib/constants";
 import BadgeDisplay from "@/components/BadgeDisplay";
 
-function VerificationBadge({ status }: { status: string }) {
+function VerificationBadge({ status, profileType }: { status: string; profileType: string }) {
+  // Individual trade workers are never verified — show nothing at all.
+  if (!canBeVerified(profileType)) return null;
+
   if (status !== "verified") {
     return (
       <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded-full">
@@ -83,7 +86,7 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
                   </h1>
                   <p className="text-orange-400 font-semibold">{profile.trade}</p>
                 </div>
-                <VerificationBadge status={profile.verification_status ?? "pending"} />
+                <VerificationBadge status={profile.verification_status ?? "pending"} profileType={profileType} />
               </div>
 
               <div className="flex flex-wrap gap-3 mt-2 text-xs text-slate-400">

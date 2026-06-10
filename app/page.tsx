@@ -11,6 +11,7 @@ import {
 import Navbar from "@/components/Navbar";
 import WaitlistForm from "@/components/WaitlistForm";
 import { getSupabase } from "@/lib/supabase";
+import { canBeVerified } from "@/lib/constants";
 
 // ── Mock Feed Data ─────────────────────────────────────────────────────────────
 
@@ -20,7 +21,7 @@ const FEED_ITEMS = [
     trade: "Commercial Electrician",
     location: "Chicago, IL",
     project: "39-Story Mixed-Use Tower: Phase 2 Roughin Complete",
-    verified: true,
+    verified: false,
     time: "2h ago",
     color: "orange",
   },
@@ -38,7 +39,7 @@ const FEED_ITEMS = [
     trade: "Ironworker / Structural Steel",
     location: "Newark, NJ",
     project: "Federal Courthouse Structural Steel: Topped Out",
-    verified: true,
+    verified: false,
     time: "6h ago",
     color: "orange",
   },
@@ -56,7 +57,7 @@ const FEED_ITEMS = [
     trade: "Superintendent",
     location: "Atlanta, GA",
     project: "Hospital Renovation: TI Complete, Punch List Underway",
-    verified: true,
+    verified: false,
     time: "12h ago",
     color: "orange",
   },
@@ -102,6 +103,7 @@ interface AvailablePro {
   location_city: string | null;
   location_state: string | null;
   verification_status: string;
+  profile_type: string | null;
 }
 
 export default function LandingPage() {
@@ -118,7 +120,7 @@ export default function LandingPage() {
   useEffect(() => {
     const db = getSupabase() as any;
     db.from("profiles")
-      .select("id, slug, first_name, last_name, trade, location_city, location_state, verification_status")
+      .select("id, slug, first_name, last_name, trade, location_city, location_state, verification_status, profile_type")
       .eq("availability_status", "available")
       .limit(6)
       .then(({ data }: { data: AvailablePro[] | null }) => {
@@ -267,7 +269,7 @@ export default function LandingPage() {
                 <span className="text-xs font-bold uppercase tracking-widest text-green-400">Live Feed</span>
               </div>
               <h2 className="text-2xl md:text-3xl font-bold text-white">Work is Currency.</h2>
-              <p className="text-slate-400 text-sm mt-1">Real progress from Verified Pros, updated continuously.</p>
+              <p className="text-slate-400 text-sm mt-1">Real progress from the field, updated continuously.</p>
             </div>
             <Link
               href="/feed"
@@ -565,7 +567,7 @@ export default function LandingPage() {
                     <div className="flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
                       <span className="text-[10px] font-bold text-green-400">Available</span>
-                      {pro.verification_status === "verified" && <ShieldCheck className="w-3 h-3 text-green-400" />}
+                      {canBeVerified(pro.profile_type) && pro.verification_status === "verified" && <ShieldCheck className="w-3 h-3 text-green-400" />}
                     </div>
                   </div>
                 </Link>

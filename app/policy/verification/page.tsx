@@ -1,5 +1,6 @@
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
+import { VERIFICATION_INELIGIBLE_MESSAGE } from "@/lib/constants";
 
 export default function VerificationProcessPage() {
   return (
@@ -8,7 +9,12 @@ export default function VerificationProcessPage() {
       <div className="max-w-2xl mx-auto px-4 pt-24 pb-20 prose prose-invert prose-sm max-w-none">
         <p className="text-xs font-bold uppercase tracking-widest text-orange-400 mb-2">Policy</p>
         <h1 className="text-2xl font-black text-white mb-2">The Verification Process</h1>
-        <p className="text-slate-400 mb-8">Plain English — exactly what we check and what we don't.</p>
+        <p className="text-slate-400 mb-4">Plain English — exactly what we check and what we don't.</p>
+
+        <div className="bg-blue-950/30 border border-blue-800/40 rounded-xl p-4 mb-8">
+          <p className="text-blue-300 text-sm font-semibold">Who can be verified</p>
+          <p className="text-slate-300 text-sm mt-1">{VERIFICATION_INELIGIBLE_MESSAGE}</p>
+        </div>
 
         <div className="space-y-8">
           <Section title="What Verification Costs">

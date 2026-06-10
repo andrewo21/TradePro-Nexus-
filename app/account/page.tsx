@@ -8,6 +8,7 @@ import ProfileCompletion from "@/components/ProfileCompletion";
 import BadgeDisplay from "@/components/BadgeDisplay";
 import { BADGES } from "@/lib/badge-definitions";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
+import { canBeVerified } from "@/lib/constants";
 
 interface GCSubRow {
   id: string;
@@ -117,7 +118,9 @@ export default async function AccountPage() {
           <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-5 mb-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Trade Card</h2>
-              <StatusBadge status={profile.verification_status ?? "pending"} />
+              {canBeVerified(profile.profile_type) && (
+                <StatusBadge status={profile.verification_status ?? "pending"} />
+              )}
             </div>
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-orange-600/20 border border-orange-600/40 rounded-xl flex items-center justify-center font-black text-orange-400 text-lg">
@@ -136,7 +139,7 @@ export default async function AccountPage() {
               <AvailabilityToggle initialStatus={profile.availability_status ?? "available"} />
             </div>
 
-            {profile.verification_status === "pending" && !verification && (
+            {canBeVerified(profile.profile_type) && profile.verification_status === "pending" && !verification && (
               <div className="mt-4 pt-4 border-t border-slate-700/50">
                 <p className="text-sm text-slate-400 mb-3">
                   Get the Verified Pro badge — appear in GC searches and prove your credentials.
@@ -279,8 +282,8 @@ export default async function AccountPage() {
               <p className="text-slate-500 text-sm mb-4">No badges earned yet. Post to the Live Feed to get started.</p>
             )}
 
-            {/* Verified Contributor coupon */}
-            {earnedBadgeMap["verified_contributor"]?.coupon_code && !verification && (
+            {/* Verified Contributor coupon — only meaningful for profile types eligible for verification */}
+            {earnedBadgeMap["verified_contributor"]?.coupon_code && !verification && profile && canBeVerified(profile.profile_type) && (
               <div className="bg-green-950/30 border border-green-800/40 rounded-xl p-3 flex items-start gap-3 mb-4">
                 <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
                 <div>

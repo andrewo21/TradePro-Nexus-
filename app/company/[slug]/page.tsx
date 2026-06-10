@@ -28,10 +28,10 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
 
   if (!company) notFound();
 
-  type ForemanRow = Pick<Profile, "first_name" | "last_name" | "slug" | "trade" | "years_experience" | "verification_status">;
+  type ForemanRow = Pick<Profile, "first_name" | "last_name" | "slug" | "trade" | "years_experience">;
   const { data: foremen } = (await db
     .from("profiles")
-    .select("first_name, last_name, slug, trade, years_experience, verification_status")
+    .select("first_name, last_name, slug, trade, years_experience")
     .eq("company_id", company.id)
     .eq("is_lead_foreman", true)) as { data: ForemanRow[] | null; error: unknown };
 
@@ -171,9 +171,6 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    {f.verification_status === "verified" && (
-                      <span className="text-[10px] text-green-400 bg-green-900/30 border border-green-800/50 px-2 py-0.5 rounded-full font-bold">VERIFIED</span>
-                    )}
                     <ArrowRight className="w-4 h-4 text-slate-600 group-hover:text-orange-400 transition-colors" />
                   </div>
                 </Link>

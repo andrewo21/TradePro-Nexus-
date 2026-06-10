@@ -13,7 +13,8 @@ export async function GET() {
       db.from("profiles").select("*", { count: "exact", head: true }),
       db.from("companies").select("*", { count: "exact", head: true }),
       db.from("waitlist").select("*", { count: "exact", head: true }),
-      db.from("profiles").select("*", { count: "exact", head: true }).eq("verification_status", "verified"),
+      // Individuals ("tradepro") are never verified — only count verifiable profile types.
+      db.from("profiles").select("*", { count: "exact", head: true }).eq("verification_status", "verified").neq("profile_type", "tradepro"),
     ]);
 
     return NextResponse.json({

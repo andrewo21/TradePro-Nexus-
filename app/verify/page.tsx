@@ -6,14 +6,17 @@ import { Suspense } from "react";
 import { motion } from "framer-motion";
 import {
   ShieldCheck, FileText, CheckCircle, ArrowRight, AlertCircle,
-  HardHat, Loader2, Clock
+  HardHat, Loader2, Clock, Info
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
+import { canBeVerified, VERIFICATION_INELIGIBLE_MESSAGE } from "@/lib/constants";
 
-// Required docs vary by profile type:
-// Subs/tradepros: W9 + COI + bonding + executed agreement
+// Required docs vary by profile type. Verification is only available to
+// businesses and licensed professionals (sub, inspector, architect, engineer)
+// — individual trade workers are never eligible (see canBeVerified).
+// Subs: W9 + COI + bonding + executed agreement
 // Inspectors, architects, engineers: W9 + COI + license copy (no bonding, no sub agreement)
 const DOCS_BY_TYPE: Record<string, Array<{ key: string; label: string; desc: string }>> = {
   sub: [
@@ -21,10 +24,6 @@ const DOCS_BY_TYPE: Record<string, Array<{ key: string; label: string; desc: str
     { key: "coi", label: "Certificate of Insurance (COI)", desc: "Must be current — expiration tracked automatically" },
     { key: "bonding", label: "Bonding Certificate", desc: "Capacity and bonding company extracted by AI" },
     { key: "agreement", label: "Executed Sub Agreement", desc: "Signed, dated, with dollar amount — from any project" },
-  ],
-  tradepro: [
-    { key: "w9", label: "W9 Form", desc: "Valid EIN or SSN for sole proprietors" },
-    { key: "coi", label: "Certificate of Insurance (COI)", desc: "Current general liability insurance" },
   ],
   inspector: [
     { key: "w9", label: "W9 Form", desc: "Valid EIN required" },
@@ -104,6 +103,27 @@ function VerifyContent() {
               </div>
             ))}
           </div>
+          <Link href="/build" className="inline-flex items-center gap-2 px-5 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-sm transition-colors">
+            Back to My Trade Card <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (hasProfile && !canBeVerified(profileType)) {
+    return (
+      <div className="min-h-screen bg-[#0f172a] text-slate-100">
+        <Navbar />
+        <div className="max-w-lg mx-auto px-4 pt-24 pb-16 text-center">
+          <div className="w-16 h-16 bg-slate-800 border border-slate-700 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Info className="w-8 h-8 text-slate-400" />
+          </div>
+          <h1 className="text-2xl font-black text-white mb-2">Verification Not Applicable</h1>
+          <p className="text-slate-400 mb-6">{VERIFICATION_INELIGIBLE_MESSAGE}</p>
+          <p className="text-slate-400 text-sm mb-6">
+            As an individual trade pro, you can still earn engagement badges — Active Member, Community Pro, Verified Contributor, Profile Champion, and Networked — by staying active on the Live Feed and keeping your Trade Card complete.
+          </p>
           <Link href="/build" className="inline-flex items-center gap-2 px-5 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-sm transition-colors">
             Back to My Trade Card <ArrowRight className="w-4 h-4" />
           </Link>

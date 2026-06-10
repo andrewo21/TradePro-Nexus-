@@ -13,7 +13,7 @@ import {
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
-import { SECTORS, TRADE_GROUPS } from "@/lib/constants";
+import { SECTORS, TRADE_GROUPS, canBeVerified } from "@/lib/constants";
 import FeedAdCard from "@/components/FeedAdCard";
 import DesktopAdRail from "@/components/DesktopAdRail";
 import BadgeCelebration from "@/components/BadgeCelebration";
@@ -721,7 +721,7 @@ function FeedPageInner() {
       const profileIds = raw.filter((p: any) => p.author_type === "profile").map((p: any) => p.author_id);
       const companyIds = raw.filter((p: any) => p.author_type === "company").map((p: any) => p.author_id);
       const [profRes, compRes] = await Promise.all([
-        profileIds.length > 0 ? db.from("profiles").select("id, first_name, last_name, slug, trade, location_city, location_state, verification_status, availability_status").in("id", profileIds) : { data: [] },
+        profileIds.length > 0 ? db.from("profiles").select("id, first_name, last_name, slug, trade, location_city, location_state, verification_status, profile_type, availability_status").in("id", profileIds) : { data: [] },
         companyIds.length > 0 ? db.from("companies").select("id, name, slug, trade_specialties, location_city, location_state, verification_status, availability_status").in("id", companyIds) : { data: [] },
       ]);
 
@@ -736,7 +736,7 @@ function FeedPageInner() {
         }
         if (p.author_type === "profile") {
           const prof = pm[p.author_id];
-          return { ...p, author_name: prof ? `${prof.first_name} ${prof.last_name}` : "Unknown", author_slug: prof?.slug ?? "", author_trade: prof?.trade ?? "", author_location: prof ? [prof.location_city, prof.location_state].filter(Boolean).join(", ") : "", author_verified: prof?.verification_status === "verified", author_availability: prof?.availability_status ?? "available" };
+          return { ...p, author_name: prof ? `${prof.first_name} ${prof.last_name}` : "Unknown", author_slug: prof?.slug ?? "", author_trade: prof?.trade ?? "", author_location: prof ? [prof.location_city, prof.location_state].filter(Boolean).join(", ") : "", author_verified: canBeVerified(prof?.profile_type) && prof?.verification_status === "verified", author_availability: prof?.availability_status ?? "available" };
         }
         const co = cm[p.author_id];
         return { ...p, author_name: co?.name ?? "Unknown", author_slug: co?.slug ?? "", author_trade: (co?.trade_specialties ?? [])[0] ?? "", author_location: co ? [co.location_city, co.location_state].filter(Boolean).join(", ") : "", author_verified: co?.verification_status === "verified", author_availability: co?.availability_status ?? "available" };

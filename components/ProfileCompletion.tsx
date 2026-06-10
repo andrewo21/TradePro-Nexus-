@@ -3,6 +3,8 @@
 // Design choice: percentage ring + checklist, tapping any missing item
 // links directly to the relevant step on the build form.
 
+import { canBeVerified } from "@/lib/constants";
+
 interface ProfileRow {
   id: string;
   first_name: string;
@@ -112,12 +114,14 @@ function buildChecklist(profile: ProfileRow): CheckItem[] {
       points: 15,
       hint: "Photos are your strongest trust signal. GCs want to see real work.",
     },
-    {
-      label: "Verification submitted",
-      done: profile.verification_status !== "pending" || false,
-      points: 5,
-      hint: "Start the $99 verification to get the Verified badge and appear in GC searches.",
-    },
+    ...(canBeVerified(profile.profile_type) ? [
+      {
+        label: "Verification submitted",
+        done: profile.verification_status !== "pending" || false,
+        points: 5,
+        hint: "Start the $99 verification to get the Verified badge and appear in GC searches.",
+      },
+    ] : []),
   ];
 }
 
@@ -160,7 +164,9 @@ export default function ProfileCompletion({ profile }: { profile: ProfileRow }) 
           <h3 className="font-black text-white mb-0.5">Trading Card Completion</h3>
           <p className="text-slate-400 text-sm">
             {missing.length === 0
-              ? "All done — submit for verification to get the Verified badge."
+              ? canBeVerified(profile.profile_type)
+                ? "All done — submit for verification to get the Verified badge."
+                : "All done — your Trade Card is fully built out."
               : `${missing.length} item${missing.length !== 1 ? "s" : ""} left to strengthen your profile.`}
           </p>
         </div>
