@@ -626,6 +626,8 @@ export default function LandingPage() {
                 <Link href="/policy/how-it-works" className="block text-slate-500 hover:text-slate-300 transition-colors">How It Works</Link>
                 <Link href="/policy/disclaimer" className="block text-slate-500 hover:text-slate-300 transition-colors">Platform Disclaimer</Link>
                 <Link href="/policy/documents" className="block text-slate-500 hover:text-slate-300 transition-colors">Document Policy</Link>
+                <Link href="/policy/terms-of-service" className="block text-slate-500 hover:text-slate-300 transition-colors">Terms of Service</Link>
+                <Link href="/policy/privacy-policy" className="block text-slate-500 hover:text-slate-300 transition-colors">Privacy Policy</Link>
               </div>
             </div>
             <div>
