@@ -41,7 +41,7 @@ Inspector, Architect, Engineer profile types. Type-specific build form, Trading 
 - /admin/registry dashboard: import controls, staging stats, unclaimed counts, re-run and CSV upload
 - Outreach master switch: hardcoded OFF by default, confirmation dialog required to enable, test mode routes all emails to admin address only
 
-### 🔄 SESSION 2 — Southeast + South Central (IN PROGRESS)
+### ✅ SESSION 2 — COMPLETE (Southeast + South Central)
 
 **Florida (Session 1): ✅ complete — 5,924 records promoted to live directory.**
 
@@ -70,24 +70,29 @@ Inspector, Architect, Engineer profile types. Type-specific build form, Trading 
   - Promotable (quality ≥ 6): 12,611. Below threshold: 16,358.
   - **Nothing promoted.**
 
-- **Tennessee** (https://www.tn.gov/commerce/regboards/contractors.html): ⏳ **NOT STARTED — left off here.**
-  Investigated: contractor license verification redirects
-  `verify.tn.gov` → `search.cloud.commerce.tn.gov`, a Tyler Technologies "Forge"
-  Next.js SPA with no static/bulk data export found in its JS bundles — likely needs
-  CSV upload fallback. `lib/scraper/tennessee.ts` not yet built.
+- **Tennessee** (https://www.tn.gov/commerce/regboards/contractors.html): ✅ done for this session — **blocked**.
+  Verification redirects `verify.tn.gov` → `search.cloud.commerce.tn.gov`, a Tyler
+  Technologies "Forge"/Entellitrak Next.js SPA. Its backend API
+  (`entellitrak/api/endpoints/v1`) requires reCAPTCHA verification and an auth token
+  before any query — no static HTML data or bulk export exists, and we will not
+  bypass CAPTCHA/auth gating. `lib/scraper/tennessee.ts` built and registered in
+  `STATE_SCRAPERS` — probes the portal and returns `robotsBlocked: true`. A
+  `registry_imports` row was logged
+  (`source_state='TN', status='blocked', robots_blocked=true, records_fetched=0`).
+  **0 records staged.** CSV upload fallback required — source TN contractor license
+  data via an open-records request to the TN Board for Licensing Contractors, then
+  use `/api/admin/registry/upload/TN`.
 
-  **Next steps to resume Tennessee:**
-  1. Re-check `search.cloud.commerce.tn.gov` for a public API endpoint behind the
-     "Verify Public Search" SPA (Tyler Technologies "Forge" platform). If a stable
-     endpoint can't be found, build `lib/scraper/tennessee.ts` to do the robots.txt
-     check + a probe fetch, detect the SPA shell, and return `robotsBlocked: true`
-     recommending CSV upload (mirroring `georgia.ts`).
-  2. Register `TN: TennesseeScraper` in `STATE_SCRAPERS` (`lib/scraper/index.ts`).
-  3. If scrapable, write `scripts/import-tennessee.js` (mirror `import-texas.js`),
-     run it, then run the same 3-layer cross-state dedup pass against all existing
-     `registry_staging` rows (FL + TX) for the new TN `import_id`.
-  4. Report TN staging counts to the user. **STAGE ONLY — do not promote anything**
-     for GA/TX/TN until the user explicitly authorizes promotion.
+### SESSION 2 SUMMARY
+| State | Status | Staged | Notes |
+|---|---|---|---|
+| Georgia | Blocked (WAF 403) | 0 | CSV upload fallback needed |
+| Texas | ✅ Scraped | 28,973 | 12,611 promotable (≥6); 4 flagged vs FL |
+| Tennessee | Blocked (SPA + reCAPTCHA) | 0 | CSV upload fallback needed |
+
+**Total staging after Session 2: 34,897** (5,924 FL + 28,973 TX). **Nothing promoted.**
+Promotion for TX (and any future GA/TN CSV uploads) requires explicit user
+authorization via `/admin/registry`.
 
 **Reminder for next session: STAGE ONLY.** Do not call `/api/admin/registry/promote`
 for any Session 2 records until explicitly authorized by the user.
