@@ -217,3 +217,62 @@ create trigger profiles_updated_at before update on profiles
 
 create trigger companies_updated_at before update on companies
   for each row execute function update_updated_at();
+
+-- ─── MIGRATIONS (applied after initial schema) ───────────────────────────────
+-- NOTE: this file is a documentation reference. Live schema changes are applied
+-- via Supabase migrations (see `mcp__claude_ai_Supabase__apply_migration`).
+
+-- Union profile fields — optional, self-reported (Trade Pro / Sub builder).
+-- Drives the Union Member badge, union job filters, and job placement matching.
+alter table profiles
+  add column if not exists union_member boolean not null default false,
+  add column if not exists union_name text,
+  add column if not exists union_local_number text,
+  add column if not exists union_member_status text,
+  add column if not exists prevailing_wage_certified boolean not null default false,
+  add column if not exists davis_bacon_eligible boolean not null default false,
+  add column if not exists union_card_expiration date;
+
+create index if not exists idx_profiles_union_member on profiles (union_member) where union_member = true;
+
+-- Job placement flow — GC job postings + trade pro job preferences.
+-- Drives the Union Opportunities board on /work and trade-pro match notifications.
+create type job_status as enum ('pending', 'approved', 'removed');
+
+create table if not exists jobs (
+  id                uuid primary key default uuid_generate_v4(),
+  trade             text not null,
+  location_city     text,
+  location_state    text not null,
+  job_type          text not null default 'Direct Hire',
+  union_requirement text not null default 'Open to All',
+  prevailing_wage   boolean not null default false,
+  davis_bacon       boolean not null default false,
+  description       text not null,
+  contact_email     text not null,
+  company_name      text not null,
+  posted_by_user_id uuid references auth.users(id) on delete set null,
+  status            job_status not null default 'pending',
+  notified_count    integer not null default 0,
+  created_at        timestamptz default now(),
+  updated_at        timestamptz default now()
+);
+
+create index if not exists idx_jobs_status on jobs(status);
+create index if not exists idx_jobs_trade on jobs(trade);
+create index if not exists idx_jobs_location_state on jobs(location_state);
+
+alter table jobs enable row level security;
+
+create policy "Approved jobs are public" on jobs
+  for select using (status = 'approved');
+
+create policy "Anyone can submit a job posting" on jobs
+  for insert with check (true);
+
+create trigger jobs_updated_at before update on jobs
+  for each row execute function update_updated_at();
+
+alter table profiles
+  add column if not exists open_to_union_jobs_only boolean not null default false,
+  add column if not exists seeking_prevailing_wage_work boolean not null default false;

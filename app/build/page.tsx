@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   HardHat, ChevronRight, ChevronLeft, Upload, CheckCircle,
   User, Briefcase, ShieldCheck, ImageIcon, Calendar, ArrowRight,
-  AlertCircle, X, Loader2, FileText, Ruler, Wrench
+  AlertCircle, X, Loader2, FileText, Ruler, Wrench, Shield
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
@@ -14,7 +14,8 @@ import { getSupabase } from "@/lib/supabase";
 import {
   PROFILE_TYPES, type ProfileType,
   OSHA_CERTS, INSPECTOR_CERTS, ARCHITECT_CERTS, ARCHITECT_SOFTWARE,
-  ENGINEER_DISCIPLINES, ENGINEER_SOFTWARE, TRADE_GROUPS
+  ENGINEER_DISCIPLINES, ENGINEER_SOFTWARE, TRADE_GROUPS,
+  UNION_NAMES, UNION_MEMBER_STATUSES
 } from "@/lib/constants";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -118,6 +119,14 @@ interface FormData {
   peLicenseNumber: string;
   engineerSoftware: string[];
   engineerCerts: string;
+  // Union (Trade Pro / Sub)
+  unionMember: boolean;
+  unionName: string;
+  unionLocalNumber: string;
+  unionMemberStatus: string;
+  prevailingWageCertified: boolean;
+  davisBaconEligible: boolean;
+  unionCardExpiration: string;
   // Shared
   availabilityStatus: "available" | "available_soon" | "booked";
   availableInWeeks: string;
@@ -137,6 +146,8 @@ const defaultForm = (profileType: ProfileType = "tradepro"): FormData => ({
   licenseNumber: "", licenseStates: [], inspectorCerts: [], inspectionTypes: [], jurisdictions: "",
   aiaMember: false, architectSpecializations: [], architectSoftware: [],
   engineerDiscipline: "", peLicenseNumber: "", engineerSoftware: [], engineerCerts: "",
+  unionMember: false, unionName: "", unionLocalNumber: "", unionMemberStatus: "",
+  prevailingWageCertified: false, davisBaconEligible: false, unionCardExpiration: "",
   availabilityStatus: "available", availableInWeeks: "", sectorExperience: [],
   galleryFiles: [], bondingFile: null, coiFile: null, w9File: null,
 });
@@ -154,8 +165,9 @@ function getSteps(profileType: ProfileType) {
       { id: 1, label: "Your Info", icon: User },
       { id: 2, label: "Trade & Skills", icon: Briefcase },
       { id: 3, label: "Certifications", icon: ShieldCheck },
-      { id: 4, label: "Availability", icon: Calendar },
-      { id: 5, label: "Photos", icon: ImageIcon },
+      { id: 4, label: "Union", icon: Shield },
+      { id: 5, label: "Availability", icon: Calendar },
+      { id: 6, label: "Photos", icon: ImageIcon },
     ];
   }
   return base;
@@ -276,6 +288,13 @@ export default function BuildPage() {
         crew_size: form.crewSize ? parseInt(form.crewSize) : null,
         gallery_urls: galleryUrls,
         verification_status: "pending",
+        union_member: form.unionMember,
+        union_name: form.unionMember ? (form.unionName || null) : null,
+        union_local_number: form.unionMember ? (form.unionLocalNumber.trim() || null) : null,
+        union_member_status: form.unionMember ? (form.unionMemberStatus || null) : null,
+        prevailing_wage_certified: form.prevailingWageCertified,
+        davis_bacon_eligible: form.davisBaconEligible,
+        union_card_expiration: form.unionCardExpiration || null,
       };
 
       const { data: profile, error: insertError } = await db.from("profiles").insert(insertData).select().single();
@@ -639,10 +658,70 @@ export default function BuildPage() {
               </div>
             )}
 
+            {/* Step 4: Union Membership — Trade Pro / Sub. Fully optional, self-reported. */}
+            {step === 4 && (profileType === "tradepro" || profileType === "sub") && (
+              <div className="space-y-5">
+                <h2 className="text-lg font-bold text-white mb-1">Union Membership</h2>
+                <p className="text-sm text-slate-400 mb-3">Optional. Adding this shows a Union Member badge on your Trade Card and unlocks union job opportunities — only if you tell us.</p>
+
+                <div className="flex items-center justify-between bg-slate-900/60 border border-slate-700 rounded-xl p-4">
+                  <div>
+                    <p className="text-sm font-semibold text-white flex items-center gap-1.5"><Shield className="w-4 h-4 text-blue-400" /> Union Member</p>
+                    <p className="text-xs text-slate-500 mt-0.5">Self-reported. Never auto-assigned.</p>
+                  </div>
+                  <button type="button" onClick={() => set("unionMember", !form.unionMember)}
+                    className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${form.unionMember ? "bg-blue-600" : "bg-slate-700"}`}>
+                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${form.unionMember ? "translate-x-5" : ""}`} />
+                  </button>
+                </div>
+
+                {form.unionMember && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wide">Union Name</label>
+                        <select value={form.unionName} onChange={e => set("unionName", e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500">
+                          <option value="">Select union…</option>
+                          {UNION_NAMES.map(u => <option key={u} value={u}>{u}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wide">Local Number</label>
+                        <input value={form.unionLocalNumber} onChange={e => set("unionLocalNumber", e.target.value)} placeholder="Local 349" className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wide">Member Status</label>
+                        <select value={form.unionMemberStatus} onChange={e => set("unionMemberStatus", e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500">
+                          <option value="">Select status…</option>
+                          {UNION_MEMBER_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wide">Union Card Expiration</label>
+                        <input type="date" value={form.unionCardExpiration} onChange={e => set("unionCardExpiration", e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-orange-500" />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 bg-slate-900/60 border border-slate-700 rounded-xl p-3">
+                      <input type="checkbox" id="prevailingWage" checked={form.prevailingWageCertified} onChange={e => set("prevailingWageCertified", e.target.checked)} className="w-4 h-4 accent-blue-500" />
+                      <label htmlFor="prevailingWage" className="text-sm text-slate-300 cursor-pointer">Prevailing Wage Certified</label>
+                    </div>
+                    <div className="flex items-center gap-3 bg-slate-900/60 border border-slate-700 rounded-xl p-3">
+                      <input type="checkbox" id="davisBacon" checked={form.davisBaconEligible} onChange={e => set("davisBaconEligible", e.target.checked)} className="w-4 h-4 accent-blue-500" />
+                      <label htmlFor="davisBacon" className="text-sm text-slate-300 cursor-pointer">Davis-Bacon Eligible</label>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Step 3 (for inspector/architect/engineer) = Step 2 → Availability is step 3 for non-tradepro */}
-            {/* Availability — for inspector/architect/engineer at step 3, tradepro/sub at step 4 */}
+            {/* Availability — for inspector/architect/engineer at step 3, tradepro/sub at step 5 */}
             {((step === 3 && (profileType === "inspector" || profileType === "architect" || profileType === "engineer")) ||
-              (step === 4 && (profileType === "tradepro" || profileType === "sub"))) && (
+              (step === 5 && (profileType === "tradepro" || profileType === "sub"))) && (
               <div className="space-y-5">
                 <h2 className="text-lg font-bold text-white mb-4">Availability</h2>
                 <div className="space-y-2">
@@ -672,7 +751,7 @@ export default function BuildPage() {
 
             {/* Photos — last step for all types */}
             {((step === 4 && (profileType === "inspector" || profileType === "architect" || profileType === "engineer")) ||
-              (step === 5 && (profileType === "tradepro" || profileType === "sub"))) && (
+              (step === 6 && (profileType === "tradepro" || profileType === "sub"))) && (
               <div className="space-y-4">
                 <h2 className="text-lg font-bold text-white mb-1">Work Notoriety Gallery</h2>
                 <p className="text-sm text-slate-400 mb-4">

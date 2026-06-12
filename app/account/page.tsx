@@ -8,6 +8,7 @@ import ProfileCompletion from "@/components/ProfileCompletion";
 import BadgeDisplay from "@/components/BadgeDisplay";
 import { BADGES } from "@/lib/badge-definitions";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
+import JobPreferences from "@/components/JobPreferences";
 import { canBeVerified } from "@/lib/constants";
 
 interface GCSubRow {
@@ -59,7 +60,7 @@ export default async function AccountPage() {
   const db = getSupabaseAdmin() as any;
 
   const [profileRes, companyRes] = await Promise.all([
-    db.from("profiles").select("id, first_name, last_name, slug, profile_type, trade, years_experience, location_city, location_zip, bio, phone, avatar_url, gallery_urls, osha_certifications, other_certifications, verification_status, license_number, type_data, availability_status").eq("user_id", user.id).single(),
+    db.from("profiles").select("id, first_name, last_name, slug, profile_type, trade, years_experience, location_city, location_zip, bio, phone, avatar_url, gallery_urls, osha_certifications, other_certifications, verification_status, license_number, type_data, availability_status, open_to_union_jobs_only, seeking_prevailing_wage_work").eq("user_id", user.id).single(),
     db.from("companies").select("id, name, slug").eq("user_id", user.id).single(),
   ]);
 
@@ -137,6 +138,15 @@ export default async function AccountPage() {
             {/* Available for Work toggle */}
             <div className="mt-4 pt-4 border-t border-slate-700/50">
               <AvailabilityToggle initialStatus={profile.availability_status ?? "available"} />
+            </div>
+
+            {/* Job placement preferences */}
+            <div className="mt-4 pt-4 border-t border-slate-700/50">
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Job Preferences</p>
+              <JobPreferences
+                initialOpenToUnionJobsOnly={!!profile.open_to_union_jobs_only}
+                initialSeekingPrevailingWageWork={!!profile.seeking_prevailing_wage_work}
+              />
             </div>
 
             {canBeVerified(profile.profile_type) && profile.verification_status === "pending" && !verification && (

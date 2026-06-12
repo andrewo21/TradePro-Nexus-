@@ -28,6 +28,17 @@ export interface Profile {
   gallery_urls: string[];
   avatar_url: string | null;
   verification_status: VerificationStatus;
+  // Union — optional, self-reported
+  union_member: boolean;
+  union_name: string | null;
+  union_local_number: string | null;
+  union_member_status: string | null;
+  prevailing_wage_certified: boolean;
+  davis_bacon_eligible: boolean;
+  union_card_expiration: string | null;
+  // Job placement preferences — drive matching/notifications
+  open_to_union_jobs_only: boolean;
+  seeking_prevailing_wage_work: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -79,6 +90,27 @@ export interface Document {
   created_at: string;
 }
 
+export type JobStatus = "pending" | "approved" | "removed";
+
+export interface Job {
+  id: string;
+  trade: string;
+  location_city: string | null;
+  location_state: string;
+  job_type: string;
+  union_requirement: string;
+  prevailing_wage: boolean;
+  davis_bacon: boolean;
+  description: string;
+  contact_email: string;
+  company_name: string;
+  posted_by_user_id: string | null;
+  status: JobStatus;
+  notified_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface FeedPost {
   id: string;
   author_id: string;
@@ -102,6 +134,7 @@ export interface Database {
       companies: { Row: Company; Insert: Partial<Company>; Update: Partial<Company>; Relationships: [] };
       documents: { Row: Document; Insert: Partial<Document>; Update: Partial<Document>; Relationships: [] };
       feed_posts: { Row: FeedPost; Insert: Partial<FeedPost>; Update: Partial<FeedPost>; Relationships: [] };
+      jobs: { Row: Job; Insert: Partial<Job>; Update: Partial<Job>; Relationships: [] };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

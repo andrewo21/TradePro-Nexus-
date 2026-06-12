@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   Search, Building2, MapPin, Users, ShieldCheck,
-  Filter, HardHat, Lock, Clock, ArrowRight, Zap
+  Filter, HardHat, Lock, Clock, ArrowRight, Zap, Shield
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
@@ -14,12 +14,12 @@ import Link from "next/link";
 // a visual preview only — all interactive elements are disabled.
 
 const PREVIEW_RESULTS = [
-  { name: "Coastal Mechanical Inc.", trade: "HVAC / Plumbing", location: "Tampa, FL", bonding: "$18M", crew: 24, payroll: "82%", tier: "green" as const },
-  { name: "Iron Ridge Structural", trade: "Structural Steel", location: "Atlanta, GA", bonding: "$40M", crew: 60, payroll: "91%", tier: "green" as const },
-  { name: "First Choice Electric", trade: "Commercial Electrical", location: "Orlando, FL", bonding: "$9M", crew: 18, payroll: "74%", tier: "yellow" as const },
-  { name: "Summit Concrete LLC", trade: "Concrete / Flatwork", location: "Nashville, TN", bonding: "$5M", crew: 12, payroll: "65%", tier: "yellow" as const },
-  { name: "Clearwater Fire Protection", trade: "Fire Suppression", location: "Jacksonville, FL", bonding: "$3M", crew: 8, payroll: "100%", tier: "blue" as const },
-  { name: "Atlas Drywall & Framing", trade: "Drywall / Framing", location: "Charlotte, NC", bonding: "$2M", crew: 14, payroll: "55%", tier: "blue" as const },
+  { name: "Coastal Mechanical Inc.", trade: "HVAC / Plumbing", location: "Tampa, FL", bonding: "$18M", crew: 24, payroll: "82%", tier: "green" as const, union: true },
+  { name: "Iron Ridge Structural", trade: "Structural Steel", location: "Atlanta, GA", bonding: "$40M", crew: 60, payroll: "91%", tier: "green" as const, union: true },
+  { name: "First Choice Electric", trade: "Commercial Electrical", location: "Orlando, FL", bonding: "$9M", crew: 18, payroll: "74%", tier: "yellow" as const, union: false },
+  { name: "Summit Concrete LLC", trade: "Concrete / Flatwork", location: "Nashville, TN", bonding: "$5M", crew: 12, payroll: "65%", tier: "yellow" as const, union: false },
+  { name: "Clearwater Fire Protection", trade: "Fire Suppression", location: "Jacksonville, FL", bonding: "$3M", crew: 8, payroll: "100%", tier: "blue" as const, union: false },
+  { name: "Atlas Drywall & Framing", trade: "Drywall / Framing", location: "Charlotte, NC", bonding: "$2M", crew: 14, payroll: "55%", tier: "blue" as const, union: false },
 ];
 
 const TIER = {
@@ -61,7 +61,7 @@ export default function SearchPage() {
           </div>
           <p className="text-slate-500 text-xs mt-2">
             {mode === "crews"
-              ? "Search verified subcontractors and trade pros by project scope. Paid GC feature."
+              ? "Search verified subcontractors and trade pros by project scope, including union crews — try \"union electrician Tampa.\" Paid GC feature."
               : "Search for General Contractors in your area. Always free for Trade Pros and Subs."}
           </p>
         </div>
@@ -84,6 +84,17 @@ export default function SearchPage() {
                 <div className="bg-slate-900 border border-slate-600 rounded-xl px-3 py-3 text-sm text-slate-500">e.g. $5M or 5000000</div>
                 <div className="bg-slate-900 border border-slate-600 rounded-xl px-3 py-3 text-sm text-slate-500">60601</div>
               </div>
+              <div className="bg-slate-900 border border-slate-600 rounded-xl px-3 py-3 text-sm text-slate-500 mb-4">
+                Search "union electrician Tampa"
+              </div>
+              <div className="flex items-center justify-between bg-slate-900 border border-slate-600 rounded-xl px-3 py-3 mb-4">
+                <span className="flex items-center gap-1.5 text-sm text-slate-400 font-semibold">
+                  <Shield className="w-4 h-4 text-blue-400" /> Union Members Only
+                </span>
+                <div className="relative w-11 h-6 rounded-full bg-slate-700">
+                  <span className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full" />
+                </div>
+              </div>
               <div className="w-full py-3 bg-blue-700/50 rounded-xl text-center text-white font-bold text-sm">Find Matching Crews</div>
             </div>
 
@@ -97,6 +108,11 @@ export default function SearchPage() {
                       <span className={`inline-flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-full border ${t.badge}`}>
                         <span className={`w-2 h-2 rounded-full ${t.dot}`} /> {t.label}
                       </span>
+                      {r.union && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-300 bg-slate-700/40 border border-slate-500/50 px-2 py-0.5 rounded-full">
+                          <Shield className="w-3 h-3 text-blue-400" /> UNION MEMBER
+                        </span>
+                      )}
                     </div>
                     <div className="p-5">
                       <div className="flex items-start justify-between gap-3 mb-4">

@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { ShieldCheck, MapPin, Users, Briefcase, Phone, Mail, Camera, CheckCircle, Building2, HardHat, FileText, Ruler, Wrench } from "lucide-react";
+import { ShieldCheck, MapPin, Users, Briefcase, Phone, Mail, Camera, CheckCircle, Building2, HardHat, FileText, Ruler, Wrench, Shield, Landmark } from "lucide-react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { getSupabaseServer } from "@/lib/supabaseServer";
@@ -23,6 +23,17 @@ function VerificationBadge({ status, profileType }: { status: string; profileTyp
   return (
     <span className="inline-flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-900/30 border border-green-800/40 px-2 py-0.5 rounded-full">
       <ShieldCheck className="w-3 h-3" /> VERIFIED PRO
+    </span>
+  );
+}
+
+// Union Member badge — self-reported only, never auto-assigned. Styled
+// distinctly from VerificationBadge (slate blue, shield icon).
+function UnionBadge({ unionMember }: { unionMember: boolean }) {
+  if (!unionMember) return null;
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-300 bg-slate-700/40 border border-slate-500/50 px-2 py-0.5 rounded-full">
+      <Shield className="w-3 h-3 text-blue-400" /> UNION MEMBER
     </span>
   );
 }
@@ -62,6 +73,16 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
   const licenseNumber = (profile as any).license_number;
   const licenseStates = (profile as any).license_states ?? [];
   const firmName = (profile as any).firm_name;
+
+  // Union fields — self-reported, optional
+  const unionMember = !!(profile as any).union_member;
+  const unionName = (profile as any).union_name;
+  const unionLocalNumber = (profile as any).union_local_number;
+  const unionMemberStatus = (profile as any).union_member_status;
+  const prevailingWageCertified = !!(profile as any).prevailing_wage_certified;
+  const davisBaconEligible = !!(profile as any).davis_bacon_eligible;
+  const unionCardExpiration = (profile as any).union_card_expiration;
+  const hasUnionDetails = unionMember && (unionName || unionLocalNumber || unionMemberStatus || prevailingWageCertified || davisBaconEligible || unionCardExpiration);
   const typeConfig = PROFILE_TYPES[profileType as keyof typeof PROFILE_TYPES] ?? PROFILE_TYPES.tradepro;
 
   return (
@@ -81,8 +102,9 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between flex-wrap gap-2">
                 <div>
-                  <h1 className="text-xl font-black text-white">
+                  <h1 className="text-xl font-black text-white flex items-center gap-2 flex-wrap">
                     {profile.first_name} {profile.last_name}
+                    <UnionBadge unionMember={!!(profile as any).union_member} />
                   </h1>
                   <p className="text-orange-400 font-semibold">{profile.trade}</p>
                 </div>
@@ -155,6 +177,42 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">License</p>
                 <p className="text-sm font-bold text-white font-mono">{licenseNumber}</p>
                 {licenseStates.length > 0 && <p className="text-xs text-slate-400">{licenseStates.join(", ")}</p>}
+              </div>
+            </div>
+          )}
+
+          {/* Union details — shown only when self-reported and filled in */}
+          {hasUnionDetails && (
+            <div className="mt-3 bg-slate-900/60 border border-slate-700/50 rounded-xl px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5">
+                <Landmark className="w-3.5 h-3.5 text-blue-400" /> Union Information
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {(unionName || unionLocalNumber) && (
+                  <span className="text-xs font-bold text-white bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-full">
+                    {[unionName, unionLocalNumber].filter(Boolean).join(" — ")}
+                  </span>
+                )}
+                {unionMemberStatus && (
+                  <span className="text-xs font-semibold text-slate-300 bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-full">
+                    {unionMemberStatus}
+                  </span>
+                )}
+                {prevailingWageCertified && (
+                  <span className="text-xs font-bold text-green-400 bg-green-900/30 border border-green-800/40 px-2.5 py-1 rounded-full">
+                    Prevailing Wage Certified
+                  </span>
+                )}
+                {davisBaconEligible && (
+                  <span className="text-xs font-bold text-green-400 bg-green-900/30 border border-green-800/40 px-2.5 py-1 rounded-full">
+                    Davis-Bacon Eligible
+                  </span>
+                )}
+                {unionCardExpiration && (
+                  <span className="text-xs font-semibold text-slate-400 bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-full">
+                    Card Exp. {new Date(unionCardExpiration).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
+                  </span>
+                )}
               </div>
             </div>
           )}

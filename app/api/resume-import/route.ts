@@ -82,7 +82,12 @@ export async function POST(request: NextRequest) {
 
     if (existingProfile) {
       await db.from("profiles").update(update).eq("id", existingProfile.id);
-      return NextResponse.json({ imported: true, action: "updated", profile_slug: existingProfile.slug });
+      return NextResponse.json({
+        imported: true,
+        action: "updated",
+        profile_slug: existingProfile.slug,
+        profile_url: `https://tradepronexus.com/pro/${existingProfile.slug}`,
+      });
     }
 
     // Create new profile

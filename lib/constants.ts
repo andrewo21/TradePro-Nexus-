@@ -260,6 +260,44 @@ export const OSHA_CERTS = [
 
 // ── Availability labels ───────────────────────────────────────────────────────
 
+// ── Union ─────────────────────────────────────────────────────────────────────
+
+export const UNION_NAMES = [
+  "IBEW",
+  "UA",
+  "Carpenters",
+  "Ironworkers",
+  "IUJAT",
+  "Laborers",
+  "Operating Engineers",
+  "Sheet Metal Workers",
+  "Painters",
+  "Roofers",
+  "Other",
+];
+
+export const UNION_MEMBER_STATUSES = [
+  "Journeyman",
+  "Apprentice",
+  "Master",
+  "Foreman",
+  "Superintendent",
+];
+
+// Union Member badge — self-reported only, styled distinctly from VerificationBadge
+export const UNION_BADGE_CONFIG = {
+  label: "Union Member",
+  color: "text-slate-300",
+  bg: "bg-slate-700/40",
+  border: "border-slate-500/50",
+} as const;
+
+// ── Job postings (Union Opportunities / Job Placement) ───────────────────────
+
+export const UNION_JOB_REQUIREMENTS = ["Union Only", "Union Preferred", "Open to All"] as const;
+
+export const JOB_TYPES = ["Direct Hire", "Sub-Contract", "Temporary / Short-Term"] as const;
+
 export const AVAILABILITY_CONFIG = {
   available: {
     label: "Available Now",
