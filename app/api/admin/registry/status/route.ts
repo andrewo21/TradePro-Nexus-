@@ -36,10 +36,25 @@ export async function GET(request: NextRequest) {
   const { data: settings } = await db
     .from("admin_settings")
     .select("key, value")
-    .in("key", ["outreach_enabled", "outreach_test_mode", "outreach_test_email", "outreach_batch_size"]);
+    .in("key", [
+      "outreach_enabled",
+      "outreach_test_mode",
+      "outreach_test_email",
+      "outreach_batch_size",
+      "outreach_physical_address",
+      "outreach_last_run",
+      "outreach_last_count",
+    ]);
 
   const settingsMap: Record<string, string> = {};
   for (const s of settings ?? []) settingsMap[s.key] = s.value;
+
+  // Outreach log breakdown by status
+  const { data: outreachLog } = await db.from("outreach_log").select("status");
+  const outreachCounts: Record<string, number> = {};
+  for (const row of outreachLog ?? []) {
+    outreachCounts[row.status] = (outreachCounts[row.status] ?? 0) + 1;
+  }
 
   return NextResponse.json({
     imports: imports ?? [],
@@ -50,6 +65,10 @@ export async function GET(request: NextRequest) {
       testMode: settingsMap.outreach_test_mode === "true",
       testEmail: settingsMap.outreach_test_email,
       batchSize: parseInt(settingsMap.outreach_batch_size ?? "50"),
+      physicalAddress: settingsMap.outreach_physical_address ?? "",
+      lastRun: settingsMap.outreach_last_run ?? "never",
+      lastCount: parseInt(settingsMap.outreach_last_count ?? "0"),
+      log: outreachCounts,
     },
   });
 }

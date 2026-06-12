@@ -15,7 +15,7 @@ import { getSupabase } from "@/lib/supabase";
 interface ImportRun {
   id: string;
   source_state: string;
-  import_type: "scrape" | "csv";
+  import_type: "scrape" | "csv" | "promote";
   status: string;
   records_fetched: number;
   records_promoted: number;
@@ -68,6 +68,10 @@ interface OutreachSettings {
   testMode: boolean;
   testEmail: string;
   batchSize: number;
+  physicalAddress: string;
+  lastRun: string;
+  lastCount: number;
+  log: Record<string, number>;
 }
 
 interface StatusData {
@@ -297,6 +301,15 @@ export default function RegistryAdminPage() {
 
   const flSummary = statusData?.staging?.find(s => s.source_state === "FL");
 
+  const autoPromoteTotals = statusData?.staging?.reduce(
+    (acc, s) => ({
+      total: acc.total + (s.total ?? 0),
+      pending: acc.pending + (s.pending ?? 0),
+      promoted: acc.promoted + (s.promoted ?? 0),
+    }),
+    { total: 0, pending: 0, promoted: 0 }
+  );
+
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100">
       <Navbar />
@@ -367,6 +380,23 @@ export default function RegistryAdminPage() {
                 </button>
               )}
             </div>
+
+            {statusData.outreach.physicalAddress?.includes("ADDRESS NOT SET") && (
+              <div className="mt-3 flex items-start gap-2 bg-orange-950/30 border border-orange-800/50 rounded-xl px-3 py-2">
+                <AlertTriangle className="w-3.5 h-3.5 text-orange-400 flex-shrink-0 mt-0.5" />
+                <p className="text-[11px] text-orange-300 leading-relaxed">
+                  CAN-SPAM requires a physical mailing address in every outreach email. Set <code className="bg-slate-900 px-1 rounded">outreach_physical_address</code> in <code className="bg-slate-900 px-1 rounded">admin_settings</code> to a real address before enabling outreach.
+                </p>
+              </div>
+            )}
+
+            <div className="mt-3 pt-3 border-t border-slate-700/50 flex flex-wrap gap-4 text-xs text-slate-400">
+              <span>Sent: <span className="text-green-400 font-semibold">{statusData.outreach.log.sent ?? 0}</span></span>
+              <span>Failed: <span className="text-red-400 font-semibold">{statusData.outreach.log.failed ?? 0}</span></span>
+              <span>Unsubscribed: <span className="text-slate-300 font-semibold">{statusData.outreach.log.unsubscribed ?? 0}</span></span>
+              <span>Queued: <span className="text-blue-400 font-semibold">{statusData.outreach.log.queued ?? 0}</span></span>
+              <span className="text-slate-500">Last run: {statusData.outreach.lastRun === "never" ? "never" : timeAgo(statusData.outreach.lastRun)}</span>
+            </div>
           </div>
         )}
 
@@ -381,6 +411,33 @@ export default function RegistryAdminPage() {
                 <button onClick={() => applyOutreachSetting(true)} className="flex-1 py-2.5 bg-red-700 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-colors">Confirm Enable</button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Auto-promote cron status */}
+        {autoPromoteTotals && autoPromoteTotals.total > 0 && (
+          <div className="rounded-2xl p-4 border border-slate-700 bg-slate-800/60 mb-6">
+            <div className="flex items-center justify-between gap-4 mb-2">
+              <div className="flex items-center gap-2">
+                <RefreshCw className={`w-4 h-4 ${autoPromoteTotals.pending > 0 ? "text-blue-400 animate-spin" : "text-green-400"}`} />
+                <p className="font-bold text-white text-sm">Auto-Promote</p>
+                <StatusBadge status={autoPromoteTotals.pending > 0 ? "running" : "complete"} />
+              </div>
+              <span className="text-xs text-slate-400">
+                {autoPromoteTotals.pending > 0
+                  ? `Running every 5 min · 1,000/batch · ${autoPromoteTotals.pending.toLocaleString()} pending`
+                  : "All pending records processed — cron stopped"}
+              </span>
+            </div>
+            <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-green-500 h-2 rounded-full transition-all"
+                style={{ width: `${Math.min(100, (autoPromoteTotals.promoted / autoPromoteTotals.total) * 100)}%` }}
+              />
+            </div>
+            <p className="text-xs text-slate-500 mt-1.5">
+              {autoPromoteTotals.promoted.toLocaleString()} / {autoPromoteTotals.total.toLocaleString()} promoted
+            </p>
           </div>
         )}
 

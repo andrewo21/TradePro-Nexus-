@@ -365,16 +365,24 @@ authorized by the user.
 **Total staging after Session 4 (so far): 489,575** (120,884 FL + 28,973 TX +
 232,905 CA + 18,967 NV + 12,550 OH + 75,296 WA). **Nothing promoted.**
 
-**Reminder for next session: STAGE ONLY.** Do not call
-`/api/admin/registry/promote` for any staged records until explicitly
-authorized by the user.
+**Authorized & built (2026-06-11):** Auto-promote cron (`promote_registry_batch`,
+pg_cron job `auto-promote-registry`, every 5 min, batch 1,000, quality >= 6,
+logs to `registry_imports` with `import_type='promote'`, self-unschedules when
+`registry_staging` has 0 `pending` rows). 483,647 pending at launch (~465K
+qualify), so this will run continuously for roughly 40 hours. Progress visible
+on /admin/registry via the "Auto-Promote" status bar and Import Runs tab.
 
-### ⏳ SESSION 5 — Outreach System (FUTURE)
-- SendGrid subdomain: outreach@mail.tradepronexus.com
-- CAN-SPAM compliant email templates (unsubscribe + physical address required)
-- Batch sending 50/hour per state
-- Unsubscribe and "Remove My Listing" hard-delete flow
-- Outreach stats in /admin/registry dashboard
+### ✅ SESSION 5 — Outreach System (built, master switch OFF)
+- SendGrid subdomain: outreach@mail.tradepronexus.com (edge function `send-outreach-batch`,
+  pg_cron job `send-outreach-batch`, hourly, checks `outreach_enabled` first and no-ops if not `'true'`)
+- CAN-SPAM compliant email template (unsubscribe + "Remove My Listing" + physical
+  address). **`admin_settings.outreach_physical_address` is a placeholder —
+  must be set to a real mailing address before enabling outreach.**
+- Batch sending via `admin_settings.outreach_batch_size` (default 50/hour)
+- `/unsubscribe?token=...&action=unsubscribe|remove` — unsubscribe sets
+  `outreach_eligible=false`; remove hard-deletes the profile (cascades to outreach_log)
+- Outreach stats (sent/failed/unsubscribed/queued, last run) in /admin/registry dashboard
+- Claim CTA links to `/build?claim=<token>&business=...` — full token verification is Session 6
 
 ### ⏳ SESSION 6 — Claim Flow + Polish (FUTURE)
 - "Claim This Profile" button with email verification
