@@ -14,6 +14,7 @@ const ALLOWED_KEYS = [
   "outreach_test_mode",
   "outreach_test_email",
   "outreach_batch_size",
+  "outreach_physical_address",
 ];
 
 export async function PATCH(request: NextRequest) {

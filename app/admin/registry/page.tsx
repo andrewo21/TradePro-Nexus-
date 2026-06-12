@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Database, Upload, RefreshCw, AlertTriangle, CheckCircle,
   ChevronRight, AlertCircle, Loader2, Mail, Ban,
-  Search, ChevronLeft, ChevronDown, Eye, Building2
+  Search, ChevronLeft, ChevronDown, Eye, Building2, Settings
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { getSupabase } from "@/lib/supabase";
@@ -154,6 +154,14 @@ export default function RegistryAdminPage() {
   const [csvState, setCsvState] = useState("FL");
   const [promoteState, setPromoteState] = useState("FL");
   const [outreachConfirmOpen, setOutreachConfirmOpen] = useState(false);
+  const [outreachSettingsOpen, setOutreachSettingsOpen] = useState(false);
+  const [outreachSettingsForm, setOutreachSettingsForm] = useState({
+    physicalAddress: "",
+    testEmail: "",
+    batchSize: "50",
+    testMode: true,
+  });
+  const [outreachSettingsSaving, setOutreachSettingsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
   const [activeTab, setActiveTab] = useState<"records" | "imports" | "actions">("records");
   const [promoteProgress, setPromoteProgress] = useState<{
@@ -299,6 +307,44 @@ export default function RegistryAdminPage() {
     fetchStatus();
   }
 
+  function openOutreachSettings() {
+    if (statusData) {
+      setOutreachSettingsForm({
+        physicalAddress: statusData.outreach.physicalAddress ?? "",
+        testEmail: statusData.outreach.testEmail ?? "",
+        batchSize: String(statusData.outreach.batchSize ?? 50),
+        testMode: statusData.outreach.testMode,
+      });
+    }
+    setOutreachSettingsOpen(true);
+  }
+
+  async function saveOutreachSettings() {
+    setOutreachSettingsSaving(true);
+    try {
+      const updates: [string, string][] = [
+        ["outreach_physical_address", outreachSettingsForm.physicalAddress.trim()],
+        ["outreach_test_email", outreachSettingsForm.testEmail.trim()],
+        ["outreach_batch_size", String(Math.max(1, parseInt(outreachSettingsForm.batchSize) || 50))],
+        ["outreach_test_mode", String(outreachSettingsForm.testMode)],
+      ];
+      for (const [key, value] of updates) {
+        await fetch("/api/admin/registry/outreach-settings", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key, value }),
+        });
+      }
+      msg("ok", "Outreach settings saved.");
+      setOutreachSettingsOpen(false);
+      fetchStatus();
+    } catch {
+      msg("err", "Failed to save outreach settings.");
+    } finally {
+      setOutreachSettingsSaving(false);
+    }
+  }
+
   const flSummary = statusData?.staging?.find(s => s.source_state === "FL");
 
   const autoPromoteTotals = statusData?.staging?.reduce(
@@ -370,15 +416,20 @@ export default function RegistryAdminPage() {
                   <p className="text-xs text-slate-400">{statusData.outreach.enabled ? "⚠️ Emails will send on next batch run." : "OFF — no emails will send."}</p>
                 </div>
               </div>
-              {statusData.outreach.enabled ? (
-                <button onClick={() => applyOutreachSetting(false)} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5">
-                  <Ban className="w-3.5 h-3.5" /> Disable
+              <div className="flex items-center gap-2">
+                <button onClick={openOutreachSettings} className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5">
+                  <Settings className="w-3.5 h-3.5" /> Settings
                 </button>
-              ) : (
-                <button onClick={() => setOutreachConfirmOpen(true)} className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5" /> Enable Outreach
-                </button>
-              )}
+                {statusData.outreach.enabled ? (
+                  <button onClick={() => applyOutreachSetting(false)} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5">
+                    <Ban className="w-3.5 h-3.5" /> Disable
+                  </button>
+                ) : (
+                  <button onClick={() => setOutreachConfirmOpen(true)} className="px-4 py-2 bg-red-700 hover:bg-red-600 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5" /> Enable Outreach
+                  </button>
+                )}
+              </div>
             </div>
 
             {statusData.outreach.physicalAddress?.includes("ADDRESS NOT SET") && (
@@ -409,6 +460,62 @@ export default function RegistryAdminPage() {
               <div className="flex gap-3">
                 <button onClick={() => setOutreachConfirmOpen(false)} className="flex-1 py-2.5 border border-slate-600 text-slate-300 rounded-xl text-sm font-semibold transition-colors hover:border-slate-400">Cancel</button>
                 <button onClick={() => applyOutreachSetting(true)} className="flex-1 py-2.5 bg-red-700 hover:bg-red-600 text-white rounded-xl text-sm font-bold transition-colors">Confirm Enable</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {outreachSettingsOpen && (
+          <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-800 border-2 border-slate-600 rounded-2xl p-6 max-w-md w-full">
+              <div className="flex items-center gap-2 mb-4">
+                <Settings className="w-5 h-5 text-orange-400" />
+                <h3 className="text-lg font-black text-white">Outreach Settings</h3>
+              </div>
+
+              <label className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1.5">Physical Mailing Address</label>
+              <p className="text-[11px] text-slate-500 mb-2">Required by CAN-SPAM. Appears in every outreach email footer.</p>
+              <textarea
+                value={outreachSettingsForm.physicalAddress}
+                onChange={e => setOutreachSettingsForm(f => ({ ...f, physicalAddress: e.target.value }))}
+                rows={2}
+                className="w-full bg-slate-900 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 mb-4 resize-none"
+              />
+
+              <label className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1.5">Test Email</label>
+              <p className="text-[11px] text-slate-500 mb-2">Where emails go when Test Mode is on.</p>
+              <input
+                type="email"
+                value={outreachSettingsForm.testEmail}
+                onChange={e => setOutreachSettingsForm(f => ({ ...f, testEmail: e.target.value }))}
+                className="w-full bg-slate-900 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 mb-4"
+              />
+
+              <label className="block text-xs font-bold uppercase tracking-wide text-slate-400 mb-1.5">Batch Size (emails / hour)</label>
+              <input
+                type="number"
+                min={1}
+                max={500}
+                value={outreachSettingsForm.batchSize}
+                onChange={e => setOutreachSettingsForm(f => ({ ...f, batchSize: e.target.value }))}
+                className="w-full bg-slate-900 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 mb-4"
+              />
+
+              <label className="flex items-center gap-2 mb-6 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={outreachSettingsForm.testMode}
+                  onChange={e => setOutreachSettingsForm(f => ({ ...f, testMode: e.target.checked }))}
+                  className="w-4 h-4 accent-orange-500"
+                />
+                <span className="text-sm text-slate-300">Test Mode (send all emails to test address above)</span>
+              </label>
+
+              <div className="flex gap-3">
+                <button onClick={() => setOutreachSettingsOpen(false)} disabled={outreachSettingsSaving} className="flex-1 py-2.5 border border-slate-600 text-slate-300 rounded-xl text-sm font-semibold transition-colors hover:border-slate-400 disabled:opacity-50">Cancel</button>
+                <button onClick={saveOutreachSettings} disabled={outreachSettingsSaving} className="flex-1 py-2.5 bg-orange-600 hover:bg-orange-500 text-white rounded-xl text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                  {outreachSettingsSaving ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : "Save Settings"}
+                </button>
               </div>
             </div>
           </div>
