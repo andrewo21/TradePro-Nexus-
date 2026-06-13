@@ -1,9 +1,13 @@
+"use client";
+
 // Shows profile completion % and what's missing.
 // Displayed on the /account page for logged-in Trade Pros.
 // Design choice: percentage ring + checklist, tapping any missing item
 // links directly to the relevant step on the build form.
 
+import { useEffect } from "react";
 import { canBeVerified } from "@/lib/constants";
+import { trackEvent } from "@/lib/analytics";
 
 interface ProfileRow {
   id: string;
@@ -131,6 +135,14 @@ export default function ProfileCompletion({ profile }: { profile: ProfileRow }) 
   const earnedPoints = checklist.filter(c => c.done).reduce((s, c) => s + c.points, 0);
   const pct = Math.round((earnedPoints / totalPoints) * 100);
   const missing = checklist.filter(c => !c.done);
+
+  useEffect(() => {
+    if (pct !== 100) return;
+    const key = `ga_profile_complete_${profile.id}`;
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, "1");
+    trackEvent("profile_complete");
+  }, [pct, profile.id]);
 
   if (pct === 100) return null; // Don't show if complete
 

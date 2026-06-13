@@ -18,6 +18,7 @@ import FeedAdCard from "@/components/FeedAdCard";
 import DesktopAdRail from "@/components/DesktopAdRail";
 import BadgeCelebration from "@/components/BadgeCelebration";
 import type { Badge } from "@/lib/badge-definitions";
+import { trackEvent } from "@/lib/analytics";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -574,6 +575,7 @@ function PostComposer({ onPost, promptContent }: { onPost: (newBadges?: Badge[])
       if (!res.ok) { setError(data.error ?? "Failed to post."); return; }
 
       if (typeof window !== "undefined") localStorage.removeItem("feed_draft_content");
+      trackEvent("feed_post");
       setContent("");
       setProject("");
       setImages([]);

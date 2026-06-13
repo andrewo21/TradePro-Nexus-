@@ -3,6 +3,7 @@
 import { useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { HardHat, Building2, ArrowRight, Loader2, CheckCircle, ShieldCheck, Search, Zap } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
 
 function JoinForm() {
   const searchParams = useSearchParams();
@@ -30,6 +31,7 @@ function JoinForm() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Something went wrong."); return; }
+      trackEvent("join_page_signup", { source, user_type: userType });
       setReferralCode(data.referral_code);
       setDone(true);
     } catch {

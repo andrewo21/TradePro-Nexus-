@@ -4,6 +4,8 @@ import WaitlistMobileBar from "@/components/WaitlistMobileBar";
 import PushNotificationProvider from "@/components/PushNotificationProvider";
 import { Suspense } from "react";
 import Link from "next/link";
+import Script from "next/script";
+import { GA_MEASUREMENT_ID } from "@/lib/analytics";
 
 export const metadata: Metadata = {
   title: {
@@ -36,6 +38,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
       </head>
       <body className="min-h-screen bg-[#0f172a] text-slate-100 antialiased">
+        {/* Google Analytics 4 — every page */}
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`}
+          strategy="afterInteractive"
+        />
+        <Script id="ga4-init" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${GA_MEASUREMENT_ID}');
+          `}
+        </Script>
+
         {children}
 
         {/* Global waitlist CTA strip — every page */}
@@ -63,6 +79,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             >
               Build it free at TradePro Tech →
             </a>
+          </p>
+
+          {/* Legal links — every page */}
+          <p className="mt-3 text-xs text-slate-600">
+            <Link href="/privacy-policy" className="hover:text-slate-400 transition-colors underline">Privacy Policy</Link>
+            {" "}·{" "}
+            <Link href="/terms-of-use" className="hover:text-slate-400 transition-colors underline">Terms of Use</Link>
           </p>
         </div>
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
 
 interface Props {
   initialStatus: string;
@@ -22,6 +23,7 @@ export default function AvailabilityToggle({ initialStatus }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: next }),
       });
+      if (next === "available") trackEvent("available_toggle");
       setStatus(next);
     } catch {}
     setSaving(false);

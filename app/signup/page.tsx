@@ -8,6 +8,7 @@ import { HardHat, Building2, ArrowRight, Mail, Lock, User, CheckCircle, ShieldCh
 import Navbar from "@/components/Navbar";
 import { getSupabase } from "@/lib/supabase";
 import { PROFILE_TYPES, type ProfileType } from "@/lib/constants";
+import { trackEvent } from "@/lib/analytics";
 
 // Account type: 6 profile types + GC
 type AccountType = ProfileType | "gc" | null;
@@ -65,6 +66,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkEmail, setCheckEmail] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const selectedOption = TYPE_OPTIONS.find(o => o.key === accountType);
   const colors = selectedOption ? COLOR_MAP[selectedOption.color] : COLOR_MAP.orange;
@@ -73,6 +75,10 @@ export default function SignupPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!accountType) return;
+    if (!agreedToTerms) {
+      setError("You must agree to the Terms of Use and Membership Agreement to create an account.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -90,6 +96,7 @@ export default function SignupPage() {
         },
       });
       if (authError) throw authError;
+      trackEvent("signup", { account_type: accountType });
       if (data.session) {
         router.push(isGC ? "/search" : "/build");
         router.refresh();
@@ -205,12 +212,22 @@ export default function SignupPage() {
                         className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
                     </div>
                   </div>
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input type="checkbox" checked={agreedToTerms} onChange={e => setAgreedToTerms(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 rounded border-slate-600 bg-slate-900 text-orange-600 focus:ring-orange-500 focus:ring-offset-0 cursor-pointer" />
+                    <span className="text-xs text-slate-400">
+                      I agree to the{" "}
+                      <Link href="/terms-of-use" target="_blank" className="text-orange-400 hover:text-orange-300 underline">Terms of Use</Link>
+                      {" "}and{" "}
+                      <Link href="/membership-agreement" target="_blank" className="text-orange-400 hover:text-orange-300 underline">Membership Agreement</Link>
+                    </span>
+                  </label>
                   {error && <div className="bg-red-950/40 border border-red-800/50 text-red-400 text-sm rounded-xl px-4 py-3">{error}</div>}
-                  <button type="submit" disabled={loading}
+                  <button type="submit" disabled={loading || !agreedToTerms}
                     className={`w-full flex items-center justify-center gap-2 py-3 font-bold rounded-xl text-sm transition-colors disabled:opacity-50 text-white ${colors.btn}`}>
                     {loading ? "Creating account…" : <><span>Create Free Account</span><ArrowRight className="w-4 h-4" /></>}
                   </button>
-                  <p className="text-center text-[11px] text-slate-600">By signing up you agree to our Terms of Service. Free forever.</p>
+                  <p className="text-center text-[11px] text-slate-600">Free forever. No subscription.</p>
                 </form>
                 <p className="text-center text-xs text-slate-500 mt-4">
                   Already have an account?{" "}

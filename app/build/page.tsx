@@ -11,6 +11,8 @@ import {
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
+import { SOCIAL_LINKS } from "@/lib/social";
+import { LinkedinIcon, FacebookIcon, InstagramIcon } from "@/components/SocialIcons";
 import {
   PROFILE_TYPES, type ProfileType,
   OSHA_CERTS, INSPECTOR_CERTS, ARCHITECT_CERTS, ARCHITECT_SOFTWARE,
@@ -360,6 +362,24 @@ export default function BuildPage() {
               <Link href="/" className="flex-1 px-5 py-3 border border-slate-600 text-slate-300 rounded-xl text-sm transition-colors text-center hover:border-slate-400">
                 Back to Home
               </Link>
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-slate-800">
+              <p className="text-sm text-slate-400 mb-3">Follow TradePro Nexus for updates and new features</p>
+              <div className="flex items-center justify-center gap-3">
+                <a href={SOCIAL_LINKS.linkedin} target="_blank" rel="noopener noreferrer" aria-label="Follow TradePro Nexus on LinkedIn"
+                  className="w-10 h-10 flex items-center justify-center bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-300 hover:text-white transition-colors">
+                  <LinkedinIcon className="w-4 h-4" />
+                </a>
+                <a href={SOCIAL_LINKS.facebook} target="_blank" rel="noopener noreferrer" aria-label="Follow TradePro Nexus on Facebook"
+                  className="w-10 h-10 flex items-center justify-center bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-300 hover:text-white transition-colors">
+                  <FacebookIcon className="w-4 h-4" />
+                </a>
+                <a href={SOCIAL_LINKS.instagram} target="_blank" rel="noopener noreferrer" aria-label="Follow TradePro Nexus on Instagram"
+                  className="w-10 h-10 flex items-center justify-center bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-300 hover:text-white transition-colors">
+                  <InstagramIcon className="w-4 h-4" />
+                </a>
+              </div>
             </div>
           </motion.div>
         </div>

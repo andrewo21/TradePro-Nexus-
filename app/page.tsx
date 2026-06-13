@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import WaitlistForm from "@/components/WaitlistForm";
+import { SOCIAL_LINKS } from "@/lib/social";
+import { LinkedinIcon, FacebookIcon, InstagramIcon } from "@/components/SocialIcons";
 import { getSupabase } from "@/lib/supabase";
 import { canBeVerified } from "@/lib/constants";
 
@@ -626,8 +628,9 @@ export default function LandingPage() {
                 <Link href="/policy/how-it-works" className="block text-slate-500 hover:text-slate-300 transition-colors">How It Works</Link>
                 <Link href="/policy/disclaimer" className="block text-slate-500 hover:text-slate-300 transition-colors">Platform Disclaimer</Link>
                 <Link href="/policy/documents" className="block text-slate-500 hover:text-slate-300 transition-colors">Document Policy</Link>
-                <Link href="/policy/terms-of-service" className="block text-slate-500 hover:text-slate-300 transition-colors">Terms of Service</Link>
-                <Link href="/policy/privacy-policy" className="block text-slate-500 hover:text-slate-300 transition-colors">Privacy Policy</Link>
+                <Link href="/privacy-policy" className="block text-slate-500 hover:text-slate-300 transition-colors">Privacy Policy</Link>
+                <Link href="/terms-of-use" className="block text-slate-500 hover:text-slate-300 transition-colors">Terms of Use</Link>
+                <Link href="/membership-agreement" className="block text-slate-500 hover:text-slate-300 transition-colors">Membership Agreement</Link>
               </div>
             </div>
             <div>
@@ -647,6 +650,20 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="border-t border-slate-800 pt-6 text-center">
+            <div className="flex items-center justify-center gap-3 mb-4">
+              <a href={SOCIAL_LINKS.linkedin} target="_blank" rel="noopener noreferrer" aria-label="TradePro Nexus on LinkedIn"
+                className="w-8 h-8 flex items-center justify-center bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors">
+                <LinkedinIcon className="w-3.5 h-3.5" />
+              </a>
+              <a href={SOCIAL_LINKS.facebook} target="_blank" rel="noopener noreferrer" aria-label="TradePro Nexus on Facebook"
+                className="w-8 h-8 flex items-center justify-center bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors">
+                <FacebookIcon className="w-3.5 h-3.5" />
+              </a>
+              <a href={SOCIAL_LINKS.instagram} target="_blank" rel="noopener noreferrer" aria-label="TradePro Nexus on Instagram"
+                className="w-8 h-8 flex items-center justify-center bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors">
+                <InstagramIcon className="w-3.5 h-3.5" />
+              </a>
+            </div>
             <p className="text-slate-600 text-xs">
               © {new Date().getFullYear()} TradePro Enterprises. All rights reserved.
               {" "}· A TradePro Enterprises product ·{" "}
