@@ -9,12 +9,13 @@ export async function POST(request: NextRequest) {
     if (!user) return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
 
     const body = await request.json();
-    const { content, project_name, trade_tags, image_urls, author_type } = body as {
+    const { content, trade_tags, image_urls, author_type, audience, mentions } = body as {
       content: string;
-      project_name?: string;
       trade_tags?: string[];
       image_urls?: string[];
       author_type: "profile" | "company";
+      audience?: "everyone" | "connections";
+      mentions?: { type: "profile" | "company"; id: string; name: string; slug: string }[];
     };
 
     if (!content?.trim()) return NextResponse.json({ error: "Content is required." }, { status: 400 });
@@ -35,9 +36,10 @@ export async function POST(request: NextRequest) {
       author_id: authorId,
       author_type,
       content: content.trim(),
-      project_name: project_name?.trim() || null,
       trade_tags: trade_tags ?? [],
       image_urls: image_urls ?? [],
+      audience: audience === "connections" ? "connections" : "everyone",
+      mentions: mentions ?? [],
       is_moderated: false,
     }).select().single();
 

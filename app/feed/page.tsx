@@ -6,9 +6,9 @@ import { motion } from "framer-motion";
 import {
   ShieldCheck, MapPin, Clock,
   Rss, HardHat, Building2, ArrowRight,
-  Send, Loader2, PenLine, X, Camera, Bookmark,
+  Send, Loader2, PenLine, X, Bookmark,
   Share2, MoreHorizontal, Edit3, Trash2, Pin, Search, MessageCircle,
-  Newspaper, ExternalLink, Plus, Check
+  Newspaper, ExternalLink, Plus, Check, Smile, ImagePlus, UserPlus, Globe, Users
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
@@ -22,6 +22,13 @@ import { trackEvent } from "@/lib/analytics";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+interface MentionTag {
+  type: "profile" | "company";
+  id: string;
+  name: string;
+  slug: string;
+}
+
 interface FeedPost {
   id: string;
   author_id: string | null;
@@ -30,6 +37,8 @@ interface FeedPost {
   project_name: string | null;
   trade_tags: string[];
   image_urls: string[];
+  audience: "everyone" | "connections";
+  mentions: MentionTag[];
   likes_count: number;
   created_at: string;
   author_name: string;
@@ -43,6 +52,16 @@ interface FeedPost {
   news_source_domain: string | null;
   news_article_url: string | null;
   featured_image_url: string | null;
+}
+
+const EMOJI_OPTIONS = [
+  "👍", "🔥", "💪", "🏗️", "💡", "🤝", "👏", "✅",
+  "🚧", "⚡", "🔨", "🪜", "🛠️", "📐", "🚛", "🏠",
+  "😂", "😎", "🎉", "💯", "👀", "🙌", "❤️", "⭐",
+];
+
+function isVideoUrl(url: string): boolean {
+  return /\.(mp4|webm|mov|m4v|ogg)(\?.*)?$/i.test(url);
 }
 
 type ReactionData = { counts: Record<string, number>; mine: string | null };
@@ -386,12 +405,29 @@ function PostCard({
         )}
         <p className="text-[#475569] text-sm leading-relaxed">{post.content}</p>
 
+        {/* Tagged people/companies */}
+        {!isNews && post.mentions?.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {post.mentions.map((m, i) => (
+              <Link
+                key={i}
+                href={m.type === "company" ? `/company/${m.slug}` : `/pro/${m.slug}`}
+                className="text-xs font-semibold text-orange-600 hover:text-orange-700 transition-colors"
+              >
+                @{m.name}
+              </Link>
+            ))}
+          </div>
+        )}
+
         {/* User post gallery */}
         {!isNews && post.image_urls?.length > 0 && (
           <div className={`grid gap-1.5 mt-3 ${post.image_urls.length >= 3 ? "grid-cols-3" : post.image_urls.length === 2 ? "grid-cols-2" : "grid-cols-1"}`}>
             {post.image_urls.slice(0, 3).map((url, i) => (
               <div key={i} className="aspect-video rounded-lg overflow-hidden bg-slate-200">
-                <img src={url} alt="Work photo" className="w-full h-full object-cover" />
+                {isVideoUrl(url)
+                  ? <video src={url} controls className="w-full h-full object-cover" />
+                  : <img src={url} alt="Work photo" className="w-full h-full object-cover" />}
               </div>
             ))}
           </div>
@@ -516,11 +552,17 @@ function PostComposer({ onPost, promptContent }: { onPost: (newBadges?: Badge[])
       setOpen(true);
     }
   }, [promptContent]);
-  const [project, setProject] = useState("");
   const [images, setImages] = useState<File[]>([]);
+  const [audience, setAudience] = useState<"everyone" | "connections">("everyone");
+  const [mentions, setMentions] = useState<MentionTag[]>([]);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [tagMode, setTagMode] = useState<"profile" | "company" | null>(null);
+  const [tagQuery, setTagQuery] = useState("");
+  const [tagResults, setTagResults] = useState<MentionTag[]>([]);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-save draft
   useEffect(() => {
@@ -529,8 +571,13 @@ function PostComposer({ onPost, promptContent }: { onPost: (newBadges?: Badge[])
 
   function handleDiscard() {
     setContent("");
-    setProject("");
     setImages([]);
+    setAudience("everyone");
+    setMentions([]);
+    setShowEmojiPicker(false);
+    setTagMode(null);
+    setTagQuery("");
+    setTagResults([]);
     setError(null);
     if (typeof window !== "undefined") localStorage.removeItem("feed_draft_content");
     setOpen(false);
@@ -539,6 +586,44 @@ function PostComposer({ onPost, promptContent }: { onPost: (newBadges?: Badge[])
   function handleImagePick(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     setImages(prev => [...prev, ...files].slice(0, 5));
+  }
+
+  function insertEmoji(emoji: string) {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setContent(prev => prev + emoji);
+      setShowEmojiPicker(false);
+      return;
+    }
+    const start = textarea.selectionStart ?? content.length;
+    const end = textarea.selectionEnd ?? content.length;
+    const next = content.slice(0, start) + emoji + content.slice(end);
+    setContent(next);
+    setShowEmojiPicker(false);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      const cursor = start + emoji.length;
+      textarea.setSelectionRange(cursor, cursor);
+    });
+  }
+
+  async function searchMentions(type: "profile" | "company", query: string) {
+    setTagQuery(query);
+    if (query.trim().length < 2) { setTagResults([]); return; }
+    try {
+      const res = await fetch(`/api/feed/search-mentions?type=${type === "company" ? "company" : "person"}&q=${encodeURIComponent(query.trim())}`);
+      const data = await res.json();
+      setTagResults(data.results ?? []);
+    } catch {
+      setTagResults([]);
+    }
+  }
+
+  function addMention(result: MentionTag) {
+    setMentions(prev => prev.some(m => m.type === result.type && m.id === result.id) ? prev : [...prev, result]);
+    setTagMode(null);
+    setTagQuery("");
+    setTagResults([]);
   }
 
   async function handlePost() {
@@ -551,7 +636,7 @@ function PostComposer({ onPost, promptContent }: { onPost: (newBadges?: Badge[])
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { setError("Sign in to post."); return; }
 
-      // Upload images first
+      // Upload images/videos first
       const imageUrls: string[] = [];
       for (const file of images) {
         const ext = file.name.split(".").pop();
@@ -566,7 +651,7 @@ function PostComposer({ onPost, promptContent }: { onPost: (newBadges?: Badge[])
       const res = await fetch("/api/feed", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: content.trim(), project_name: project.trim() || undefined, image_urls: imageUrls, trade_tags: [], author_type: "profile" }),
+        body: JSON.stringify({ content: content.trim(), image_urls: imageUrls, trade_tags: [], author_type: "profile", audience, mentions }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Failed to post."); return; }
@@ -574,8 +659,9 @@ function PostComposer({ onPost, promptContent }: { onPost: (newBadges?: Badge[])
       if (typeof window !== "undefined") localStorage.removeItem("feed_draft_content");
       trackEvent("feed_post");
       setContent("");
-      setProject("");
       setImages([]);
+      setAudience("everyone");
+      setMentions([]);
       setOpen(false);
       onPost(data.newBadges ?? []);
     } catch {
@@ -602,27 +688,58 @@ function PostComposer({ onPost, promptContent }: { onPost: (newBadges?: Badge[])
         <span className="text-xs font-bold uppercase tracking-widest text-slate-300">New Post</span>
         <button onClick={handleDiscard} className="text-slate-400 hover:text-slate-200 transition-colors"><X className="w-4 h-4" /></button>
       </div>
-      <textarea
-        value={content}
-        onChange={e => setContent(e.target.value)}
-        placeholder="What are you working on? Project update, milestone, crew availability…"
-        rows={4}
-        className="w-full bg-slate-900 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-orange-500 resize-none"
-        autoFocus
-      />
-      <input
-        value={project}
-        onChange={e => setProject(e.target.value)}
-        placeholder="Project name (optional)"
-        className="w-full bg-slate-900 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-orange-500"
-      />
 
-      {/* Image previews */}
+      <div className="relative">
+        <textarea
+          ref={textareaRef}
+          value={content}
+          onChange={e => setContent(e.target.value)}
+          placeholder="What are you working on? Project update, milestone, crew availability…"
+          rows={4}
+          className="w-full bg-slate-900 border border-slate-600 rounded-xl px-3 py-2.5 pr-10 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-orange-500 resize-none"
+          autoFocus
+        />
+        <button
+          type="button"
+          onClick={() => setShowEmojiPicker(v => !v)}
+          className="absolute bottom-2 right-2 p-1.5 text-slate-400 hover:text-orange-400 transition-colors"
+          title="Insert emoji"
+        >
+          <Smile className="w-4 h-4" />
+        </button>
+        {showEmojiPicker && (
+          <div className="absolute bottom-10 right-0 bg-slate-900 border border-slate-600 rounded-xl p-2 grid grid-cols-8 gap-0.5 shadow-xl z-20 w-64">
+            {EMOJI_OPTIONS.map(emoji => (
+              <button key={emoji} type="button" onClick={() => insertEmoji(emoji)} className="text-base hover:bg-slate-700 rounded-lg p-1.5 transition-colors">
+                {emoji}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Tagged people/companies */}
+      {mentions.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {mentions.map((m, i) => (
+            <span key={`${m.type}-${m.id}`} className="flex items-center gap-1 px-2 py-1 bg-orange-600/10 border border-orange-600/30 text-orange-400 text-xs font-semibold rounded-full">
+              @{m.name}
+              <button type="button" onClick={() => setMentions(prev => prev.filter((_, j) => j !== i))} className="hover:text-orange-200">
+                <X className="w-3 h-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Image/video previews */}
       {images.length > 0 && (
         <div className="flex gap-2 flex-wrap">
           {images.map((f, i) => (
             <div key={i} className="relative w-16 h-16 rounded-lg overflow-hidden bg-slate-900 border border-slate-700">
-              <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />
+              {f.type.startsWith("video/")
+                ? <video src={URL.createObjectURL(f)} className="w-full h-full object-cover" />
+                : <img src={URL.createObjectURL(f)} alt="" className="w-full h-full object-cover" />}
               <button onClick={() => setImages(prev => prev.filter((_, j) => j !== i))} className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-600 rounded-full flex items-center justify-center">
                 <X className="w-2.5 h-2.5 text-white" />
               </button>
@@ -633,12 +750,63 @@ function PostComposer({ onPost, promptContent }: { onPost: (newBadges?: Badge[])
 
       {error && <p className="text-red-400 text-xs">{error}</p>}
 
-      <div className="flex items-center gap-2">
-        {/* Photo upload — capture="environment" opens camera on mobile PWA */}
-        <input ref={fileRef} type="file" accept="image/*" multiple capture="environment" className="hidden" onChange={handleImagePick} />
+      {/* Media + tagging toolbar */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <input ref={fileRef} type="file" accept="image/*,video/*" multiple capture="environment" className="hidden" onChange={handleImagePick} />
         <button onClick={() => fileRef.current?.click()} className="flex items-center gap-1.5 px-3 py-2 text-xs text-slate-400 hover:text-slate-200 bg-slate-900 border border-slate-700 rounded-xl transition-colors">
-          <Camera className="w-3.5 h-3.5" /> Photo
+          <ImagePlus className="w-3.5 h-3.5" /> Photo or Video
         </button>
+        <button onClick={() => setTagMode(tagMode === "profile" ? null : "profile")} className={`flex items-center gap-1.5 px-3 py-2 text-xs rounded-xl border transition-colors ${tagMode === "profile" ? "bg-orange-600/10 border-orange-600/40 text-orange-400" : "text-slate-400 hover:text-slate-200 bg-slate-900 border-slate-700"}`}>
+          <UserPlus className="w-3.5 h-3.5" /> Tag a Person
+        </button>
+        <button onClick={() => setTagMode(tagMode === "company" ? null : "company")} className={`flex items-center gap-1.5 px-3 py-2 text-xs rounded-xl border transition-colors ${tagMode === "company" ? "bg-orange-600/10 border-orange-600/40 text-orange-400" : "text-slate-400 hover:text-slate-200 bg-slate-900 border-slate-700"}`}>
+          <Building2 className="w-3.5 h-3.5" /> Tag a Company
+        </button>
+      </div>
+
+      {/* Inline tag search */}
+      {tagMode && (
+        <div className="relative">
+          <input
+            value={tagQuery}
+            onChange={e => searchMentions(tagMode, e.target.value)}
+            placeholder={tagMode === "profile" ? "Search members by name…" : "Search companies by name…"}
+            autoFocus
+            className="w-full bg-slate-900 border border-slate-600 rounded-xl px-3 py-2.5 text-sm text-white placeholder-slate-400 focus:outline-none focus:border-orange-500"
+          />
+          {tagResults.length > 0 && (
+            <div className="absolute left-0 right-0 mt-1 bg-slate-900 border border-slate-600 rounded-xl overflow-hidden shadow-xl z-20">
+              {tagResults.map(r => (
+                <button key={`${r.type}-${r.id}`} type="button" onClick={() => addMention(r)} className="w-full text-left px-3 py-2 text-sm text-slate-200 hover:bg-slate-800 transition-colors">
+                  {r.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Audience selector */}
+      <div className="flex items-center gap-2 pt-2 border-t border-slate-700">
+        <span className="text-xs text-slate-400 mr-1">Visible to:</span>
+        <button
+          onClick={() => setAudience("everyone")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${audience === "everyone" ? "bg-orange-600 border-orange-600 text-white" : "bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200"}`}
+        >
+          <Globe className="w-3.5 h-3.5" /> Everyone
+        </button>
+        <button
+          onClick={() => setAudience("connections")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${audience === "connections" ? "bg-orange-600 border-orange-600 text-white" : "bg-slate-900 border-slate-700 text-slate-400 hover:text-slate-200"}`}
+        >
+          <Users className="w-3.5 h-3.5" /> Connections only
+        </button>
+      </div>
+      <p className="text-[11px] text-slate-500">
+        {audience === "everyone" ? "Visible to the entire network and directory." : "Visible only to people you follow or who follow you."}
+      </p>
+
+      <div className="flex items-center gap-2">
         <div className="flex-1" />
         <button onClick={handleDiscard} className="px-3 py-2 text-xs text-slate-400 hover:text-white transition-colors">Discard</button>
         <button
@@ -700,6 +868,8 @@ function FeedPageInner() {
   const [search, setSearch] = useState("");
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [currentAuthorId, setCurrentAuthorId] = useState<string | null>(null);
+  const [currentAuthorType, setCurrentAuthorType] = useState<"profile" | "company" | null>(null);
+  const [connectionAuthorKeys, setConnectionAuthorKeys] = useState<Set<string>>(new Set());
   const [isGC, setIsGC] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [editingPost, setEditingPost] = useState<FeedPost | null>(null);
@@ -767,6 +937,31 @@ function FeedPageInner() {
     }
   }, []);
 
+  // Build the set of "<type>:<id>" author keys the viewer is connected to —
+  // either the viewer follows them, or they follow the viewer back.
+  const fetchConnections = useCallback(async (uid: string, authorId: string | null, authorType: "profile" | "company" | null) => {
+    const db = getSupabase() as any;
+    const keys = new Set<string>();
+
+    const { data: followingRows } = await db.from("follows").select("following_id, following_type").eq("follower_user_id", uid);
+    for (const r of followingRows ?? []) keys.add(`${r.following_type}:${r.following_id}`);
+
+    if (authorId && authorType) {
+      const { data: followerRows } = await db.from("follows").select("follower_user_id").eq("following_id", authorId).eq("following_type", authorType);
+      const followerUserIds = (followerRows ?? []).map((r: any) => r.follower_user_id);
+      if (followerUserIds.length > 0) {
+        const [{ data: profs }, { data: comps }] = await Promise.all([
+          db.from("profiles").select("id, user_id").in("user_id", followerUserIds),
+          db.from("companies").select("id, user_id").in("user_id", followerUserIds),
+        ]);
+        for (const p of profs ?? []) keys.add(`profile:${p.id}`);
+        for (const c of comps ?? []) keys.add(`company:${c.id}`);
+      }
+    }
+
+    setConnectionAuthorKeys(keys);
+  }, []);
+
   useEffect(() => {
     fetchPosts();
     const supabase = getSupabase();
@@ -787,10 +982,18 @@ function FeedPageInner() {
       const authorId = prof?.id ?? null;
       if (!authorId) {
         const { data: comp } = await db.from("companies").select("id").eq("user_id", user.id).single();
-        if (comp) setCurrentAuthorId(comp.id);
+        if (comp) {
+          setCurrentAuthorId(comp.id);
+          setCurrentAuthorType("company");
+          fetchConnections(user.id, comp.id, "company");
+        } else {
+          fetchConnections(user.id, null, null);
+        }
         return;
       }
       setCurrentAuthorId(authorId);
+      setCurrentAuthorType("profile");
+      fetchConnections(user.id, authorId, "profile");
 
       // If they already have posts, suppress onboarding silently
       const { count } = await db.from("feed_posts").select("id", { count: "exact", head: true }).eq("author_id", authorId);
@@ -807,7 +1010,7 @@ function FeedPageInner() {
     fetch("/api/news/follow").then(r => r.json()).then(d => {
       if (d.sources) setFollowedSources(new Set(d.sources));
     }).catch(() => {});
-  }, [fetchPosts]);
+  }, [fetchPosts, fetchConnections]);
 
   function dismissOnboarding() {
     setShowOnboarding(false);
@@ -904,6 +1107,11 @@ function FeedPageInner() {
   const filtered = sortedPosts.filter(p => {
     if (availableNow && p.author_availability !== "available") return false;
     if (search && !p.content.toLowerCase().includes(search.toLowerCase()) && !p.author_name.toLowerCase().includes(search.toLowerCase()) && !(p.project_name ?? "").toLowerCase().includes(search.toLowerCase())) return false;
+    if (p.audience === "connections") {
+      const isOwn = currentAuthorId !== null && p.author_id === currentAuthorId && p.author_type === currentAuthorType;
+      const isConnected = connectionAuthorKeys.has(`${p.author_type}:${p.author_id}`);
+      if (!isOwn && !isConnected) return false;
+    }
     return true;
   });
 
