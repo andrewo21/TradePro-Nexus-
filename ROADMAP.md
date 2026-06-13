@@ -376,19 +376,36 @@ on /admin/registry via the "Auto-Promote" status bar and Import Runs tab.
 - SendGrid subdomain: outreach@mail.tradepronexus.com (edge function `send-outreach-batch`,
   pg_cron job `send-outreach-batch`, hourly, checks `outreach_enabled` first and no-ops if not `'true'`)
 - CAN-SPAM compliant email template (unsubscribe + "Remove My Listing" + physical
-  address). **`admin_settings.outreach_physical_address` is a placeholder —
-  must be set to a real mailing address before enabling outreach.**
+  address). `admin_settings.outreach_physical_address` is set to
+  TradePro Technologies LLC | TradePro Nexus, 17629 Fallen Branch Way, Punta Gorda, FL 33982
+  (corrected from the earlier 1984 Polo Lakes Drive East placeholder).
 - Batch sending via `admin_settings.outreach_batch_size` (default 50/hour)
 - `/unsubscribe?token=...&action=unsubscribe|remove` — unsubscribe sets
   `outreach_eligible=false`; remove hard-deletes the profile (cascades to outreach_log)
 - Outreach stats (sent/failed/unsubscribed/queued, last run) in /admin/registry dashboard
 - Claim CTA links to `/build?claim=<token>&business=...` — full token verification is Session 6
+- `outreach_log.email_number` (1-4) tracks which template was sent per recipient
+- **Email 1** — `send-outreach-batch`, hourly cron, initial "claim your listing" outreach
+- **Email 2** — `send-outreach-followup`, daily cron (14:00 UTC), one-time "still
+  unclaimed" follow-up sent only to recipients who never opened Email 1, 30+ days
+  after it was sent. CAN-SPAM disclosure included.
+- **Email 3** — `send-claim-welcome`, transactional (no CAN-SPAM disclosure), called
+  via `POST /functions/v1/send-claim-welcome { unclaimed_profile_id }` when a profile
+  is claimed. NOT YET WIRED UP — Session 6 should call this after setting
+  `unclaimed_profiles.claimed = true`.
+- **Email 4** — `send-verification-launch`, one-time announcement for claimed profiles
+  when verification opens. CAN-SPAM disclosure included. NOT scheduled in pg_cron —
+  invoke manually when Phase 4 launches.
+- All four templates end with the standard footer: "TradePro Technologies LLC |
+  TradePro Nexus", physical address, unsubscribe link, and remove-listing link.
 
 ### ⏳ SESSION 6 — Claim Flow + Polish (FUTURE)
 - "Claim This Profile" button with email verification
 - Unclaimed profile display in directory — clearly labeled, never shown as verified
 - "Remove My Listing" hard delete from Supabase
 - End-to-end testing all 12 states
+- After a profile is claimed, call `send-claim-welcome` (Email 3) with the
+  `unclaimed_profile_id` to send the welcome email
 
 ### Session Rules (enforced every session)
 - Always read ROADMAP.md at session start
@@ -405,3 +422,7 @@ on /admin/registry via the "Auto-Promote" status bar and Import Runs tab.
 
 ## ⏳ PHASE 4 — LAST (build after platform has real users)
 Full verification pipeline: document OCR (AWS Textract), web scan (SerpAPI + OSHA), reference surveys, EIN validation (TIN Check), auto-approve/deny, Stripe refund triggers.
+
+When this pipeline launches, manually invoke the `send-verification-launch` edge
+function (Email 4, built in Session 5) to announce verification to all claimed
+profiles with an email on file.

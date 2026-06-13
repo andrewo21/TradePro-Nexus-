@@ -1,11 +1,13 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-// ── Outreach batch sender ─────────────────────────────────────────────────────
-// Triggered hourly by pg_cron (job "send-outreach-batch"). Sends a CAN-SPAM
-// compliant "claim your free listing" email to unclaimed_profiles that:
-//   - have not been contacted yet (no outreach_log row)
-//   - are outreach_eligible, visible, unclaimed, and have an email on file
+// ── Outreach follow-up sender (Email 2) ────────────────────────────────────────
+// Triggered daily by pg_cron (job "send-outreach-followup"). Sends a one-time
+// "still unclaimed" follow-up to unclaimed_profiles that:
+//   - were sent Email 1 (email_number=1, status='sent') at least 30 days ago
+//   - never opened Email 1 (opened_at IS NULL) — openers are never re-contacted
+//   - have not already been sent Email 2 (email_number=2)
+//   - are still outreach_eligible, visible, unclaimed, and not removal-requested
 //
 // SAFETY: the FIRST thing this function does is check admin_settings.outreach_enabled.
 // If it is not exactly "true", the function no-ops and sends nothing.
@@ -14,6 +16,7 @@ const SITE_URL          = "https://www.tradepronexus.com";
 const SENDGRID_API_KEY  = Deno.env.get("SENDGRID_API_KEY_NEXUS") ?? "";
 const FROM_EMAIL        = "outreach@mail.tradepronexus.com";
 const FROM_NAME         = "TradePro Nexus";
+const THIRTY_DAYS_MS    = 30 * 24 * 60 * 60 * 1000;
 
 function buildEmailHtml(opts: {
   businessName: string;
@@ -52,13 +55,17 @@ function buildEmailHtml(opts: {
   <tr><td style="background:#1e293b;border-radius:16px;border:1px solid #334155;overflow:hidden;">
     <tr><td style="background:#f97316;height:4px;"></td></tr>
     <tr><td style="padding:32px 32px 0;">
-      <h1 style="margin:0 0 8px;color:#f1f5f9;font-size:22px;font-weight:800;letter-spacing:-0.01em;">Your business is listed on TradePro Nexus</h1>
+      <h1 style="margin:0 0 8px;color:#f1f5f9;font-size:22px;font-weight:800;letter-spacing:-0.01em;">One last note about your listing</h1>
       <p style="margin:0 0 16px;color:#94a3b8;font-size:15px;line-height:1.6;">
-        We found <strong style="color:#f1f5f9;">${opts.businessName}</strong> in our public ${opts.sourceState} ${trade} licensing directory.
-        Trade pros and GCs in your area are already searching TradePro Nexus to find crews like yours.
+        About a month ago we reached out because <strong style="color:#f1f5f9;">${opts.businessName}</strong> is listed in the
+        TradePro Nexus ${opts.sourceState} ${trade} directory. We wanted to follow up one time in case our first email got buried.
+      </p>
+      <p style="margin:0 0 16px;color:#94a3b8;font-size:15px;line-height:1.6;">
+        TradePro Nexus is a free verified marketplace where GCs and project managers search for qualified crews in new markets.
+        When a contractor from out of state lands a job in your area, they search Nexus to find local verified trade professionals.
       </p>
       <p style="margin:0 0 24px;color:#94a3b8;font-size:15px;line-height:1.6;">
-        Claim your free Digital Trading Card to control how your business appears, add your contact info, and start getting discovered.
+        Your listing is live. Claiming it takes about 5 minutes and costs nothing.
       </p>
       <table cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
         <tr><td style="background:#f97316;border-radius:12px;">
@@ -67,18 +74,19 @@ function buildEmailHtml(opts: {
       </table>
       <div style="background:#0f172a;border-radius:10px;padding:14px 16px;margin-bottom:28px;">
         <p style="margin:0;color:#64748b;font-size:12px;line-height:1.5;">
-          This listing was created from public state licensing records. We do not display it as "verified" until you claim it.
+          This is our final outreach email — if you'd rather not hear from us, use the unsubscribe link below and we will never contact you again.
         </p>
       </div>
     </td></tr>
     <tr><td style="padding:16px 32px 28px;border-top:1px solid #334155;text-align:center;">
-      <p style="margin:0 0 8px;color:#475569;font-size:12px;">TradePro Nexus &middot; A TradePro Enterprises product</p>
       <p style="margin:0 0 8px;color:#475569;font-size:11px;">This email is a commercial advertisement sent by TradePro Technologies.</p>
+      <p style="margin:0 0 4px;color:#475569;font-size:12px;">TradePro Technologies LLC | TradePro Nexus</p>
       <p style="margin:0 0 8px;color:#475569;font-size:11px;">${opts.physicalAddress}</p>
+      <p style="margin:0 0 2px;color:#475569;font-size:11px;">
+        To unsubscribe: <a href="${opts.unsubscribeUrl}" style="color:#64748b;">${opts.unsubscribeUrl}</a>
+      </p>
       <p style="margin:0;color:#475569;font-size:11px;">
-        <a href="${opts.unsubscribeUrl}" style="color:#64748b;">Unsubscribe</a>
-        &nbsp;&middot;&nbsp;
-        <a href="${opts.removeUrl}" style="color:#64748b;">Remove My Listing</a>
+        To remove your listing: <a href="${opts.removeUrl}" style="color:#64748b;">${opts.removeUrl}</a>
       </p>
     </td></tr>
   </td></tr>
@@ -150,30 +158,48 @@ Deno.serve(async (_req: Request) => {
   const batchSize = Math.max(1, Math.min(500, parseInt(sm["outreach_batch_size"] ?? "50") || 50));
   const physicalAddress = sm["outreach_physical_address"] || "TradePro Technologies LLC | TradePro Nexus, 17629 Fallen Branch Way, Punta Gorda, FL 33982";
 
-  // ── Select eligible, not-yet-contacted profiles ─────────────────────────────
-  const { data: alreadyContacted } = await supabase
+  // ── Find profiles sent Email 1 >= 30 days ago who never opened it ───────────
+  const cutoff = new Date(Date.now() - THIRTY_DAYS_MS).toISOString();
+  const { data: email1Sent } = await supabase
     .from("outreach_log")
-    .select("unclaimed_profile_id");
-  const contactedIds = new Set((alreadyContacted ?? []).map((r: { unclaimed_profile_id: string }) => r.unclaimed_profile_id));
+    .select("unclaimed_profile_id")
+    .eq("email_number", 1)
+    .eq("status", "sent")
+    .is("opened_at", null)
+    .lte("sent_at", cutoff);
 
-  const { data: candidates } = await supabase
-    .from("unclaimed_profiles")
-    .select("id, business_name, license_type, source_state, email, claim_token, remove_token")
-    .eq("outreach_eligible", true)
-    .eq("visible", true)
-    .eq("claimed", false)
-    .eq("remove_requested", false)
-    .not("email", "is", null)
-    .order("created_at", { ascending: true })
-    .limit(batchSize * 4); // over-fetch a bit to skip already-contacted client-side
+  const nonOpenerIds = new Set((email1Sent ?? []).map((r: { unclaimed_profile_id: string }) => r.unclaimed_profile_id));
 
-  const batch = (candidates ?? []).filter((p: { id: string }) => !contactedIds.has(p.id)).slice(0, batchSize);
+  // ── Exclude anyone already sent Email 2 ──────────────────────────────────────
+  const { data: email2Sent } = await supabase
+    .from("outreach_log")
+    .select("unclaimed_profile_id")
+    .eq("email_number", 2);
+
+  for (const row of email2Sent ?? []) nonOpenerIds.delete((row as { unclaimed_profile_id: string }).unclaimed_profile_id);
+
+  const candidateIds = Array.from(nonOpenerIds).slice(0, batchSize * 4);
+
+  let batch: any[] = [];
+  if (candidateIds.length > 0) {
+    const { data: candidates } = await supabase
+      .from("unclaimed_profiles")
+      .select("id, business_name, license_type, source_state, email, claim_token, remove_token")
+      .in("id", candidateIds)
+      .eq("outreach_eligible", true)
+      .eq("visible", true)
+      .eq("claimed", false)
+      .eq("remove_requested", false)
+      .not("email", "is", null)
+      .limit(batchSize);
+    batch = candidates ?? [];
+  }
 
   let sent = 0;
   let failed = 0;
 
   for (const profile of batch) {
-    // Generate claim/remove tokens if missing
+    // Tokens were generated during Email 1 send — fall back just in case.
     const updates: Record<string, string> = {};
     let claimToken = profile.claim_token as string | null;
     let removeToken = profile.remove_token as string | null;
@@ -193,7 +219,7 @@ Deno.serve(async (_req: Request) => {
       physicalAddress,
     });
 
-    const subject = `${profile.business_name} — claim your free TradePro Nexus listing`;
+    const subject = "One last note — your TradePro Nexus profile is still unclaimed";
     const toEmail = testMode ? testEmail : profile.email;
 
     const result = toEmail
@@ -211,14 +237,14 @@ Deno.serve(async (_req: Request) => {
       sendgrid_message_id: result.messageId,
       sent_at: result.ok ? new Date().toISOString() : null,
       error_detail: result.error,
-      email_number: 1,
+      email_number: 2,
     });
   }
 
   const now = new Date().toISOString();
   await supabase.from("admin_settings").upsert([
-    { key: "outreach_last_run",   value: now },
-    { key: "outreach_last_count", value: String(sent) },
+    { key: "outreach_followup_last_run",   value: now },
+    { key: "outreach_followup_last_count", value: String(sent) },
   ], { onConflict: "key" });
 
   return new Response(

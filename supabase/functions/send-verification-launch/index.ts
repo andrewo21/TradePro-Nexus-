@@ -1,11 +1,14 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-// ── Outreach batch sender ─────────────────────────────────────────────────────
-// Triggered hourly by pg_cron (job "send-outreach-batch"). Sends a CAN-SPAM
-// compliant "claim your free listing" email to unclaimed_profiles that:
-//   - have not been contacted yet (no outreach_log row)
-//   - are outreach_eligible, visible, unclaimed, and have an email on file
+// ── Verification launch sender (Email 4) ────────────────────────────────────────
+// FUTURE — triggered manually (one-time announcement) when the Phase 4
+// verification pipeline goes live. NOT registered in pg_cron — invoke this
+// function's URL directly (e.g. via the Supabase dashboard or a one-off curl)
+// once verification is ready for claimed profiles.
+//
+// Sends to claimed registry profiles (unclaimed_profiles.claimed = true) that
+// have an email on file and have not already been sent Email 4.
 //
 // SAFETY: the FIRST thing this function does is check admin_settings.outreach_enabled.
 // If it is not exactly "true", the function no-ops and sends nothing.
@@ -17,14 +20,11 @@ const FROM_NAME         = "TradePro Nexus";
 
 function buildEmailHtml(opts: {
   businessName: string;
-  licenseType: string | null;
-  sourceState: string;
-  claimUrl: string;
+  verifyUrl: string;
   unsubscribeUrl: string;
   removeUrl: string;
   physicalAddress: string;
 }): string {
-  const trade = opts.licenseType?.trim() || "trade professional";
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -52,33 +52,42 @@ function buildEmailHtml(opts: {
   <tr><td style="background:#1e293b;border-radius:16px;border:1px solid #334155;overflow:hidden;">
     <tr><td style="background:#f97316;height:4px;"></td></tr>
     <tr><td style="padding:32px 32px 0;">
-      <h1 style="margin:0 0 8px;color:#f1f5f9;font-size:22px;font-weight:800;letter-spacing:-0.01em;">Your business is listed on TradePro Nexus</h1>
+      <h1 style="margin:0 0 8px;color:#f1f5f9;font-size:22px;font-weight:800;letter-spacing:-0.01em;">Verification is now open</h1>
       <p style="margin:0 0 16px;color:#94a3b8;font-size:15px;line-height:1.6;">
-        We found <strong style="color:#f1f5f9;">${opts.businessName}</strong> in our public ${opts.sourceState} ${trade} licensing directory.
-        Trade pros and GCs in your area are already searching TradePro Nexus to find crews like yours.
+        Hi <strong style="color:#f1f5f9;">${opts.businessName}</strong>, verification is now live on TradePro Nexus.
+      </p>
+      <p style="margin:0 0 16px;color:#94a3b8;font-size:15px;line-height:1.6;">
+        For a one-time fee of $99, we review your COI, bonding certificate, and state license. If everything checks out, your profile gets a
+        Verified badge that GCs can see when searching for crews.
       </p>
       <p style="margin:0 0 24px;color:#94a3b8;font-size:15px;line-height:1.6;">
-        Claim your free Digital Trading Card to control how your business appears, add your contact info, and start getting discovered.
+        Verified profiles get significantly more visibility in search results. GCs specifically filter for verified businesses when they need to move fast on a project.
       </p>
       <table cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
         <tr><td style="background:#f97316;border-radius:12px;">
-          <a href="${opts.claimUrl}" style="display:inline-block;padding:14px 28px;color:#ffffff;font-weight:700;font-size:15px;text-decoration:none;border-radius:12px;">Claim Your Free Trade Card</a>
+          <a href="${opts.verifyUrl}" style="display:inline-block;padding:14px 28px;color:#ffffff;font-weight:700;font-size:15px;text-decoration:none;border-radius:12px;">Start Verification</a>
         </td></tr>
       </table>
       <div style="background:#0f172a;border-radius:10px;padding:14px 16px;margin-bottom:28px;">
-        <p style="margin:0;color:#64748b;font-size:12px;line-height:1.5;">
-          This listing was created from public state licensing records. We do not display it as "verified" until you claim it.
-        </p>
+        <p style="margin:0 0 6px;color:#64748b;font-size:12px;line-height:1.5;">A few things to know:</p>
+        <ul style="margin:0;padding-left:18px;color:#64748b;font-size:12px;line-height:1.7;">
+          <li>One-time fee of $99</li>
+          <li>If your documents are denied, you receive a $79 refund</li>
+          <li>Verification is for business entities only</li>
+          <li>Your COI, bonding, and license are reviewed by a human — not an algorithm</li>
+        </ul>
       </div>
+      <p style="margin:0 0 24px;color:#f1f5f9;font-size:13px;font-weight:700;letter-spacing:0.02em;text-align:center;">Verified by Paper. Not by Algorithm.</p>
     </td></tr>
     <tr><td style="padding:16px 32px 28px;border-top:1px solid #334155;text-align:center;">
-      <p style="margin:0 0 8px;color:#475569;font-size:12px;">TradePro Nexus &middot; A TradePro Enterprises product</p>
       <p style="margin:0 0 8px;color:#475569;font-size:11px;">This email is a commercial advertisement sent by TradePro Technologies.</p>
+      <p style="margin:0 0 4px;color:#475569;font-size:12px;">TradePro Technologies LLC | TradePro Nexus</p>
       <p style="margin:0 0 8px;color:#475569;font-size:11px;">${opts.physicalAddress}</p>
+      <p style="margin:0 0 2px;color:#475569;font-size:11px;">
+        To unsubscribe: <a href="${opts.unsubscribeUrl}" style="color:#64748b;">${opts.unsubscribeUrl}</a>
+      </p>
       <p style="margin:0;color:#475569;font-size:11px;">
-        <a href="${opts.unsubscribeUrl}" style="color:#64748b;">Unsubscribe</a>
-        &nbsp;&middot;&nbsp;
-        <a href="${opts.removeUrl}" style="color:#64748b;">Remove My Listing</a>
+        To remove your listing: <a href="${opts.removeUrl}" style="color:#64748b;">${opts.removeUrl}</a>
       </p>
     </td></tr>
   </td></tr>
@@ -150,50 +159,42 @@ Deno.serve(async (_req: Request) => {
   const batchSize = Math.max(1, Math.min(500, parseInt(sm["outreach_batch_size"] ?? "50") || 50));
   const physicalAddress = sm["outreach_physical_address"] || "TradePro Technologies LLC | TradePro Nexus, 17629 Fallen Branch Way, Punta Gorda, FL 33982";
 
-  // ── Select eligible, not-yet-contacted profiles ─────────────────────────────
-  const { data: alreadyContacted } = await supabase
+  // ── Exclude anyone already sent Email 4 ──────────────────────────────────────
+  const { data: email4Sent } = await supabase
     .from("outreach_log")
-    .select("unclaimed_profile_id");
-  const contactedIds = new Set((alreadyContacted ?? []).map((r: { unclaimed_profile_id: string }) => r.unclaimed_profile_id));
+    .select("unclaimed_profile_id")
+    .eq("email_number", 4);
+  const alreadySent = new Set((email4Sent ?? []).map((r: { unclaimed_profile_id: string }) => r.unclaimed_profile_id));
 
   const { data: candidates } = await supabase
     .from("unclaimed_profiles")
-    .select("id, business_name, license_type, source_state, email, claim_token, remove_token")
-    .eq("outreach_eligible", true)
-    .eq("visible", true)
-    .eq("claimed", false)
-    .eq("remove_requested", false)
+    .select("id, business_name, source_state, email, remove_token")
+    .eq("claimed", true)
     .not("email", "is", null)
-    .order("created_at", { ascending: true })
-    .limit(batchSize * 4); // over-fetch a bit to skip already-contacted client-side
+    .order("claimed_at", { ascending: true })
+    .limit(batchSize * 4);
 
-  const batch = (candidates ?? []).filter((p: { id: string }) => !contactedIds.has(p.id)).slice(0, batchSize);
+  const batch = (candidates ?? []).filter((p: { id: string }) => !alreadySent.has(p.id)).slice(0, batchSize);
 
   let sent = 0;
   let failed = 0;
 
   for (const profile of batch) {
-    // Generate claim/remove tokens if missing
-    const updates: Record<string, string> = {};
-    let claimToken = profile.claim_token as string | null;
     let removeToken = profile.remove_token as string | null;
-    if (!claimToken) { claimToken = crypto.randomUUID(); updates.claim_token = claimToken; }
-    if (!removeToken) { removeToken = crypto.randomUUID(); updates.remove_token = removeToken; }
-    if (Object.keys(updates).length) {
-      await supabase.from("unclaimed_profiles").update(updates).eq("id", profile.id);
+    if (!removeToken) {
+      removeToken = crypto.randomUUID();
+      await supabase.from("unclaimed_profiles").update({ remove_token: removeToken }).eq("id", profile.id);
     }
 
     const html = buildEmailHtml({
       businessName: profile.business_name,
-      licenseType: profile.license_type,
-      sourceState: profile.source_state,
-      claimUrl: `${SITE_URL}/build?claim=${claimToken}&business=${encodeURIComponent(profile.business_name)}`,
+      verifyUrl: `${SITE_URL}/verify`,
       unsubscribeUrl: `${SITE_URL}/unsubscribe?token=${removeToken}&action=unsubscribe`,
       removeUrl: `${SITE_URL}/unsubscribe?token=${removeToken}&action=remove`,
       physicalAddress,
     });
 
-    const subject = `${profile.business_name} — claim your free TradePro Nexus listing`;
+    const subject = "Verification is now open — get your TradePro Nexus badge";
     const toEmail = testMode ? testEmail : profile.email;
 
     const result = toEmail
@@ -211,14 +212,14 @@ Deno.serve(async (_req: Request) => {
       sendgrid_message_id: result.messageId,
       sent_at: result.ok ? new Date().toISOString() : null,
       error_detail: result.error,
-      email_number: 1,
+      email_number: 4,
     });
   }
 
   const now = new Date().toISOString();
   await supabase.from("admin_settings").upsert([
-    { key: "outreach_last_run",   value: now },
-    { key: "outreach_last_count", value: String(sent) },
+    { key: "verification_launch_last_run",   value: now },
+    { key: "verification_launch_last_count", value: String(sent) },
   ], { onConflict: "key" });
 
   return new Response(
