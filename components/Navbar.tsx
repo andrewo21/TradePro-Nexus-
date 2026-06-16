@@ -107,6 +107,14 @@ export default function Navbar() {
           <Link href="/work" className="flex items-center gap-1.5 text-slate-400 hover:text-orange-400 transition-colors">
             Work &amp; Union Opportunities
           </Link>
+          <a
+            href="https://www.tradeprotech.ai"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 text-slate-500 hover:text-slate-300 transition-colors text-xs border-l border-slate-700 pl-4"
+          >
+            Résumé Builder ↗
+          </a>
 
           {user && availability && availConfig ? (
             /* Availability quick-update */

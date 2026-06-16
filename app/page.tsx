@@ -41,7 +41,7 @@ const TRADES = [
   { icon: Bolt, label: "Electrical" },
   { icon: Flame, label: "Plumbing" },
   { icon: Wind, label: "HVAC" },
-  { icon: Hammer, label: "Carpentry" },
+  { icon: Hammer, label: "General Construction" },
   { icon: Wrench, label: "Mechanical" },
   { icon: HardHat, label: "Civil / Site" },
 ];
@@ -341,7 +341,7 @@ export default function LandingPage() {
           <h2 className="text-xl font-black text-white mb-6 text-center">All Major Trades. Every Sector.</h2>
           <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-10">
             {TRADES.map(({ icon: Icon, label }) => (
-              <div key={label} className="card-hover flex flex-col items-center gap-2 bg-slate-800/60 border border-slate-700/50 rounded-xl py-4 px-2 hover:border-orange-800/50 hover:bg-orange-950/20 transition-colors cursor-pointer">
+              <div key={label} className="flex flex-col items-center gap-2 bg-slate-800/60 border border-slate-700/50 rounded-xl py-4 px-2">
                 <Icon className="w-6 h-6 text-orange-400" />
                 <span className="text-xs font-semibold text-slate-300">{label}</span>
               </div>

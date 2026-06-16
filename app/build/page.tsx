@@ -186,11 +186,18 @@ export default function BuildPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [finalSlug, setFinalSlug] = useState("");
+  const [authChecking, setAuthChecking] = useState(true);
+  const [isAuthed, setIsAuthed] = useState(false);
 
-  // If the user already has a profile, send them straight to their Trade Card
+  // Gate: check auth before showing the form
   useEffect(() => {
     getSupabase()?.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return;
+      if (!user) {
+        setIsAuthed(false);
+        setAuthChecking(false);
+        return;
+      }
+      setIsAuthed(true);
       const pt = (user.user_metadata?.profile_type ?? user.user_metadata?.role ?? "tradepro") as ProfileType;
       const validTypes: ProfileType[] = ["tradepro", "sub", "inspector", "architect", "engineer"];
       const resolved = validTypes.includes(pt) ? pt : "tradepro";
@@ -204,6 +211,7 @@ export default function BuildPage() {
         .eq("user_id", user.id)
         .maybeSingle();
       if (existing?.slug) router.replace(`/pro/${existing.slug}`);
+      else setAuthChecking(false);
     });
   }, [router]);
 
@@ -391,6 +399,46 @@ export default function BuildPage() {
     return (
       <div className="min-h-screen bg-[#0f172a] text-slate-100"><Navbar />
         <div className="flex items-center justify-center min-h-screen"><div className="text-slate-500">Loading your profile type…</div></div>
+      </div>
+    );
+  }
+
+  if (authChecking) {
+    return (
+      <div className="min-h-screen bg-[#0f172a] text-slate-100 flex items-center justify-center">
+        <Navbar />
+        <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isAuthed) {
+    return (
+      <div className="min-h-screen bg-[#0f172a] text-slate-100">
+        <Navbar />
+        <div className="max-w-md mx-auto px-4 pt-32 pb-16 text-center">
+          <div className="w-14 h-14 bg-orange-600/20 border border-orange-600/40 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <HardHat className="w-7 h-7 text-orange-400" />
+          </div>
+          <h1 className="text-2xl font-black text-white mb-3">Create your free account first</h1>
+          <p className="text-slate-400 mb-8 leading-relaxed">
+            Your Trade Card is tied to your account so GCs can contact you directly and your profile stays yours. Takes 2 minutes — no credit card.
+          </p>
+          <div className="space-y-3">
+            <Link
+              href="/signup"
+              className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-xl text-base transition-colors"
+            >
+              <HardHat className="w-5 h-5" /> Create Account — Free
+            </Link>
+            <Link
+              href="/login"
+              className="w-full flex items-center justify-center gap-2 px-6 py-3.5 border border-slate-600 hover:border-slate-400 text-slate-300 hover:text-white font-semibold rounded-xl text-base transition-colors"
+            >
+              Already have an account? Sign In
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }
