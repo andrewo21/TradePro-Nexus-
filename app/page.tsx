@@ -149,69 +149,41 @@ export default function LandingPage() {
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-20 pb-12 md:pt-28 md:pb-20">
 
-          {/* Enterprise badge */}
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="flex justify-center mb-6"
-          >
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-950/60 border border-orange-800/50 text-orange-400 text-xs font-semibold rounded-full tracking-wider uppercase">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              TradePro Enterprises · Verified Marketplace
-            </span>
-          </motion.div>
-
           {/* Headline */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.1 }}
-            className="text-center max-w-4xl mx-auto mb-6"
+            className="text-center max-w-4xl mx-auto mb-8"
           >
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black leading-tight tracking-tight mb-4">
-              <span className="text-white">The Command Center for</span>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black leading-tight tracking-tight mb-5">
+              <span className="text-white">The Verified Marketplace for</span>
               <br />
-              <span className="text-orange-500">Construction Hiring.</span>
+              <span className="text-orange-500">Construction Professionals.</span>
             </h1>
-            <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-              Verified bonding. Verified payroll. Verified talent. Connect the right crews
-              to the right projects. In seconds, not weeks.
+            <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed">
+              Build your free Trade Card. Get discovered by GCs. Connect with the trades.
             </p>
           </motion.div>
 
-          {/* Waitlist form — primary CTA */}
+          {/* Primary CTAs */}
           <motion.div
-            id="waitlist"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.25 }}
-            className="max-w-md mx-auto mb-6"
+            transition={{ duration: 0.6, delay: 0.25 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10"
           >
-            <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6 backdrop-blur-sm">
-              <Suspense fallback={null}>
-                <WaitlistForm />
-              </Suspense>
-            </div>
-          </motion.div>
-
-          {/* Secondary links */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.45 }}
-            className="flex items-center justify-center gap-4 text-xs text-slate-500 mb-10"
-          >
-            <Link href="/build" className="hover:text-orange-400 transition-colors flex items-center gap-1">
-              <HardHat className="w-3.5 h-3.5" /> Build Trade Card
+            <Link
+              href="/build"
+              className="btn-glow w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-xl text-base shadow-lg shadow-orange-900/40 transition-colors"
+            >
+              <HardHat className="w-5 h-5" /> Build My Trade Card — Free
             </Link>
-            <span>·</span>
-            <Link href="/search" className="hover:text-blue-400 transition-colors flex items-center gap-1">
-              <Search className="w-3.5 h-3.5" /> Find Crews
-            </Link>
-            <span>·</span>
-            <Link href="/feed" className="hover:text-slate-300 transition-colors">
-              Live Feed
+            <Link
+              href="/search"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 border border-slate-600 hover:border-slate-400 text-slate-300 hover:text-white font-bold rounded-xl text-base transition-colors"
+            >
+              <Search className="w-5 h-5" /> Find Contractors
             </Link>
           </motion.div>
 
@@ -309,68 +281,56 @@ export default function LandingPage() {
 
       {/* ── HOW IT WORKS ────────────────────────────────────────────────────── */}
       <section className="py-16 px-4 sm:px-6 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-black text-white mb-2">Two sides. One platform.</h2>
-            <p className="text-slate-400">Built for the full construction supply chain.</p>
+            <h2 className="text-2xl md:text-3xl font-black text-white mb-2">How It Works</h2>
+            <p className="text-slate-400">Three steps. Free to start.</p>
           </div>
-          <div className="grid md:grid-cols-2 gap-6">
-
-            {/* Trade Pro Side */}
-            <div className="bg-gradient-to-br from-orange-950/40 to-slate-900 border border-orange-900/40 rounded-2xl p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <HardHat className="w-6 h-6 text-orange-400" />
-                <h3 className="text-lg font-black text-white">For Trade Pros</h3>
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                step: "01",
+                heading: "Create your free Trade Card",
+                body: "Add your trade, certifications, and availability. It takes about 5 minutes. Your card becomes your public profile — shareable, searchable, and yours.",
+                color: "orange",
+                href: "/build",
+                cta: "Build My Trade Card",
+              },
+              {
+                step: "02",
+                heading: "Join the community",
+                body: "Post project updates, connect with other trade professionals, and follow industry news from the field. The feed is live and public.",
+                color: "slate",
+                href: "/feed",
+                cta: "View the Feed",
+              },
+              {
+                step: "03",
+                heading: "Get discovered",
+                body: "GCs and contractors search the directory to find verified crews in new markets. When your card is verified, you stand out. No algorithm. No pay-to-play.",
+                color: "green",
+                href: "/search",
+                cta: "See the Directory",
+              },
+            ].map(({ step, heading, body, color, href, cta }) => (
+              <div key={step} className={`relative bg-slate-800/50 border rounded-2xl p-6 ${
+                color === "orange" ? "border-orange-900/50" : color === "green" ? "border-green-900/50" : "border-slate-700/50"
+              }`}>
+                <p className={`text-4xl font-black mb-4 ${
+                  color === "orange" ? "text-orange-600/40" : color === "green" ? "text-green-600/40" : "text-slate-600/60"
+                }`}>{step}</p>
+                <h3 className="text-base font-black text-white mb-2">{heading}</h3>
+                <p className="text-slate-400 text-sm leading-relaxed mb-5">{body}</p>
+                <Link
+                  href={href}
+                  className={`inline-flex items-center gap-1 text-sm font-bold transition-colors ${
+                    color === "orange" ? "text-orange-400 hover:text-orange-300" : color === "green" ? "text-green-400 hover:text-green-300" : "text-slate-300 hover:text-white"
+                  }`}
+                >
+                  {cta} <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
               </div>
-              <div className="space-y-3">
-                {[
-                  "Build a Digital Trade Card, your public capability statement",
-                  "Upload OSHA certs, bonding proof, COI, and W9 for instant AI verification",
-                  "Set your availability, crew size, and project capacity",
-                  "Get a shareable URL: nexus.com/pro/your-name",
-                  "Show up in GC searches for your trade and region",
-                ].map((item) => (
-                  <div key={item} className="flex items-start gap-2.5">
-                    <CheckCircle className="w-4 h-4 text-orange-400 mt-0.5 flex-shrink-0" />
-                    <p className="text-slate-300 text-sm">{item}</p>
-                  </div>
-                ))}
-              </div>
-              <Link
-                href="/build"
-                className="btn-glow mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-lg text-sm"
-              >
-                Build My Trade Card <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-
-            {/* GC Side */}
-            <div className="bg-gradient-to-br from-blue-950/40 to-slate-900 border border-blue-900/40 rounded-2xl p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Building2 className="w-6 h-6 text-blue-400" />
-                <h3 className="text-lg font-black text-white">For GCs &amp; Subs</h3>
-              </div>
-              <div className="space-y-3">
-                {[
-                  "Search by project sector, value, and zip code",
-                  "See Green / Yellow / Blue match scores based on bonding and payroll",
-                  "View the lead foreman's Trade Card to see the actual talent, not just the company",
-                  "Filter by 'Available Now' to find crews ready to mobilize",
-                  "Access verified COIs, bonding certs, and W9s before you make the call",
-                ].map((item) => (
-                  <div key={item} className="flex items-start gap-2.5">
-                    <CheckCircle className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                    <p className="text-slate-300 text-sm">{item}</p>
-                  </div>
-                ))}
-              </div>
-              <Link
-                href="/search"
-                className="btn-glow-blue mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-blue-700 hover:bg-blue-600 text-white font-semibold rounded-lg text-sm"
-              >
-                Search Verified Crews <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
+            ))}
           </div>
         </div>
       </section>
@@ -568,7 +528,7 @@ export default function LandingPage() {
       )}
 
       {/* ── FINAL CTA ───────────────────────────────────────────────────────── */}
-      <section className="py-20 px-4 sm:px-6 border-t border-slate-800" id="waitlist-bottom">
+      <section className="py-20 px-4 sm:px-6 border-t border-slate-800" id="waitlist">
         <div className="max-w-lg mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-black text-white mb-3">
             Your work speaks for itself.<br />

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
-import { Menu, X, Search, Rss, ChevronDown, Shield } from "lucide-react";
+import { Menu, X, Search, Rss, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import { getSupabase } from "@/lib/supabase";
 import { AVAILABILITY_CONFIG } from "@/lib/constants";
@@ -107,18 +107,6 @@ export default function Navbar() {
           <Link href="/work" className="flex items-center gap-1.5 text-slate-400 hover:text-orange-400 transition-colors">
             Work Opportunities
           </Link>
-          <Link href="/work#union" className="flex items-center gap-1.5 text-slate-400 hover:text-orange-400 transition-colors">
-            <Shield className="w-4 h-4" /> Union Opportunities
-          </Link>
-          {/* Cross-property link to Resume Builder */}
-          <a
-            href="https://www.tradeprotech.ai"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-slate-500 hover:text-slate-300 transition-colors text-xs border-l border-slate-700 pl-4"
-          >
-            Build Your Résumé → TradePro Tech
-          </a>
 
           {user && availability && availConfig ? (
             /* Availability quick-update */
@@ -190,18 +178,6 @@ export default function Navbar() {
           <Link href="/work" onClick={() => setOpen(false)} className="flex items-center gap-2 text-slate-300 hover:text-orange-400 py-2 transition-colors">
             Work Opportunities
           </Link>
-          <Link href="/work#union" onClick={() => setOpen(false)} className="flex items-center gap-2 text-slate-300 hover:text-orange-400 py-2 transition-colors">
-            <Shield className="w-4 h-4" /> Union Opportunities
-          </Link>
-          <a
-            href="https://www.tradeprotech.ai"
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-2 text-slate-500 hover:text-slate-300 py-2 transition-colors text-xs border-t border-slate-800 pt-3"
-          >
-            Build Your Résumé → TradePro Tech ↗
-          </a>
 
           {user && availability && availConfig && (
             <div>

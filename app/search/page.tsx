@@ -158,17 +158,17 @@ export default function SearchPage() {
               </div>
 
               <h2 className="text-xl font-black text-white mb-3">
-                {mode === "crews" ? "Find Crews" : "Find GCs"} is Coming Soon
+                {mode === "crews" ? "Crew Search is Coming" : "GC Directory is Coming"}
               </h2>
 
               <p className="text-slate-400 text-sm leading-relaxed mb-2">
                 {mode === "crews"
-                  ? "Full verified crew search — bonding capacity, direct payroll, lead foreman Trade Cards, and match scoring — launches after our waitlist engagement period."
-                  : "GC directory search for subs and trade pros launches after our waitlist engagement period."}
+                  ? "Search verified subcontractors and trade pros by trade, bonding capacity, direct payroll percentage, and location. See lead foreman Trade Cards before you make the call."
+                  : "Find General Contractors in your area actively looking for qualified subs. Always free for trade pros — no subscription required."}
               </p>
 
               <p className="text-slate-500 text-xs mb-6">
-                Join the waitlist now to be first in when we open.
+                We are building out the directory now. Join the waitlist to be notified when search goes live.
               </p>
 
               <Link
