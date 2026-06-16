@@ -55,3 +55,32 @@ body {
 .animate-feed-slide {
   animation: feed-slide 0.4s ease-out forwards;
 }
+
+/* Card hover lift — subtle elevation for clickable cards across the app */
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px -12px rgba(0, 0, 0, 0.45);
+}
+
+/* Primary CTA glow — subtle lift + glow for the main conversion buttons */
+.btn-glow {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.btn-glow:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -6px rgba(234, 88, 12, 0.45);
+}
+
+.btn-glow-blue {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.btn-glow-blue:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -6px rgba(29, 78, 216, 0.45);
+}

@@ -289,7 +289,12 @@ export default async function AccountPage() {
                 <BadgeDisplay badgeSlugs={earnedBadgeSlugs} size="md" />
               </div>
             ) : (
-              <p className="text-slate-500 text-sm mb-4">No badges earned yet. Post to the Live Feed to get started.</p>
+              <div className="mb-4">
+                <p className="text-slate-500 text-sm mb-3">No badges earned yet. Post to the Live Feed to get started.</p>
+                <Link href="/feed" className="inline-flex items-center gap-1.5 px-3 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold rounded-xl transition-colors">
+                  Go to Live Feed
+                </Link>
+              </div>
             )}
 
             {/* Verified Contributor coupon — only meaningful for profile types eligible for verification */}

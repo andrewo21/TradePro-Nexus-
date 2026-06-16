@@ -115,7 +115,16 @@ function MessagesContent() {
               </div>
             )}
             {loading ? <div className="p-4 text-slate-500 text-sm">Loading…</div> :
-              threads.length === 0 ? <div className="p-4 text-slate-500 text-sm">No conversations yet.</div> :
+              threads.length === 0 ? (
+                <div className="p-6 text-center">
+                  <MessageCircle className="w-8 h-8 text-slate-700 mx-auto mb-3" />
+                  <p className="text-slate-400 font-semibold text-sm mb-1">No conversations yet</p>
+                  <p className="text-slate-600 text-xs mb-4">Message trade pros directly from their Trade Card or the Live Feed.</p>
+                  <Link href="/feed" className="inline-flex items-center gap-1.5 px-3 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold rounded-xl transition-colors">
+                    Browse the Feed
+                  </Link>
+                </div>
+              ) :
                 threads.map(t => (
                   <button key={t.id} onClick={() => loadThread(t.id)} className={`w-full text-left px-4 py-3 border-b border-slate-700/40 hover:bg-slate-700/40 transition-colors ${activeThread === t.id ? "bg-slate-700/40" : ""}`}>
                     <p className="text-sm font-semibold text-white truncate">{t.other_type === "company" ? "Company" : "Trade Pro"}</p>
@@ -160,7 +169,11 @@ function MessagesContent() {
                 </div>
               </div>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-slate-600 text-sm">Select a conversation</div>
+              <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
+                <MessageCircle className="w-8 h-8 text-slate-700 mb-3" />
+                <p className="text-slate-500 text-sm font-semibold">Select a conversation</p>
+                <p className="text-slate-600 text-xs mt-1">Pick a thread from the left to view messages.</p>
+              </div>
             )}
           </div>
         </div>

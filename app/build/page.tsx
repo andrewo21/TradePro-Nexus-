@@ -435,7 +435,7 @@ export default function BuildPage() {
             {/* Step 1: Personal Info — shared by all types */}
             {step === 1 && (
               <div className="space-y-4">
-                <h2 className="text-lg font-bold text-white mb-4">Your Information</h2>
+                <h2 className="text-lg font-black text-white mb-4">Your Information</h2>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wide">First Name *</label>
@@ -491,7 +491,7 @@ export default function BuildPage() {
             {/* Step 2: Trade & Skills — for Trade Pro and Sub */}
             {step === 2 && (profileType === "tradepro" || profileType === "sub") && (
               <div className="space-y-4">
-                <h2 className="text-lg font-bold text-white mb-4">Trade &amp; Experience</h2>
+                <h2 className="text-lg font-black text-white mb-4">Trade &amp; Experience</h2>
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wide">Primary Trade *</label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -537,7 +537,7 @@ export default function BuildPage() {
             {/* Step 2: Credentials — for Inspector */}
             {step === 2 && profileType === "inspector" && (
               <div className="space-y-5">
-                <h2 className="text-lg font-bold text-white mb-1">License &amp; Certifications</h2>
+                <h2 className="text-lg font-black text-white mb-1">License &amp; Certifications</h2>
                 <p className="text-sm text-slate-400 mb-3">Your license number is displayed prominently on your Trading Card.</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2">
@@ -576,7 +576,7 @@ export default function BuildPage() {
             {/* Step 2: Credentials — for Architect */}
             {step === 2 && profileType === "architect" && (
               <div className="space-y-5">
-                <h2 className="text-lg font-bold text-white mb-4">License &amp; Credentials</h2>
+                <h2 className="text-lg font-black text-white mb-4">License &amp; Credentials</h2>
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wide">License Number *</label>
                   <input value={form.licenseNumber} onChange={e => set("licenseNumber", e.target.value)} placeholder="RA-12345" className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
@@ -613,7 +613,7 @@ export default function BuildPage() {
             {/* Step 2: Credentials — for Engineer */}
             {step === 2 && profileType === "engineer" && (
               <div className="space-y-5">
-                <h2 className="text-lg font-bold text-white mb-4">Discipline &amp; License</h2>
+                <h2 className="text-lg font-black text-white mb-4">Discipline &amp; License</h2>
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-2 uppercase tracking-wide">Engineering Discipline *</label>
                   <div className="grid grid-cols-2 gap-2">
@@ -655,7 +655,7 @@ export default function BuildPage() {
             {/* Step 3: Certifications & Docs — Trade Pro / Sub */}
             {step === 3 && (profileType === "tradepro" || profileType === "sub") && (
               <div className="space-y-5">
-                <h2 className="text-lg font-bold text-white mb-1">Certifications &amp; Documents</h2>
+                <h2 className="text-lg font-black text-white mb-1">Certifications &amp; Documents</h2>
                 <MultiSelect label="OSHA & Safety Certifications" options={OSHA_CERTS} selected={form.oshaSelected} onChange={v => set("oshaSelected", v)} />
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wide">Other Certifications / Licenses</label>
@@ -681,7 +681,7 @@ export default function BuildPage() {
             {/* Step 4: Union Membership — Trade Pro / Sub. Fully optional, self-reported. */}
             {step === 4 && (profileType === "tradepro" || profileType === "sub") && (
               <div className="space-y-5">
-                <h2 className="text-lg font-bold text-white mb-1">Union Membership</h2>
+                <h2 className="text-lg font-black text-white mb-1">Union Membership</h2>
                 <p className="text-sm text-slate-400 mb-3">Optional. Adding this shows a Union Member badge on your Trade Card and unlocks union job opportunities — only if you tell us.</p>
 
                 <div className="flex items-center justify-between bg-slate-900/60 border border-slate-700 rounded-xl p-4">
@@ -743,7 +743,7 @@ export default function BuildPage() {
             {((step === 3 && (profileType === "inspector" || profileType === "architect" || profileType === "engineer")) ||
               (step === 5 && (profileType === "tradepro" || profileType === "sub"))) && (
               <div className="space-y-5">
-                <h2 className="text-lg font-bold text-white mb-4">Availability</h2>
+                <h2 className="text-lg font-black text-white mb-4">Availability</h2>
                 <div className="space-y-2">
                   {[
                     { value: "available", label: "Available Now", desc: "Ready for new projects immediately", color: "green" },
@@ -773,7 +773,7 @@ export default function BuildPage() {
             {((step === 4 && (profileType === "inspector" || profileType === "architect" || profileType === "engineer")) ||
               (step === 6 && (profileType === "tradepro" || profileType === "sub"))) && (
               <div className="space-y-4">
-                <h2 className="text-lg font-bold text-white mb-1">Work Notoriety Gallery</h2>
+                <h2 className="text-lg font-black text-white mb-1">Work Notoriety Gallery</h2>
                 <p className="text-sm text-slate-400 mb-4">
                   {profileType === "inspector" ? "Photos of inspections, reports, or jobsite work. Shows GCs your experience." :
                     profileType === "architect" ? "Renderings, completed projects, or construction photos. Your strongest trust signal." :
@@ -794,8 +794,8 @@ export default function BuildPage() {
                       <div key={i} className="relative group aspect-square rounded-lg overflow-hidden bg-slate-800 border border-slate-700">
                         <img src={URL.createObjectURL(file)} alt={file.name} className="w-full h-full object-cover" />
                         <button onClick={() => set("galleryFiles", form.galleryFiles.filter((_, j) => j !== i))}
-                          className="absolute top-1 right-1 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <X className="w-3 h-3 text-white" />
+                          className="absolute top-1 right-1 w-6 h-6 bg-red-600/90 hover:bg-red-600 rounded-full flex items-center justify-center transition-colors">
+                          <X className="w-3.5 h-3.5 text-white" />
                         </button>
                       </div>
                     ))}

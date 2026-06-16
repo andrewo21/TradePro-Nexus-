@@ -173,7 +173,7 @@ export default function Navbar() {
         </div>
 
         {/* Mobile Toggle */}
-        <button onClick={() => setOpen(!open)} className="md:hidden text-slate-400 hover:text-white transition-colors">
+        <button onClick={() => setOpen(!open)} className="md:hidden p-2 -mr-2 text-slate-400 hover:text-white transition-colors">
           {open ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
       </div>

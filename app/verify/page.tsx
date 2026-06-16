@@ -168,7 +168,7 @@ function VerifyContent() {
 
         {/* What you get */}
         <div className="bg-gradient-to-br from-green-950/30 to-slate-900 border border-green-800/40 rounded-2xl p-5 mb-6">
-          <h2 className="text-sm font-bold text-white mb-3">What the Verified badge means</h2>
+          <h2 className="text-sm font-black text-white mb-3">What the Verified badge means</h2>
           <div className="space-y-2">
             {[
               "You appear in GC crew searches — unverified subs don't",

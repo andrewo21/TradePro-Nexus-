@@ -316,7 +316,18 @@ export default function WorkPage() {
           {/* Job cards */}
           <div className="space-y-3 mb-8">
             {filteredJobs.length === 0 && (
-              <div className="text-center py-8 text-slate-500 text-sm">No jobs match your filters.</div>
+              <div className="text-center py-12">
+                <Briefcase className="w-10 h-10 text-slate-700 mx-auto mb-3" />
+                <p className="text-slate-400 font-semibold mb-1">No jobs match your filters</p>
+                <p className="text-slate-600 text-sm mb-4">Try a different trade, location, or wage type.</p>
+                <button
+                  type="button"
+                  onClick={() => { setFilterTrade(""); setFilterLocation(""); setFilterUnionReq(""); setFilterPrevailingWage(false); setFilterDavisBacon(false); }}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-sm font-bold rounded-xl transition-colors"
+                >
+                  <X className="w-4 h-4" /> Clear Filters
+                </button>
+              </div>
             )}
             {filteredJobs.map(job => (
               <div key={job.id} className="bg-slate-800/50 border border-slate-700/50 rounded-2xl p-5">

@@ -111,7 +111,7 @@ export default function WaitlistForm({ compact = false, onSuccess }: Props) {
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex items-center justify-center gap-2 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-bold rounded-lg text-sm transition-colors"
+          className="btn-glow w-full flex items-center justify-center gap-2 py-2.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-bold rounded-lg text-sm"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><span>Get Early Access</span><ArrowRight className="w-4 h-4" /></>}
         </button>
@@ -174,7 +174,7 @@ export default function WaitlistForm({ compact = false, onSuccess }: Props) {
       <button
         type="submit"
         disabled={loading}
-        className="w-full flex items-center justify-center gap-2 py-3.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-black rounded-xl text-base transition-colors shadow-lg shadow-orange-900/30"
+        className="btn-glow w-full flex items-center justify-center gap-2 py-3.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-black rounded-xl text-base shadow-lg shadow-orange-900/30"
       >
         {loading
           ? <><Loader2 className="w-5 h-5 animate-spin" /> Reserving your spot…</>

@@ -157,7 +157,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
                 <Link
                   key={f.slug}
                   href={`/pro/${f.slug}`}
-                  className="flex items-center justify-between bg-slate-900/60 border border-slate-700/50 hover:border-orange-700/50 rounded-xl p-3 transition-colors group"
+                  className="card-hover flex items-center justify-between bg-slate-900/60 border border-slate-700/50 hover:border-orange-700/50 rounded-xl p-3 transition-colors group"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 bg-orange-600/20 border border-orange-600/40 rounded-lg flex items-center justify-center font-black text-orange-400 text-sm">

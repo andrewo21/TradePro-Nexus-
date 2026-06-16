@@ -231,7 +231,7 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
 
         {/* Company Link */}
         {company && (
-          <Link href={`/company/${company.slug}`} className="block bg-slate-800/50 border border-slate-700/50 hover:border-blue-700/60 rounded-xl p-4 mb-4 transition-colors group">
+          <Link href={`/company/${company.slug}`} className="card-hover block bg-slate-800/50 border border-slate-700/50 hover:border-blue-700/60 rounded-xl p-4 mb-4 transition-colors group">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Building2 className="w-5 h-5 text-blue-400" />

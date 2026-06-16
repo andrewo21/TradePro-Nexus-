@@ -5,8 +5,8 @@ import { Suspense, useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   ShieldCheck, Search, Zap, HardHat, Building2, CheckCircle,
-  Star, MapPin, Clock, ArrowRight, Camera, Wrench, Hammer,
-  Bolt, Flame, Wind, ChevronRight
+  Star, MapPin, Clock, ArrowRight, Wrench, Hammer,
+  Bolt, Flame, Wind, ChevronRight, Rss
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import WaitlistForm from "@/components/WaitlistForm";
@@ -15,64 +15,27 @@ import { LinkedinIcon, FacebookIcon, InstagramIcon } from "@/components/SocialIc
 import { getSupabase } from "@/lib/supabase";
 import { canBeVerified } from "@/lib/constants";
 
-// ── Mock Feed Data ─────────────────────────────────────────────────────────────
+// ── Live Feed Preview ─────────────────────────────────────────────────────────
 
-const FEED_ITEMS = [
-  {
-    name: "Marcus T.",
-    trade: "Commercial Electrician",
-    location: "Chicago, IL",
-    project: "39-Story Mixed-Use Tower: Phase 2 Roughin Complete",
-    verified: false,
-    time: "2h ago",
-    color: "orange",
-  },
-  {
-    name: "Delta Mechanical Inc.",
-    trade: "HVAC / Plumbing",
-    location: "Houston, TX",
-    project: "Senior Living Facility: HVAC Ductwork Install, 84,000 SF",
-    verified: false,
-    time: "4h ago",
-    color: "blue",
-  },
-  {
-    name: "Ray V.",
-    trade: "Ironworker / Structural Steel",
-    location: "Newark, NJ",
-    project: "Federal Courthouse Structural Steel: Topped Out",
-    verified: false,
-    time: "6h ago",
-    color: "orange",
-  },
-  {
-    name: "Pacific Fire Protection LLC",
-    trade: "Fire Suppression",
-    location: "Los Angeles, CA",
-    project: "245-Unit Apartment Complex: Sprinkler System Complete",
-    verified: false,
-    time: "8h ago",
-    color: "blue",
-  },
-  {
-    name: "Jerome K.",
-    trade: "Superintendent",
-    location: "Atlanta, GA",
-    project: "Hospital Renovation: TI Complete, Punch List Underway",
-    verified: false,
-    time: "12h ago",
-    color: "orange",
-  },
-];
-
-// Stats are fetched live — see useEffect in LandingPage.
-// Shown only when real numbers exist; launch copy shown otherwise.
-interface LiveStats { profiles: number; companies: number; waitlist: number; verified: number; }
-
-function formatCount(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(".0", "")}k+`;
-  return `${n}`;
+interface LiveFeedItem {
+  id: string;
+  name: string;
+  project: string;
+  url: string | null;
+  time: string;
+  color: "orange" | "blue";
 }
+
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
 
 const TRADES = [
   { icon: Bolt, label: "Electrical" },
@@ -109,14 +72,48 @@ interface AvailablePro {
 }
 
 export default function LandingPage() {
-  const [stats, setStats] = useState<LiveStats | null>(null);
   const [availablePros, setAvailablePros] = useState<AvailablePro[]>([]);
+  const [liveFeedItems, setLiveFeedItems] = useState<LiveFeedItem[]>([]);
+  const [liveFeedLoading, setLiveFeedLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/stats")
-      .then(r => r.json())
-      .then(setStats)
-      .catch(() => {});
+    const db = getSupabase() as any;
+    db.from("feed_posts")
+      .select("id, project_name, news_source_name, news_article_url, created_at")
+      .eq("is_industry_news", true)
+      .order("created_at", { ascending: false })
+      .limit(30)
+      .then(({ data }: { data: any[] | null }) => {
+        // Take the latest item from each distinct source, then randomly
+        // sample 5 — so the preview rotates across all sources over time
+        // instead of always showing the same handful.
+        const seenSources = new Set<string>();
+        const latestPerSource: any[] = [];
+        for (const row of data ?? []) {
+          const source = row.news_source_name ?? "Industry News";
+          if (seenSources.has(source)) continue;
+          seenSources.add(source);
+          latestPerSource.push(row);
+        }
+
+        for (let i = latestPerSource.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [latestPerSource[i], latestPerSource[j]] = [latestPerSource[j], latestPerSource[i]];
+        }
+        const diverse = latestPerSource.slice(0, 5);
+
+        const items: LiveFeedItem[] = diverse.map((row, i) => ({
+          id: row.id,
+          name: row.news_source_name ?? "Industry News",
+          project: row.project_name ?? "",
+          url: row.news_article_url ?? null,
+          time: timeAgo(row.created_at),
+          color: i % 2 === 0 ? "orange" : "blue",
+        }));
+        setLiveFeedItems(items);
+      })
+      .catch(() => {})
+      .finally(() => setLiveFeedLoading(false));
   }, []);
 
   useEffect(() => {
@@ -130,33 +127,6 @@ export default function LandingPage() {
       })
       .catch(() => {});
   }, []);
-
-  // Threshold: only show a number if it's meaningful (> 0).
-  // Below that, show honest launch copy instead of zeros or fake numbers.
-  const hasProfiles  = (stats?.profiles  ?? 0) > 0;
-  const hasWaitlist  = (stats?.waitlist  ?? 0) > 0;
-  const hasVerified  = (stats?.verified  ?? 0) > 0;
-  const hasCompanies = (stats?.companies ?? 0) > 0;
-
-  // Build the 4 stat cards dynamically based on what's real
-  const statCards = [
-    {
-      value: hasWaitlist  ? formatCount(stats!.waitlist)  : "First 50",
-      label: hasWaitlist  ? "On the waitlist"            : "GCs get founder rate locked",
-    },
-    {
-      value: hasProfiles  ? formatCount(stats!.profiles)  : "Free",
-      label: hasProfiles  ? "Trade Pros & Inspectors"    : "Build your Trade Card. Always free.",
-    },
-    {
-      value: hasVerified  ? formatCount(stats!.verified)  : "$99",
-      label: hasVerified  ? "Verified Pros"              : "One-time verification, no subscription",
-    },
-    {
-      value: hasCompanies ? formatCount(stats!.companies) : "Paper",
-      label: hasCompanies ? "GCs & Companies"            : "Verified by paper, not algorithm",
-    },
-  ];
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100">
@@ -244,20 +214,6 @@ export default function LandingPage() {
             </Link>
           </motion.div>
 
-          {/* Stats bar */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto"
-          >
-            {statCards.map((s) => (
-              <div key={s.label} className="text-center bg-slate-800 border border-slate-700 rounded-lg py-3 px-2">
-                <p className="text-2xl font-black text-orange-400">{s.value}</p>
-                <p className="text-xs text-slate-300 mt-0.5">{s.label}</p>
-              </div>
-            ))}
-          </motion.div>
         </div>
       </section>
 
@@ -270,7 +226,7 @@ export default function LandingPage() {
                 <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
                 <span className="text-xs font-bold uppercase tracking-widest text-green-400">Live Feed</span>
               </div>
-              <h2 className="text-2xl md:text-3xl font-bold text-white">Work is Currency.</h2>
+              <h2 className="text-2xl md:text-3xl font-black text-white">Work is Currency.</h2>
               <p className="text-slate-400 text-sm mt-1">Real progress from the field, updated continuously.</p>
             </div>
             <Link
@@ -282,45 +238,63 @@ export default function LandingPage() {
           </div>
 
           <div className="space-y-3">
-            {FEED_ITEMS.map((item, i) => (
-              <motion.div
-                key={item.name}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: i * 0.08 }}
-                className="flex items-start gap-4 bg-slate-800/60 border border-slate-700/50 rounded-xl p-4 hover:border-slate-600 transition-colors"
-              >
-                {/* Avatar */}
-                <div
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-sm ${
-                    item.color === "orange"
-                      ? "bg-orange-600/20 text-orange-400 border border-orange-800/50"
-                      : "bg-blue-600/20 text-blue-400 border border-blue-800/50"
-                  }`}
-                >
-                  {item.name.slice(0, 2).toUpperCase()}
+            {liveFeedLoading ? (
+              [0, 1, 2].map(i => (
+                <div key={i} className="flex items-start gap-4 bg-slate-800/60 border border-slate-700/50 rounded-xl p-4 animate-pulse">
+                  <div className="w-10 h-10 rounded-lg bg-slate-700/50 flex-shrink-0" />
+                  <div className="flex-1 min-w-0 space-y-2 py-1">
+                    <div className="h-3 bg-slate-700/50 rounded w-1/3" />
+                    <div className="h-3 bg-slate-700/50 rounded w-2/3" />
+                  </div>
                 </div>
+              ))
+            ) : liveFeedItems.length > 0 ? (
+              liveFeedItems.map((item, i) => {
+                const Wrapper = item.url ? motion.a : motion.div;
+                return (
+                  <Wrapper
+                    key={item.id}
+                    {...(item.url ? { href: item.url, target: "_blank", rel: "noopener noreferrer" } : {})}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.4, delay: i * 0.08 }}
+                    className="card-hover flex items-start gap-4 bg-slate-800/60 border border-slate-700/50 rounded-xl p-4 hover:border-slate-600 hover:bg-slate-800 transition-all"
+                  >
+                    {/* Avatar */}
+                    <div
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-sm ${
+                        item.color === "orange"
+                          ? "bg-orange-600/20 text-orange-400 border border-orange-800/50"
+                          : "bg-blue-600/20 text-blue-400 border border-blue-800/50"
+                      }`}
+                    >
+                      {item.name.slice(0, 2).toUpperCase()}
+                    </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                    <span className="font-bold text-white text-sm">{item.name}</span>
-                    {item.verified && (
-                      <span className="flex items-center gap-1 text-[10px] font-bold text-green-400 bg-green-900/30 border border-green-800/40 px-1.5 py-0.5 rounded-full">
-                        <ShieldCheck className="w-3 h-3" /> VERIFIED
-                      </span>
-                    )}
-                    <span className="text-xs text-orange-400 font-medium">{item.trade}</span>
-                  </div>
-                  <p className="text-slate-300 text-sm leading-snug">{item.project}</p>
-                  <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500">
-                    <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{item.location}</span>
-                    <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{item.time}</span>
-                    <span className="flex items-center gap-1"><Camera className="w-3 h-3" />Photos attached</span>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                        <span className="font-bold text-white text-sm">{item.name}</span>
+                        <span className="text-xs text-orange-400 font-medium">Industry News</span>
+                      </div>
+                      <p className="text-slate-300 text-sm leading-snug">{item.project}</p>
+                      <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500">
+                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{item.time}</span>
+                      </div>
+                    </div>
+                  </Wrapper>
+                );
+              })
+            ) : (
+              <div className="text-center bg-slate-800/60 border border-slate-700/50 rounded-xl p-8">
+                <Rss className="w-8 h-8 text-orange-400 mx-auto mb-3" />
+                <p className="text-white font-bold mb-1">Activity will appear here as the network grows</p>
+                <p className="text-slate-400 text-sm mb-4">Be one of the first to share an update from the field.</p>
+                <Link href="/build" className="inline-flex items-center gap-1 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold rounded-xl transition-colors">
+                  Build Your Trade Card <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            )}
           </div>
 
           <Link
@@ -336,7 +310,7 @@ export default function LandingPage() {
       <section className="py-16 px-4 sm:px-6 border-t border-slate-800">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">Two sides. One platform.</h2>
+            <h2 className="text-2xl md:text-3xl font-black text-white mb-2">Two sides. One platform.</h2>
             <p className="text-slate-400">Built for the full construction supply chain.</p>
           </div>
           <div className="grid md:grid-cols-2 gap-6">
@@ -345,7 +319,7 @@ export default function LandingPage() {
             <div className="bg-gradient-to-br from-orange-950/40 to-slate-900 border border-orange-900/40 rounded-2xl p-6">
               <div className="flex items-center gap-2 mb-4">
                 <HardHat className="w-6 h-6 text-orange-400" />
-                <h3 className="text-lg font-bold text-white">For Trade Pros</h3>
+                <h3 className="text-lg font-black text-white">For Trade Pros</h3>
               </div>
               <div className="space-y-3">
                 {[
@@ -363,7 +337,7 @@ export default function LandingPage() {
               </div>
               <Link
                 href="/build"
-                className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-lg text-sm transition-colors"
+                className="btn-glow mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-semibold rounded-lg text-sm"
               >
                 Build My Trade Card <ArrowRight className="w-4 h-4" />
               </Link>
@@ -373,7 +347,7 @@ export default function LandingPage() {
             <div className="bg-gradient-to-br from-blue-950/40 to-slate-900 border border-blue-900/40 rounded-2xl p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Building2 className="w-6 h-6 text-blue-400" />
-                <h3 className="text-lg font-bold text-white">For GCs &amp; Subs</h3>
+                <h3 className="text-lg font-black text-white">For GCs &amp; Subs</h3>
               </div>
               <div className="space-y-3">
                 {[
@@ -391,7 +365,7 @@ export default function LandingPage() {
               </div>
               <Link
                 href="/search"
-                className="mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-blue-700 hover:bg-blue-600 text-white font-semibold rounded-lg text-sm transition-colors"
+                className="btn-glow-blue mt-6 inline-flex items-center gap-2 px-5 py-2.5 bg-blue-700 hover:bg-blue-600 text-white font-semibold rounded-lg text-sm"
               >
                 Search Verified Crews <ArrowRight className="w-4 h-4" />
               </Link>
@@ -403,10 +377,10 @@ export default function LandingPage() {
       {/* ── TRADE CATEGORIES ────────────────────────────────────────────────── */}
       <section className="py-14 px-4 sm:px-6 bg-slate-900/40 border-t border-slate-800">
         <div className="max-w-7xl mx-auto">
-          <h2 className="text-xl font-bold text-white mb-6 text-center">All Major Trades. Every Sector.</h2>
+          <h2 className="text-xl font-black text-white mb-6 text-center">All Major Trades. Every Sector.</h2>
           <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-10">
             {TRADES.map(({ icon: Icon, label }) => (
-              <div key={label} className="flex flex-col items-center gap-2 bg-slate-800/60 border border-slate-700/50 rounded-xl py-4 px-2 hover:border-orange-800/50 hover:bg-orange-950/20 transition-colors cursor-pointer">
+              <div key={label} className="card-hover flex flex-col items-center gap-2 bg-slate-800/60 border border-slate-700/50 rounded-xl py-4 px-2 hover:border-orange-800/50 hover:bg-orange-950/20 transition-colors cursor-pointer">
                 <Icon className="w-6 h-6 text-orange-400" />
                 <span className="text-xs font-semibold text-slate-300">{label}</span>
               </div>
@@ -426,7 +400,7 @@ export default function LandingPage() {
       <section className="py-16 px-4 sm:px-6 border-t border-slate-800">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">The Match Engine</h2>
+            <h2 className="text-2xl md:text-3xl font-black text-white mb-2">The Match Engine</h2>
             <p className="text-slate-400 max-w-xl mx-auto">
               Three tiers. Instant clarity. Know exactly which subs can execute your project
               before you pick up the phone.
@@ -461,7 +435,7 @@ export default function LandingPage() {
           <div className="text-center mt-8">
             <Link
               href="/search"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-sm transition-colors shadow-lg shadow-orange-900/30"
+              className="btn-glow inline-flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-sm shadow-lg shadow-orange-900/30"
             >
               <Search className="w-4 h-4" /> Run a Match Search
             </Link>
@@ -549,7 +523,7 @@ export default function LandingPage() {
                 <Link
                   key={pro.id}
                   href={`/pro/${pro.slug}`}
-                  className="bg-slate-800/60 border border-slate-700 hover:border-green-700/60 rounded-2xl p-4 transition-all group"
+                  className="card-hover bg-slate-800/60 border border-slate-700 hover:border-green-700/60 rounded-2xl p-4 transition-all group"
                 >
                   <div className="flex items-center gap-3 mb-2">
                     <div className="w-10 h-10 bg-orange-600/20 border border-orange-600/40 rounded-xl flex items-center justify-center font-black text-orange-400 text-sm flex-shrink-0">

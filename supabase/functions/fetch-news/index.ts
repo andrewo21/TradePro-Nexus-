@@ -4,34 +4,32 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // ── RSS sources ──────────────────────────────────────────────────────────────
 
 const SOURCES = [
-  // Industry news
-  { name: "Engineering News-Record",                  url: "https://www.enr.com/rss" },
-  { name: "Construction Dive",                        url: "https://www.constructiondive.com/feeds/news/" },
-  { name: "Construction Executive",                   url: "https://constructionexec.com/feed" },
-  { name: "For Construction Pros",                    url: "https://www.forconstructionpros.com/rss" },
-  { name: "Electrical Contractor",                    url: "https://www.ecmweb.com/rss" },
-  { name: "Plumbing & Mechanical",                    url: "https://www.pmmag.com/rss" },
-  { name: "HVACR Business",                          url: "https://www.hvacrbusiness.com/rss" },
-  { name: "Roofing Contractor",                       url: "https://www.roofingcontractor.com/rss" },
-  { name: "OSHA News",                               url: "https://www.osha.gov/rss" },
-  { name: "Safety+Health Magazine",                   url: "https://www.safetyandhealthmagazine.com/rss" },
-  { name: "Associated General Contractors",           url: "https://www.agc.org/rss" },
-  { name: "Bureau of Labor Statistics",               url: "https://www.bls.gov/feed/bls_latest.rss" },
-  // Skilled labor & workforce
-  { name: "SkillsUSA",                               url: "https://www.skillsusa.org/feed" },
-  { name: "NCCER",                                   url: "https://www.nccer.org/rss" },
-  { name: "Construction Labor Research Council",      url: "https://www.clrc.com/rss" },
-  { name: "Autodesk Construction Cloud",              url: "https://construction.autodesk.com/rss" },
-  // Trades & apprenticeship
-  { name: "United Brotherhood of Carpenters",         url: "https://www.carpenters.org/rss" },
-  { name: "IBEW",                                    url: "https://www.ibew.org/rss" },
-  { name: "United Association (Plumbers)",            url: "https://www.ua.org/rss" },
-  { name: "NRCA",                                    url: "https://www.nrca.net/rss" },
-  // Industry business & economy
-  { name: "CFMA",                                    url: "https://www.cfma.org/rss" },
-  { name: "Procore Jobsite",                         url: "https://www.procore.com/jobsite/rss" },
-  { name: "Building Design+Construction",             url: "https://www.bdcnetwork.com/rss" },
-  { name: "Constructor Magazine",                    url: "https://www.constructormagazine.com/rss" },
+  // Industry news & trade press
+  { name: "Engineering News-Record",          url: "https://www.enr.com/rss/articles" },
+  { name: "Construction Dive",                url: "https://www.constructiondive.com/feeds/news/" },
+  { name: "Construction Executive",           url: "https://constructionexec.com/feed" },
+  { name: "For Construction Pros",            url: "https://www.forconstructionpros.com/rss" },
+  { name: "Metal Construction News",          url: "https://www.metalconstructionnews.com/rss" },
+  { name: "Construction Specifier",           url: "https://constructionspecifier.com/rss" },
+  { name: "Modern Contractor Solutions",      url: "https://www.mcsmag.com/rss" },
+  { name: "Buildings.com",                   url: "https://www.buildings.com/__rss/website-scheduled-content.xml?input=%7B%22sectionAlias%22%3A%22home%22%7D" },
+  // Safety & regulatory
+  { name: "Safety+Health Magazine",           url: "https://www.safetyandhealthmagazine.com/rss" },
+  { name: "OSHA News Releases",               url: "https://www.osha.gov/news/newsreleases.xml" },
+  { name: "Labor Press",                      url: "https://laborpress.org/feed" },
+  // Trade-specific
+  { name: "Electrical Contractor Magazine",   url: "https://www.ecmweb.com/__rss/website-scheduled-content.xml?input=%7B%22sectionAlias%22%3A%22home%22%7D" },
+  { name: "Contracting Business",             url: "https://www.contractingbusiness.com/__rss/website-scheduled-content.xml?input=%7B%22sectionAlias%22%3A%22home%22%7D" },
+  { name: "Plumbing Perspective",             url: "https://www.plumbingperspective.com/feed" },
+  // Skilled labor & workforce development
+  { name: "SkillsUSA",                        url: "https://www.skillsusa.org/feed" },
+  { name: "NCCER",                            url: "https://www.nccer.org/rss" },
+  // Trades & unions
+  { name: "United Brotherhood of Carpenters", url: "https://www.carpenters.org/rss" },
+  { name: "IBEW",                             url: "https://www.ibew.org/rss" },
+  // Industry associations
+  { name: "AGC News",                         url: "https://news.agc.org/feed/" },
+  { name: "Constructor Magazine",             url: "https://news.agc.org/category/constructor-magazine/feed/" },
 ];
 
 const MAX_PER_SOURCE = 3;

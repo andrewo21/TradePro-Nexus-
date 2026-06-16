@@ -64,7 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </p>
           <Link
             href="/#waitlist"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-sm transition-colors"
+            className="btn-glow inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-sm"
           >
             Get Early Access — Free
           </Link>

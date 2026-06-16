@@ -452,7 +452,7 @@ function PostCard({
                 key={r.type}
                 onClick={() => currentUserId && onReact(r.type)}
                 title={r.label}
-                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs transition-all ${
+                className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs transition-all ${
                   active
                     ? "bg-orange-100 border border-orange-300 text-orange-700"
                     : "bg-slate-100 border border-slate-200 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
@@ -684,8 +684,7 @@ function PostComposer({ onPost, promptContent }: { onPost: (newBadges?: Badge[])
 
   return (
     <div className="bg-slate-800 border border-slate-600 rounded-2xl p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-widest text-slate-300">New Post</span>
+      <div className="flex items-center justify-end">
         <button onClick={handleDiscard} className="text-slate-400 hover:text-slate-200 transition-colors"><X className="w-4 h-4" /></button>
       </div>
 
@@ -1178,7 +1177,7 @@ function FeedPageInner() {
               // Inject sponsored card every 5 posts (after index 4, 9, 14…)
               // Roadmap: "every 5-6 posts — sponsored/ad card, clearly labeled"
               <div key={post.id}>
-                {i > 0 && i % 5 === 0 && <div className="mb-4"><FeedAdCard index={Math.floor(i / 5) - 1} /></div>}
+                {i > 0 && i % 5 === 0 && <div className="mb-4"><FeedAdCard /></div>}
               {editingPost?.id === post.id ? (
                 <EditComposer key={post.id} post={post} onDone={() => { setEditingPost(null); fetchPosts(); }} onCancel={() => setEditingPost(null)} />
               ) : (
@@ -1210,7 +1209,21 @@ function FeedPageInner() {
           <div className="text-center py-20">
             <Rss className="w-12 h-12 text-slate-700 mx-auto mb-3" />
             <p className="text-slate-400 font-semibold mb-1">{search || availableNow ? "No posts match your filters" : "The feed is empty right now"}</p>
-            {!currentUser && <Link href="/signup" className="inline-flex items-center gap-2 mt-4 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold rounded-xl transition-colors"><HardHat className="w-4 h-4" /> Join and Post Updates</Link>}
+            <p className="text-slate-600 text-sm">{search || availableNow ? "Try a different search or clear your filters." : "Be one of the first to share an update from the field."}</p>
+            {availableNow ? (
+              <Link href="/feed" className="inline-flex items-center gap-2 mt-4 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-sm font-bold rounded-xl transition-colors">
+                Clear Filters
+              </Link>
+            ) : search ? (
+              <button
+                onClick={() => setSearch("")}
+                className="inline-flex items-center gap-2 mt-4 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-sm font-bold rounded-xl transition-colors"
+              >
+                Clear Filters
+              </button>
+            ) : !currentUser ? (
+              <Link href="/signup" className="inline-flex items-center gap-2 mt-4 px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold rounded-xl transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-orange-600/20"><HardHat className="w-4 h-4" /> Join and Post Updates</Link>
+            ) : null}
           </div>
         )}
       </div>
