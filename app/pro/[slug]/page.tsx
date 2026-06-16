@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { ShieldCheck, MapPin, Users, Briefcase, Phone, Mail, Camera, CheckCircle, Building2, HardHat, FileText, Ruler, Wrench, Shield, Landmark } from "lucide-react";
+import { ShieldCheck, MapPin, Users, Briefcase, Phone, Mail, Camera, CheckCircle, Building2, FileText, Ruler, Wrench, Shield, Landmark } from "lucide-react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { getSupabaseServer } from "@/lib/supabaseServer";
@@ -8,6 +8,7 @@ import FollowButton from "@/components/FollowButton";
 import ProfileViewTracker from "@/components/ProfileViewTracker";
 import { PROFILE_TYPES, canBeVerified } from "@/lib/constants";
 import BadgeDisplay from "@/components/BadgeDisplay";
+import OwnerProfileBar from "@/components/OwnerProfileBar";
 
 function VerificationBadge({ status, profileType }: { status: string; profileType: string }) {
   // Individual trade workers are never verified — show nothing at all.
@@ -43,13 +44,14 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = (await getSupabaseServer()) as any;
 
-  const { data: profile } = (await db
-    .from("profiles")
-    .select("*")
-    .eq("slug", slug)
-    .single()) as { data: Profile | null; error: unknown };
+  const [{ data: profile }, { data: { user } }] = await Promise.all([
+    db.from("profiles").select("*").eq("slug", slug).single() as Promise<{ data: Profile | null; error: unknown }>,
+    db.auth.getUser(),
+  ]);
 
   if (!profile) notFound();
+
+  const isOwner = !!user && user.id === profile.user_id;
 
   const { data: company } = profile.company_id
     ? ((await db
@@ -91,6 +93,19 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
       {/* Records GC profile view client-side for push notification trigger */}
       <ProfileViewTracker profileId={profile.id} />
       <div className="max-w-2xl mx-auto px-4 pt-24 pb-16">
+
+        {isOwner && (
+          <OwnerProfileBar
+            profileId={profile.id}
+            initialBio={(profile as any).bio ?? ""}
+            initialPhone={(profile as any).phone ?? ""}
+            initialEmail={(profile as any).email ?? ""}
+            initialCity={profile.location_city ?? ""}
+            initialState={profile.location_state ?? ""}
+            initialTrade={profile.trade ?? ""}
+            initialYears={(profile as any).years_experience ?? 0}
+          />
+        )}
 
         {/* Hero Card */}
         <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/60 rounded-2xl p-6 mb-4">

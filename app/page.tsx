@@ -121,6 +121,7 @@ export default function LandingPage() {
     db.from("profiles")
       .select("id, slug, first_name, last_name, trade, location_city, location_state, verification_status, profile_type")
       .eq("availability_status", "available")
+      .neq("is_internal", true)
       .limit(6)
       .then(({ data }: { data: AvailablePro[] | null }) => {
         if (data?.length) setAvailablePros(data);
