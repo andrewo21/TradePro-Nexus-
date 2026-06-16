@@ -179,7 +179,7 @@ function getSteps(profileType: ProfileType) {
 
 export default function BuildPage() {
   const router = useRouter();
-  const [profileType, setProfileType] = useState<ProfileType | null>(null);
+  const [profileType, setProfileType] = useState<ProfileType>("tradepro");
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>(defaultForm());
   const [submitted, setSubmitted] = useState(false);
@@ -189,9 +189,13 @@ export default function BuildPage() {
   const [authChecking, setAuthChecking] = useState(true);
   const [isAuthed, setIsAuthed] = useState(false);
 
-  // Gate: check auth before showing the form
+  // Gate: check auth before showing the form. 2-second hard timeout so
+  // a stalled Supabase call never leaves the page in a spinner forever.
   useEffect(() => {
+    const timeout = setTimeout(() => setAuthChecking(false), 2000);
+
     getSupabase()?.auth.getUser().then(async ({ data: { user } }) => {
+      clearTimeout(timeout);
       if (!user) {
         setIsAuthed(false);
         setAuthChecking(false);
@@ -213,6 +217,8 @@ export default function BuildPage() {
       if (existing?.slug) router.replace(`/pro/${existing.slug}`);
       else setAuthChecking(false);
     });
+
+    return () => clearTimeout(timeout);
   }, [router]);
 
   function set<K extends keyof FormData>(key: K, value: FormData[K]) {
@@ -391,14 +397,6 @@ export default function BuildPage() {
             </div>
           </motion.div>
         </div>
-      </div>
-    );
-  }
-
-  if (!profileType) {
-    return (
-      <div className="min-h-screen bg-[#0f172a] text-slate-100"><Navbar />
-        <div className="flex items-center justify-center min-h-screen"><div className="text-slate-500">Loading your profile type…</div></div>
       </div>
     );
   }

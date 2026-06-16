@@ -111,9 +111,15 @@ export default function Navbar() {
             href="https://www.tradeprotech.ai"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 text-slate-500 hover:text-slate-300 transition-colors text-xs border-l border-slate-700 pl-4"
+            title="Build your trades résumé at TradePro Tech — then import it directly to your Trade Card"
+            className="group flex flex-col border-l border-slate-700 pl-4"
           >
-            Résumé Builder ↗
+            <span className="text-xs text-slate-400 group-hover:text-slate-200 transition-colors font-semibold">
+              Build Your Résumé at TradePro Tech ↗
+            </span>
+            <span className="text-[10px] text-slate-600 group-hover:text-slate-500 transition-colors leading-tight">
+              Import directly to your Trade Card
+            </span>
           </a>
 
           {user && availability && availConfig ? (
