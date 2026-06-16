@@ -444,30 +444,38 @@ export default function LandingPage() {
       </section>
 
       {/* ── TRUST STATEMENT ─────────────────────────────────────────────────── */}
-      {/* Roadmap: explicit callout that we are NOT a pay-to-play rating platform */}
       <section className="py-14 px-4 sm:px-6 bg-slate-900/50 border-t border-slate-800">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-10">
             <span className="inline-block px-3 py-1.5 bg-orange-950/60 border border-orange-800/50 text-orange-400 text-xs font-bold rounded-full uppercase tracking-wider mb-4">
-              Trust Statement
+              How We Are Different
             </span>
             <h2 className="text-2xl md:text-3xl font-black text-white mb-4">
-              We are not a pay-to-play platform.
+              Built for contractors. Not for compliance departments.
             </h2>
             <p className="text-slate-300 text-lg max-w-2xl mx-auto leading-relaxed">
-              The construction industry has been burned by prequalification platforms that turned safety scores into a subscription business and charged contractors to maintain grades. We are not that.
+              The construction industry already has enough platforms that will grade your safety record, score your financials, and sell that data back to you as a subscription. That is not what this is.
             </p>
           </div>
 
           <div className="grid sm:grid-cols-3 gap-4 mb-8">
             {[
-              { label: "Not ISNetworld", desc: "No prequalification scores, no EMR ratings, no OCIP determinations" },
-              { label: "Not Avetta or Browz", desc: "No grading system. No ranking contractors above each other." },
-              { label: "Not a Rating Platform", desc: "Badge = eligible. Not rated. Lack of a badge is not a quality judgment." },
+              {
+                heading: "Verified or not. That's it.",
+                body: "No scores. No grades. No EMR ratings. You are either verified or you are not. Simple.",
+              },
+              {
+                heading: "No rankings.",
+                body: "We do not rank contractors against each other. A verified electrician in Tampa is not better or worse than a verified electrician in Houston. They are both verified.",
+              },
+              {
+                heading: "No judgment.",
+                body: "Not having a badge does not mean you are a bad contractor. It just means you have not been through our process yet. No judgment. No grades.",
+              },
             ].map(item => (
-              <div key={item.label} className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4">
-                <p className="text-red-400 font-bold text-sm mb-1 line-through opacity-60">{item.label}</p>
-                <p className="text-slate-300 text-sm">{item.desc}</p>
+              <div key={item.heading} className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4">
+                <p className="text-orange-400 font-black text-sm mb-2">{item.heading}</p>
+                <p className="text-slate-300 text-sm leading-relaxed">{item.body}</p>
               </div>
             ))}
           </div>

@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   HardHat, ChevronRight, ChevronLeft, Upload, CheckCircle,
   User, Briefcase, ShieldCheck, ImageIcon, Calendar, ArrowRight,
-  AlertCircle, X, Loader2, FileText, Ruler, Wrench, Shield
+  AlertCircle, X, Loader2, FileText, Ruler, Wrench, Shield, Lock
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
@@ -668,8 +668,13 @@ export default function BuildPage() {
                   {profileType === "sub" && (
                     <FileUploadZone label="Bonding Certificate" hint="Upload bonding cert PDF — AI extracts capacity and expiration" file={form.bondingFile} onChange={f => set("bondingFile", f)} />
                   )}
-                  <FileUploadZone label="Certificate of Insurance (COI)" hint="Current COI — expiration date tracked automatically" file={form.coiFile} onChange={f => set("coiFile", f)} />
-                  <FileUploadZone label="W9 Form" hint="Tax compliance verification" file={form.w9File} onChange={f => set("w9File", f)} />
+                  <div className="flex items-center gap-3 bg-slate-900/60 border border-slate-700/40 rounded-lg p-3.5 opacity-60 cursor-not-allowed">
+                    <Lock className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-slate-400">COI &amp; W9</p>
+                      <p className="text-xs text-slate-500">Available with Sub Qualification — coming soon</p>
+                    </div>
+                  </div>
                 </div>
                 <div className="flex items-start gap-2 bg-blue-950/30 border border-blue-800/40 rounded-lg p-3">
                   <AlertCircle className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
