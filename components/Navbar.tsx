@@ -105,7 +105,7 @@ export default function Navbar() {
             <Search className="w-4 h-4" /> Find Crews
           </Link>
           <Link href="/work" className="flex items-center gap-1.5 text-slate-400 hover:text-orange-400 transition-colors">
-            Work Opportunities
+            Work &amp; Union Opportunities
           </Link>
 
           {user && availability && availConfig ? (
@@ -176,7 +176,7 @@ export default function Navbar() {
             <Search className="w-4 h-4" /> Find Crews
           </Link>
           <Link href="/work" onClick={() => setOpen(false)} className="flex items-center gap-2 text-slate-300 hover:text-orange-400 py-2 transition-colors">
-            Work Opportunities
+            Work &amp; Union Opportunities
           </Link>
 
           {user && availability && availConfig && (
