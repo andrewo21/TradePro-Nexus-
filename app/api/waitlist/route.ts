@@ -94,7 +94,8 @@ function buildEmail({
         <tr><td style="padding:0 32px 32px;text-align:center;border-top:1px solid #1e293b;">
           <p style="color:#475569;font-size:12px;margin:24px 0 0;">
             TradePro Nexus · A TradePro Enterprises product<br>
-            <span style="color:#334155;">Verified by Paper. Not by Algorithm.</span>
+            <span style="color:#334155;">Verified by Paper. Not by Algorithm.</span><br>
+            <span style="color:#334155;">TradePro Technologies LLC | 17629 Fallen Branch Way, Punta Gorda FL 33982</span>
           </p>
         </td></tr>
 
@@ -125,8 +126,8 @@ async function sendConfirmationEmail({
   console.log(apiKey ? `NEXUS_KEY_FOUND:${apiKey.slice(0, 5)}` : "NEXUS_KEY_MISSING");
   if (!apiKey) return;
 
-  console.log("SG_BEFORE_FETCH");
   try {
+    const html = buildEmail({ name, position, userType, referralCode, referralLink });
     const sgRes = await fetch("https://api.sendgrid.com/v3/mail/send", {
       method: "POST",
       headers: {
@@ -136,8 +137,8 @@ async function sendConfirmationEmail({
       body: JSON.stringify({
         personalizations: [{ to: [{ email: to }] }],
         from: { email: "no-reply@tradepronexus.com", name: "TradePro Nexus" },
-        subject: "Waitlist test — TradePro Nexus",
-        content: [{ type: "text/plain", value: `Hi ${name}, you are #${position} on the list. Code: ${referralCode}` }],
+        subject: "You're on the waitlist — TradePro Nexus",
+        content: [{ type: "text/html", value: html }],
       }),
     });
     const body = await sgRes.text();
