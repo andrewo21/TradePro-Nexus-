@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { HardHat, Building2, ArrowRight, Mail, Lock, User, CheckCircle, ShieldCheck, Ruler, Wrench } from "lucide-react";
 import Navbar from "@/components/Navbar";
@@ -57,8 +57,10 @@ const COLOR_MAP = {
   },
 };
 
-export default function SignupPage() {
+function SignupPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const nextParam = searchParams.get("next");
   const [accountType, setAccountType] = useState<AccountType>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -92,13 +94,13 @@ export default function SignupPage() {
             role: isGC ? "gc" : "tradepro", // for legacy compat — profile_type stored on profile row
             profile_type: accountType,       // the full type used by Phase 10
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=${isGC ? "/search" : "/build"}`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextParam || (isGC ? "/search" : "/build"))}`,
         },
       });
       if (authError) throw authError;
       trackEvent("signup", { account_type: accountType });
       if (data.session) {
-        router.push(isGC ? "/search" : "/build");
+        router.push(nextParam || (isGC ? "/search" : "/build"));
         router.refresh();
       } else {
         setCheckEmail(true);
@@ -244,5 +246,17 @@ export default function SignupPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <SignupPageInner />
+    </Suspense>
   );
 }

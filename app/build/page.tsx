@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   HardHat, ChevronRight, ChevronLeft, Upload, CheckCircle,
@@ -177,8 +177,11 @@ function getSteps(profileType: ProfileType) {
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 
-export default function BuildPage() {
+function BuildPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const claimToken = searchParams.get("claim");
+  const claimBusiness = searchParams.get("business");
   const [profileType, setProfileType] = useState<ProfileType>("tradepro");
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormData>(defaultForm());
@@ -188,6 +191,10 @@ export default function BuildPage() {
   const [finalSlug, setFinalSlug] = useState("");
   const [authChecking, setAuthChecking] = useState(true);
   const [isAuthed, setIsAuthed] = useState(false);
+  const [claimData, setClaimData] = useState<{
+    id: string; business_name: string; city?: string; state?: string;
+    phone?: string; email?: string; license_number?: string;
+  } | null>(null);
 
   // Gate: check auth before showing the form. 2-second hard timeout so
   // a stalled Supabase call never leaves the page in a spinner forever.
@@ -220,6 +227,28 @@ export default function BuildPage() {
 
     return () => clearTimeout(timeout);
   }, [router]);
+
+  // When auth resolves and a claim token is present, fetch the unclaimed profile
+  // and pre-fill what we know (firm name, email, phone, city, state, license).
+  useEffect(() => {
+    if (!isAuthed || !claimToken) return;
+    fetch(`/api/registry/claim?token=${encodeURIComponent(claimToken)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((data) => {
+        if (!data || data.error) return;
+        setClaimData(data);
+        setForm(prev => ({
+          ...prev,
+          firmName: data.business_name || prev.firmName,
+          email: data.email || prev.email,
+          phone: data.phone || prev.phone,
+          locationCity: data.city || prev.locationCity,
+          locationState: data.state || prev.locationState,
+          licenseNumber: data.license_number || prev.licenseNumber,
+        }));
+      })
+      .catch(() => {});
+  }, [isAuthed, claimToken]);
 
   function set<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -339,6 +368,15 @@ export default function BuildPage() {
       // Check for Profile Champion badge (fire-and-forget)
       fetch("/api/badges/check?trigger=profile", { method: "POST" }).catch(() => {});
 
+      // If arriving from a registry claim link, mark the unclaimed profile as claimed
+      if (claimToken) {
+        fetch("/api/registry/claim", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: claimToken }),
+        }).catch(() => {});
+      }
+
       setFinalSlug(slug);
       setSubmitted(true);
     } catch (err: unknown) {
@@ -424,13 +462,13 @@ export default function BuildPage() {
           </p>
           <div className="space-y-3">
             <Link
-              href="/signup"
+              href={`/signup?next=${encodeURIComponent(claimToken ? `/build?claim=${claimToken}${claimBusiness ? `&business=${encodeURIComponent(claimBusiness)}` : ""}` : "/build")}`}
               className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-xl text-base transition-colors"
             >
               <HardHat className="w-5 h-5" /> Create Account — Free
             </Link>
             <Link
-              href="/login"
+              href={`/login?next=${encodeURIComponent(claimToken ? `/build?claim=${claimToken}${claimBusiness ? `&business=${encodeURIComponent(claimBusiness)}` : ""}` : "/build")}`}
               className="w-full flex items-center justify-center gap-2 px-6 py-3.5 border border-slate-600 hover:border-slate-400 text-slate-300 hover:text-white font-semibold rounded-xl text-base transition-colors"
             >
               Already have an account? Sign In
@@ -455,6 +493,19 @@ export default function BuildPage() {
             <p className="text-sm text-slate-400">{typeConfig.label} · Visible to GCs, owners, and the full construction network</p>
           </div>
         </div>
+
+        {/* Claim banner — only shown when arriving from a registry outreach link */}
+        {claimData && (
+          <div className="mb-6 flex items-start gap-3 bg-orange-950/40 border border-orange-700/50 rounded-xl px-4 py-3.5">
+            <CheckCircle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-orange-300">We found your business listing</p>
+              <p className="text-xs text-orange-400/80 mt-0.5">
+                Details for <span className="font-semibold">{claimData.business_name}</span> are pre-filled below. Update anything and publish your Trade Card to claim this profile.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Step progress */}
         <div className="flex items-center gap-1 mb-8">
@@ -888,5 +939,17 @@ export default function BuildPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function BuildPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <BuildPageInner />
+    </Suspense>
   );
 }
