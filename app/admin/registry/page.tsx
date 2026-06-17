@@ -153,6 +153,7 @@ export default function RegistryAdminPage() {
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvState, setCsvState] = useState("FL");
   const [promoteState, setPromoteState] = useState("FL");
+  const [testBatchRunning, setTestBatchRunning] = useState(false);
   const [outreachConfirmOpen, setOutreachConfirmOpen] = useState(false);
   const [outreachSettingsOpen, setOutreachSettingsOpen] = useState(false);
   const [outreachSettingsForm, setOutreachSettingsForm] = useState({
@@ -307,6 +308,24 @@ export default function RegistryAdminPage() {
     fetchStatus();
   }
 
+  async function sendTestBatch() {
+    setTestBatchRunning(true);
+    try {
+      const res = await fetch("/api/admin/registry/outreach-test-batch", { method: "POST" });
+      const d = await res.json();
+      if (res.ok && d.sent !== undefined) {
+        msg("ok", `Test batch sent: ${d.sent} delivered, ${d.failed} failed — all routed to test email.`);
+      } else {
+        msg("err", d.error ?? d.skipped ?? "Test batch failed.");
+      }
+    } catch {
+      msg("err", "Network error — test batch not sent.");
+    } finally {
+      setTestBatchRunning(false);
+      fetchStatus();
+    }
+  }
+
   function openOutreachSettings() {
     if (statusData) {
       setOutreachSettingsForm({
@@ -419,6 +438,16 @@ export default function RegistryAdminPage() {
               <div className="flex items-center gap-2">
                 <button onClick={openOutreachSettings} className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5">
                   <Settings className="w-3.5 h-3.5" /> Settings
+                </button>
+                <button
+                  onClick={sendTestBatch}
+                  disabled={testBatchRunning}
+                  className="px-3 py-2 bg-orange-700 hover:bg-orange-600 disabled:opacity-50 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5"
+                >
+                  {testBatchRunning
+                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sending…</>
+                    : <><Mail className="w-3.5 h-3.5" /> Send Test Batch</>
+                  }
                 </button>
                 {statusData.outreach.enabled ? (
                   <button onClick={() => applyOutreachSetting(false)} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-xl transition-colors flex items-center gap-1.5">

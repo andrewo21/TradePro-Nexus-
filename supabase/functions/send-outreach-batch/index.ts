@@ -117,12 +117,19 @@ async function sendViaSendGrid(toEmail: string, subject: string, html: string): 
   }
 }
 
-Deno.serve(async (_req: Request) => {
+Deno.serve(async (req: Request) => {
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
+
+  // Optional body: { force_test: true, limit: 10 } lets the admin UI fire a preview
+  // batch without touching the outreach_enabled master switch. Test sends are NOT
+  // written to outreach_log so the same profiles remain eligible for real outreach.
+  const body = await req.json().catch(() => ({}));
+  const forceTest  = body.force_test === true;
+  const forceLimit = forceTest ? Math.min(Number(body.limit ?? 10), 10) : null;
 
   // ── Master switch check — FIRST, before anything else ──────────────────────
   const { data: settings } = await supabase
@@ -139,15 +146,17 @@ Deno.serve(async (_req: Request) => {
   const sm: Record<string, string> = {};
   for (const row of settings ?? []) sm[row.key] = row.value;
 
-  if (sm["outreach_enabled"] !== "true") {
+  // force_test bypasses the master switch — admin-initiated preview only
+  if (!forceTest && sm["outreach_enabled"] !== "true") {
     return new Response(JSON.stringify({ skipped: "disabled" }), {
       headers: { "Content-Type": "application/json" },
     });
   }
 
-  const testMode  = sm["outreach_test_mode"] === "true";
+  // force_test always sends to the test address regardless of outreach_test_mode setting
+  const testMode  = forceTest ? true : sm["outreach_test_mode"] === "true";
   const testEmail = sm["outreach_test_email"] || "";
-  const batchSize = Math.max(1, Math.min(500, parseInt(sm["outreach_batch_size"] ?? "50") || 50));
+  const batchSize = forceLimit ?? Math.max(1, Math.min(500, parseInt(sm["outreach_batch_size"] ?? "50") || 50));
   const physicalAddress = sm["outreach_physical_address"] || "TradePro Technologies LLC | TradePro Nexus, 17629 Fallen Branch Way, Punta Gorda, FL 33982";
 
   // ── Select eligible, not-yet-contacted profiles ─────────────────────────────
@@ -202,24 +211,30 @@ Deno.serve(async (_req: Request) => {
 
     if (result.ok) sent++; else failed++;
 
-    await supabase.from("outreach_log").insert({
-      unclaimed_profile_id: profile.id,
-      source_state: profile.source_state,
-      email: profile.email,
-      is_test: testMode,
-      status: result.ok ? "sent" : "failed",
-      sendgrid_message_id: result.messageId,
-      sent_at: result.ok ? new Date().toISOString() : null,
-      error_detail: result.error,
-      email_number: 1,
-    });
+    // Skip outreach_log for force_test runs so these profiles remain eligible
+    // for real outreach when the master switch is eventually enabled.
+    if (!forceTest) {
+      await supabase.from("outreach_log").insert({
+        unclaimed_profile_id: profile.id,
+        source_state: profile.source_state,
+        email: profile.email,
+        is_test: testMode,
+        status: result.ok ? "sent" : "failed",
+        sendgrid_message_id: result.messageId,
+        sent_at: result.ok ? new Date().toISOString() : null,
+        error_detail: result.error,
+        email_number: 1,
+      });
+    }
   }
 
-  const now = new Date().toISOString();
-  await supabase.from("admin_settings").upsert([
-    { key: "outreach_last_run",   value: now },
-    { key: "outreach_last_count", value: String(sent) },
-  ], { onConflict: "key" });
+  if (!forceTest) {
+    const now = new Date().toISOString();
+    await supabase.from("admin_settings").upsert([
+      { key: "outreach_last_run",   value: now },
+      { key: "outreach_last_count", value: String(sent) },
+    ], { onConflict: "key" });
+  }
 
   return new Response(
     JSON.stringify({ ok: true, sent, failed, candidates: batch.length, testMode }),
