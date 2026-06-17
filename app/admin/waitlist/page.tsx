@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Users, HardHat, Building2, ArrowRight, Activity, TrendingUp, PenLine } from "lucide-react";
+import { Users, HardHat, Building2, ArrowRight, Activity, TrendingUp, PenLine, BarChart2 } from "lucide-react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { getSupabaseAdmin, getSupabaseServer } from "@/lib/supabaseServer";
@@ -32,6 +32,7 @@ export default async function AdminWaitlistPage() {
     { data: recent },
     { data: topReferrers },
     { data: engagementData },
+    { data: trafficData },
   ] = await Promise.all([
     db.from("waitlist").select("*", { count: "exact", head: true }),
     db.from("waitlist").select("*", { count: "exact", head: true }).eq("user_type", "pro"),
@@ -39,6 +40,7 @@ export default async function AdminWaitlistPage() {
     db.from("waitlist").select("name, email, user_type, position, referral_code, created_at").order("created_at", { ascending: false }).limit(20),
     db.from("waitlist").select("referral_code, name").limit(500),
     db.rpc("get_platform_engagement_stats"),
+    db.from("site_daily_visits").select("date, visits").order("date", { ascending: false }).limit(30),
   ]);
 
   const engagement = engagementData as {
@@ -46,6 +48,22 @@ export default async function AdminWaitlistPage() {
     mau: number;
     active_posting_users: number;
   } | null;
+
+  // Site traffic stats
+  type TrafficRow = { date: string; visits: number };
+  const traffic = (trafficData as TrafficRow[] | null) ?? [];
+  const todayStr = new Date().toISOString().split("T")[0];
+  const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split("T")[0];
+  const todayVisits   = traffic.find(r => r.date === todayStr)?.visits ?? 0;
+  const yestVisits    = traffic.find(r => r.date === yesterdayStr)?.visits ?? 0;
+  const last7Total    = traffic.filter(r => r.date >= new Date(Date.now() - 6 * 86400000).toISOString().split("T")[0]).reduce((s, r) => s + r.visits, 0);
+  const last30Total   = traffic.reduce((s, r) => s + r.visits, 0);
+  // Last 7 days ordered ascending for the bar chart
+  const chart7 = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(Date.now() - (6 - i) * 86400000).toISOString().split("T")[0];
+    return { date: d, visits: traffic.find(r => r.date === d)?.visits ?? 0 };
+  });
+  const chartMax = Math.max(...chart7.map(r => r.visits), 1);
 
   // News feed settings
   const { data: newsSettings } = await db
@@ -144,6 +162,59 @@ export default async function AdminWaitlistPage() {
               <span>Posting rate: <strong className="text-slate-300">{Math.round((engagement.active_posting_users / engagement.total_registered) * 100)}%</strong></span>
             </div>
           )}
+        </div>
+
+        {/* Site Traffic */}
+        <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-5 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart2 className="w-4 h-4 text-blue-400" />
+            <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400">Site Traffic</h2>
+            <span className="text-[10px] text-slate-600 ml-auto">page loads, bots excluded</span>
+          </div>
+
+          {/* Stat tiles */}
+          <div className="grid grid-cols-4 gap-3 mb-5">
+            <div className="bg-slate-900/60 border border-slate-700/40 rounded-xl p-3 text-center">
+              <p className="text-2xl font-black text-white">{todayVisits.toLocaleString()}</p>
+              <p className="text-[10px] text-slate-400 mt-1 font-semibold uppercase tracking-wide">Today</p>
+            </div>
+            <div className="bg-slate-900/60 border border-slate-700/40 rounded-xl p-3 text-center">
+              <p className="text-2xl font-black text-slate-300">{yestVisits.toLocaleString()}</p>
+              <p className="text-[10px] text-slate-400 mt-1 font-semibold uppercase tracking-wide">Yesterday</p>
+            </div>
+            <div className="bg-blue-950/30 border border-blue-900/40 rounded-xl p-3 text-center">
+              <p className="text-2xl font-black text-blue-400">{last7Total.toLocaleString()}</p>
+              <p className="text-[10px] text-slate-400 mt-1 font-semibold uppercase tracking-wide">Last 7 Days</p>
+            </div>
+            <div className="bg-slate-900/60 border border-slate-700/40 rounded-xl p-3 text-center">
+              <p className="text-2xl font-black text-slate-300">{last30Total.toLocaleString()}</p>
+              <p className="text-[10px] text-slate-400 mt-1 font-semibold uppercase tracking-wide">Last 30 Days</p>
+            </div>
+          </div>
+
+          {/* 7-day bar chart */}
+          <div className="flex items-end gap-1.5 h-16">
+            {chart7.map(({ date, visits }) => {
+              const heightPct = Math.round((visits / chartMax) * 100);
+              const isToday = date === todayStr;
+              return (
+                <div key={date} className="flex-1 flex flex-col items-center gap-1">
+                  <span className="text-[9px] text-slate-500 font-mono leading-none">
+                    {visits > 0 ? visits.toLocaleString() : ""}
+                  </span>
+                  <div className="w-full flex items-end" style={{ height: "36px" }}>
+                    <div
+                      className={`w-full rounded-t transition-all ${isToday ? "bg-blue-500" : "bg-slate-600"}`}
+                      style={{ height: `${Math.max(heightPct, visits > 0 ? 8 : 2)}%` }}
+                    />
+                  </div>
+                  <span className="text-[9px] text-slate-600 leading-none">
+                    {new Date(date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" })}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* News Feed Admin */}

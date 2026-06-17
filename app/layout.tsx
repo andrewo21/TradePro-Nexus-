@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import WaitlistMobileBar from "@/components/WaitlistMobileBar";
 import PushNotificationProvider from "@/components/PushNotificationProvider";
+import SiteTracker from "@/components/SiteTracker";
 import { Suspense } from "react";
 import Link from "next/link";
 import Script from "next/script";
@@ -96,6 +97,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         {/* Push notification service worker registration */}
         <PushNotificationProvider />
+
+        {/* Site visit tracker — client-side, fire-and-forget */}
+        <Suspense fallback={null}>
+          <SiteTracker />
+        </Suspense>
       </body>
     </html>
   );
