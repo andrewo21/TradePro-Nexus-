@@ -72,7 +72,7 @@ function buildEmailHtml(opts: {
       </div>
     </td></tr>
     <tr><td style="padding:16px 32px 28px;border-top:1px solid #334155;text-align:center;">
-      <p style="margin:0 0 8px;color:#475569;font-size:12px;">TradePro Nexus &middot; A TradePro Enterprises product</p>
+      <p style="margin:0 0 8px;color:#475569;font-size:12px;">TradePro Nexus &middot; A TradePro Technologies LLC product</p>
       <p style="margin:0 0 8px;color:#475569;font-size:11px;">This email is a commercial advertisement sent by TradePro Technologies.</p>
       <p style="margin:0 0 8px;color:#475569;font-size:11px;">${opts.physicalAddress}</p>
       <p style="margin:0;color:#475569;font-size:11px;">
