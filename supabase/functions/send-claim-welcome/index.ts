@@ -2,17 +2,13 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 // ── Claim welcome sender (Email 3) ──────────────────────────────────────────────
-// Transactional — NOT a promotional/CAN-SPAM email, so no commercial-advertisement
-// disclosure and no batching. Call this once, synchronously, when a registry
-// outreach profile (unclaimed_profiles) is successfully claimed:
+// Transactional — NOT a promotional/CAN-SPAM email. Fires once when a contractor
+// successfully claims their registry profile. Does NOT check outreach_enabled —
+// that switch gates batch promotional outreach, not user-triggered transactions.
 //
 //   POST /functions/v1/send-claim-welcome   { "unclaimed_profile_id": "<uuid>" }
 //
-// NOT YET WIRED UP — Session 6 builds the actual "Claim This Profile" flow and
-// should call this endpoint after marking unclaimed_profiles.claimed = true.
-//
-// SAFETY: still checks admin_settings.outreach_enabled first, consistent with the
-// rest of the outreach system — no-ops while the master switch is off.
+// Respects outreach_test_mode: in test mode, all mail routes to outreach_test_email.
 
 const SITE_URL          = "https://www.tradepronexus.com";
 const SENDGRID_API_KEY  = Deno.env.get("SENDGRID_API_KEY_NEXUS") ?? "";
@@ -130,20 +126,14 @@ Deno.serve(async (req: Request) => {
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 
-  // ── Master switch check — FIRST, before anything else ──────────────────────
+  // Fetch test-mode settings only — outreach_enabled does not gate this function
   const { data: settings } = await supabase
     .from("admin_settings")
     .select("key, value")
-    .in("key", ["outreach_enabled", "outreach_test_mode", "outreach_test_email", "outreach_physical_address"]);
+    .in("key", ["outreach_test_mode", "outreach_test_email", "outreach_physical_address"]);
 
   const sm: Record<string, string> = {};
   for (const row of settings ?? []) sm[row.key] = row.value;
-
-  if (sm["outreach_enabled"] !== "true") {
-    return new Response(JSON.stringify({ skipped: "disabled" }), {
-      headers: { "Content-Type": "application/json" },
-    });
-  }
 
   const testMode  = sm["outreach_test_mode"] === "true";
   const testEmail = sm["outreach_test_email"] || "";

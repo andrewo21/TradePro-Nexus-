@@ -92,17 +92,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: (updateError as { message: string }).message }, { status: 500 });
   }
 
-  // Fire welcome email — fire-and-forget, does not block the response
+  // Await the welcome email — must not be fire-and-forget because Vercel
+  // terminates the execution context the moment the response is sent.
   const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-  fetch(`${supabaseUrl}/functions/v1/send-claim-welcome`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${serviceKey}`,
-    },
-    body: JSON.stringify({ unclaimed_profile_id: profile.id }),
-  }).catch(() => {});
+  try {
+    await fetch(`${supabaseUrl}/functions/v1/send-claim-welcome`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${serviceKey}`,
+      },
+      body: JSON.stringify({ unclaimed_profile_id: profile.id }),
+    });
+  } catch {
+    // Email failure should not block the claim success response
+  }
 
   return NextResponse.json({ ok: true });
 }
