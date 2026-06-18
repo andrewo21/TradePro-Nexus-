@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     );
     return {
       rampDay: daysElapsed + 1,
-      dailyCap: daysElapsed < 7 ? 2000 : daysElapsed < 21 ? 5000 : 10000,
+      dailyCap: 10,
     };
   }
 

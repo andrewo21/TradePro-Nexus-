@@ -118,16 +118,13 @@ async function sendViaSendGrid(toEmail: string, subject: string, html: string): 
   }
 }
 
-// Days elapsed from outreach_start_date → { dailyCap, rampDay }
+// Fixed cap — only changed manually, no automatic ramp
 function getRampInfo(startDateStr: string | undefined, todayUtc: string): { dailyCap: number; rampDay: number } {
-  if (!startDateStr) return { dailyCap: 2000, rampDay: 1 };
+  if (!startDateStr) return { dailyCap: 10, rampDay: 1 };
   const daysElapsed = Math.round(
     (new Date(todayUtc).getTime() - new Date(startDateStr).getTime()) / 86400000
   );
-  return {
-    rampDay: daysElapsed + 1,
-    dailyCap: daysElapsed < 7 ? 2000 : daysElapsed < 21 ? 5000 : 10000,
-  };
+  return { dailyCap: 10, rampDay: daysElapsed + 1 };
 }
 
 Deno.serve(async (req: Request) => {
@@ -213,6 +210,7 @@ Deno.serve(async (req: Request) => {
     .eq("visible", true)
     .eq("claimed", false)
     .eq("remove_requested", false)
+    .eq("source_state", "FL")
     .not("email", "is", null)
     .order("created_at", { ascending: true })
     .limit(batchSize * 4); // over-fetch a bit to skip already-contacted client-side
