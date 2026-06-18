@@ -52,9 +52,9 @@ export async function GET(request: NextRequest) {
   const settingsMap: Record<string, string> = {};
   for (const s of settings ?? []) settingsMap[s.key] = s.value;
 
-  // Ramp schedule: days 1-7 → 2K/day, days 8-21 → 5K/day, day 22+ → 10K/day
+  // Fixed cap — only changed manually
   function getRampInfo(startDate: string | undefined, todayUtc: string) {
-    if (!startDate) return { dailyCap: 2000, rampDay: 1 };
+    if (!startDate) return { dailyCap: 10, rampDay: 1 };
     const daysElapsed = Math.round(
       (new Date(todayUtc).getTime() - new Date(startDate).getTime()) / 86400000
     );
