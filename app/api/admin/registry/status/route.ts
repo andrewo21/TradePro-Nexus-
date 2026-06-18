@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   // Unclaimed profile counts
   const { data: unclaimedRaw } = await db.rpc("unclaimed_profiles_summary");
 
-  // Outreach settings (master switch status)
+  // Outreach settings (master switch status + daily ramp tracking)
   const { data: settings } = await db
     .from("admin_settings")
     .select("key, value")
@@ -44,10 +44,31 @@ export async function GET(request: NextRequest) {
       "outreach_physical_address",
       "outreach_last_run",
       "outreach_last_count",
+      "outreach_start_date",
+      "daily_emails_sent",
+      "daily_emails_date",
     ]);
 
   const settingsMap: Record<string, string> = {};
   for (const s of settings ?? []) settingsMap[s.key] = s.value;
+
+  // Ramp schedule: days 1-7 → 2K/day, days 8-21 → 5K/day, day 22+ → 10K/day
+  function getRampInfo(startDate: string | undefined, todayUtc: string) {
+    if (!startDate) return { dailyCap: 2000, rampDay: 1 };
+    const daysElapsed = Math.round(
+      (new Date(todayUtc).getTime() - new Date(startDate).getTime()) / 86400000
+    );
+    return {
+      rampDay: daysElapsed + 1,
+      dailyCap: daysElapsed < 7 ? 2000 : daysElapsed < 21 ? 5000 : 10000,
+    };
+  }
+
+  const todayUtc = new Date().toISOString().split("T")[0];
+  const { dailyCap, rampDay } = getRampInfo(settingsMap.outreach_start_date, todayUtc);
+  const rawDailySent = parseInt(settingsMap.daily_emails_sent ?? "0") || 0;
+  // Reset to 0 if the counter is from a previous day
+  const dailySent = settingsMap.daily_emails_date === todayUtc ? rawDailySent : 0;
 
   // Outreach log breakdown by status
   const { data: outreachLog } = await db.from("outreach_log").select("status");
@@ -68,6 +89,10 @@ export async function GET(request: NextRequest) {
       physicalAddress: settingsMap.outreach_physical_address ?? "",
       lastRun: settingsMap.outreach_last_run ?? "never",
       lastCount: parseInt(settingsMap.outreach_last_count ?? "0"),
+      dailyCap,
+      dailySent,
+      rampDay,
+      startDate: settingsMap.outreach_start_date ?? null,
       log: outreachCounts,
     },
   });

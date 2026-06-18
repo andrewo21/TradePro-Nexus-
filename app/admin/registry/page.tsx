@@ -71,6 +71,10 @@ interface OutreachSettings {
   physicalAddress: string;
   lastRun: string;
   lastCount: number;
+  dailyCap: number;
+  dailySent: number;
+  rampDay: number;
+  startDate: string | null;
   log: Record<string, number>;
 }
 
@@ -477,6 +481,35 @@ export default function RegistryAdminPage() {
               <span>Queued: <span className="text-blue-400 font-semibold">{statusData.outreach.log.queued ?? 0}</span></span>
               <span className="text-slate-500">Last run: {statusData.outreach.lastRun === "never" ? "never" : timeAgo(statusData.outreach.lastRun)}</span>
             </div>
+
+            {/* Daily ramp progress */}
+            {statusData.outreach.dailyCap > 0 && (
+              <div className="mt-3 pt-3 border-t border-slate-700/50">
+                <div className="flex items-center justify-between text-xs mb-1.5">
+                  <span className="text-slate-400">
+                    Day <span className="text-white font-bold">{statusData.outreach.rampDay}</span>
+                    <span className="text-slate-600 mx-1">·</span>
+                    <span className="text-blue-400 font-semibold">{statusData.outreach.dailyCap.toLocaleString()}/day cap</span>
+                    {statusData.outreach.rampDay <= 7 && <span className="ml-1.5 text-slate-500">Phase 1</span>}
+                    {statusData.outreach.rampDay > 7 && statusData.outreach.rampDay <= 21 && <span className="ml-1.5 text-slate-500">Phase 2</span>}
+                    {statusData.outreach.rampDay > 21 && <span className="ml-1.5 text-slate-500">Full speed</span>}
+                  </span>
+                  <span className={`font-bold ${statusData.outreach.dailySent >= statusData.outreach.dailyCap ? "text-yellow-400" : "text-white"}`}>
+                    {statusData.outreach.dailySent.toLocaleString()}
+                    <span className="text-slate-500 font-normal"> / {statusData.outreach.dailyCap.toLocaleString()} today</span>
+                  </span>
+                </div>
+                <div className="w-full bg-slate-900 rounded-full h-1.5 overflow-hidden">
+                  <div
+                    className={`h-1.5 rounded-full transition-all ${statusData.outreach.dailySent >= statusData.outreach.dailyCap ? "bg-yellow-500" : "bg-blue-500"}`}
+                    style={{ width: `${Math.min(100, (statusData.outreach.dailySent / statusData.outreach.dailyCap) * 100)}%` }}
+                  />
+                </div>
+                {statusData.outreach.dailySent >= statusData.outreach.dailyCap && (
+                  <p className="text-[11px] text-yellow-400 mt-1">Daily cap reached — resumes at midnight UTC.</p>
+                )}
+              </div>
+            )}
           </div>
         )}
 

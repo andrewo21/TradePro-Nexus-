@@ -103,6 +103,7 @@ async function sendViaSendGrid(toEmail: string, subject: string, html: string): 
       body: JSON.stringify({
         personalizations: [{ to: [{ email: toEmail }] }],
         from: { email: FROM_EMAIL, name: FROM_NAME },
+        reply_to: { email: "andrew@tradepronexus.com", name: FROM_NAME },
         subject,
         content: [{ type: "text/html", value: html }],
       }),
@@ -115,6 +116,18 @@ async function sendViaSendGrid(toEmail: string, subject: string, html: string): 
   } catch (err) {
     return { ok: false, messageId: null, error: err instanceof Error ? err.message : "Unknown error" };
   }
+}
+
+// Days elapsed from outreach_start_date → { dailyCap, rampDay }
+function getRampInfo(startDateStr: string | undefined, todayUtc: string): { dailyCap: number; rampDay: number } {
+  if (!startDateStr) return { dailyCap: 2000, rampDay: 1 };
+  const daysElapsed = Math.round(
+    (new Date(todayUtc).getTime() - new Date(startDateStr).getTime()) / 86400000
+  );
+  return {
+    rampDay: daysElapsed + 1,
+    dailyCap: daysElapsed < 7 ? 2000 : daysElapsed < 21 ? 5000 : 10000,
+  };
 }
 
 Deno.serve(async (req: Request) => {
@@ -141,6 +154,9 @@ Deno.serve(async (req: Request) => {
       "outreach_test_email",
       "outreach_batch_size",
       "outreach_physical_address",
+      "outreach_start_date",
+      "daily_emails_sent",
+      "daily_emails_date",
     ]);
 
   const sm: Record<string, string> = {};
@@ -156,8 +172,33 @@ Deno.serve(async (req: Request) => {
   // force_test always sends to the test address regardless of outreach_test_mode setting
   const testMode  = forceTest ? true : sm["outreach_test_mode"] === "true";
   const testEmail = sm["outreach_test_email"] || "";
-  const batchSize = forceLimit ?? Math.max(1, Math.min(500, parseInt(sm["outreach_batch_size"] ?? "50") || 50));
+  let batchSize   = forceLimit ?? Math.max(1, Math.min(500, parseInt(sm["outreach_batch_size"] ?? "50") || 50));
   const physicalAddress = sm["outreach_physical_address"] || "TradePro Technologies LLC | TradePro Nexus, 17629 Fallen Branch Way, Punta Gorda, FL 33982";
+
+  // ── Daily volume cap — skipped for force_test preview runs ─────────────────
+  const todayUtc = new Date().toISOString().split("T")[0]; // YYYY-MM-DD UTC
+  let dailyCap = 0;
+  let dailySent = 0;
+  let rampDay = 1;
+
+  if (!forceTest) {
+    // Reset counter when the calendar date has rolled over
+    dailySent = parseInt(sm["daily_emails_sent"] ?? "0") || 0;
+    if (sm["daily_emails_date"] !== todayUtc) dailySent = 0;
+
+    ({ dailyCap, rampDay } = getRampInfo(sm["outreach_start_date"], todayUtc));
+
+    const remaining = dailyCap - dailySent;
+    if (remaining <= 0) {
+      return new Response(
+        JSON.stringify({ skipped: "daily_cap_reached", dailyCap, dailySent, rampDay }),
+        { headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    // Never send more than what's left in today's budget
+    batchSize = Math.min(batchSize, remaining);
+  }
 
   // ── Select eligible, not-yet-contacted profiles ─────────────────────────────
   const { data: alreadyContacted } = await supabase
@@ -230,14 +271,24 @@ Deno.serve(async (req: Request) => {
 
   if (!forceTest) {
     const now = new Date().toISOString();
-    await supabase.from("admin_settings").upsert([
+    const upserts: { key: string; value: string }[] = [
       { key: "outreach_last_run",   value: now },
       { key: "outreach_last_count", value: String(sent) },
-    ], { onConflict: "key" });
+      { key: "daily_emails_sent",   value: String(dailySent + sent) },
+      { key: "daily_emails_date",   value: todayUtc },
+    ];
+    // Stamp the start date on the first real send (drives the ramp-up schedule)
+    if (!sm["outreach_start_date"] && sent > 0) {
+      upserts.push({ key: "outreach_start_date", value: todayUtc });
+    }
+    await supabase.from("admin_settings").upsert(upserts, { onConflict: "key" });
   }
 
   return new Response(
-    JSON.stringify({ ok: true, sent, failed, candidates: batch.length, testMode }),
+    JSON.stringify({
+      ok: true, sent, failed, candidates: batch.length, testMode,
+      dailyCap, dailySent: dailySent + sent, rampDay,
+    }),
     { headers: { "Content-Type": "application/json" } }
   );
 });
