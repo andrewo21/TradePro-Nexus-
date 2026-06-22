@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
-import { CheckCircle, Shield, Briefcase, FileText } from "lucide-react";
+import { CheckCircle, Shield, Briefcase, FileText, Users } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import EmailCapture from "@/components/EmailCapture";
+import Link from "next/link";
 import { getPartnerConfig, getPromoCode } from "@/lib/partners";
+import { getSupabaseAdmin } from "@/lib/supabaseServer";
 
 const VALUE_PROPS = [
   {
@@ -36,6 +38,15 @@ export default async function PartnerPage({ params }: { params: Promise<{ slug: 
   const promoLink = `https://www.tradeprotech.ai/?promo=${promoCode}&ref=${config.slug}`;
   const pageUrl = `https://tradepronexus.com/partners/${config.slug}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&bgcolor=0f172a&color=f1f5f9&data=${encodeURIComponent(pageUrl)}`;
+
+  // Live member count — query profiles where union_name matches this partner
+  const db = getSupabaseAdmin() as any;
+  const { count: memberCount } = await db
+    .from("profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("union_member", true)
+    .ilike("union_name", `%${config.name}%`)
+    .or("is_internal.is.null,is_internal.eq.false");
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100">
@@ -90,6 +101,23 @@ export default async function PartnerPage({ params }: { params: Promise<{ slug: 
             successTitle="You're in."
             successBody="We'll email you to get your Trade Card set up — including your Union Badge."
           />
+        </div>
+
+        {/* Live member count */}
+        <div className="bg-blue-950/30 border border-blue-800/50 rounded-2xl p-5 text-center mb-6">
+          <div className="flex items-center justify-center gap-2 mb-1">
+            <Users className="w-5 h-5 text-blue-400" />
+            <span className="text-3xl font-black text-white">{(memberCount ?? 0).toLocaleString()}</span>
+          </div>
+          <p className="text-blue-200 text-sm font-semibold mb-3">
+            {config.name} members already on TradePro Nexus
+          </p>
+          <Link
+            href="/search?tab=union"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-400 hover:text-blue-200 transition-colors underline underline-offset-2"
+          >
+            View {config.name} members in the Union Directory →
+          </Link>
         </div>
 
         {/* Promo code */}

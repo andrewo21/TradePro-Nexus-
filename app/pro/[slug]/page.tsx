@@ -28,13 +28,23 @@ function VerificationBadge({ status, profileType }: { status: string; profileTyp
   );
 }
 
-// Union Member badge — self-reported only, never auto-assigned. Styled
-// distinctly from VerificationBadge (slate blue, shield icon).
-function UnionBadge({ unionMember }: { unionMember: boolean }) {
+// Union Member badge — self-reported only, never auto-assigned.
+// Prominently styled in IBEW/union blue to signal union affiliation at a glance.
+function UnionBadge({ unionMember, unionName, unionLocalNumber }: {
+  unionMember: boolean;
+  unionName?: string | null;
+  unionLocalNumber?: string | null;
+}) {
   if (!unionMember) return null;
+  const local = unionLocalNumber ? `Local ${unionLocalNumber}` : null;
+  const affiliation = [unionName, local].filter(Boolean).join(" · ");
   return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-300 bg-slate-700/40 border border-slate-500/50 px-2 py-0.5 rounded-full">
-      <Shield className="w-3 h-3 text-blue-400" /> UNION MEMBER
+    <span className="inline-flex items-center gap-1.5 text-xs font-black text-white bg-blue-700 border border-blue-500 px-3 py-1 rounded-full shadow-sm shadow-blue-900/40">
+      <Shield className="w-3.5 h-3.5 flex-shrink-0" />
+      UNION MEMBER
+      {affiliation && (
+        <span className="text-blue-200 font-semibold text-[11px]">{affiliation}</span>
+      )}
     </span>
   );
 }
@@ -119,7 +129,11 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
                 <div>
                   <h1 className="text-xl font-black text-white flex items-center gap-2 flex-wrap">
                     {profile.first_name} {profile.last_name}
-                    <UnionBadge unionMember={!!(profile as any).union_member} />
+                    <UnionBadge
+                      unionMember={unionMember}
+                      unionName={unionName}
+                      unionLocalNumber={unionLocalNumber}
+                    />
                   </h1>
                   <p className="text-orange-400 font-semibold">{profile.trade}</p>
                 </div>
@@ -198,18 +212,18 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
 
           {/* Union details — shown only when self-reported and filled in */}
           {hasUnionDetails && (
-            <div className="mt-3 bg-slate-900/60 border border-slate-700/50 rounded-xl px-4 py-3">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2 flex items-center gap-1.5">
-                <Landmark className="w-3.5 h-3.5 text-blue-400" /> Union Information
+            <div className="mt-3 bg-blue-950/30 border border-blue-800/50 rounded-xl px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-2.5 flex items-center gap-1.5">
+                <Landmark className="w-3.5 h-3.5" /> Union Information
               </p>
               <div className="flex flex-wrap gap-2">
                 {(unionName || unionLocalNumber) && (
-                  <span className="text-xs font-bold text-white bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-full">
-                    {[unionName, unionLocalNumber].filter(Boolean).join(" — ")}
+                  <span className="text-xs font-bold text-white bg-blue-800/60 border border-blue-700/60 px-2.5 py-1 rounded-full">
+                    {[unionName, unionLocalNumber ? `Local ${unionLocalNumber}` : null].filter(Boolean).join(" · ")}
                   </span>
                 )}
                 {unionMemberStatus && (
-                  <span className="text-xs font-semibold text-slate-300 bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-full">
+                  <span className="text-xs font-semibold text-blue-200 bg-blue-900/40 border border-blue-700/40 px-2.5 py-1 rounded-full">
                     {unionMemberStatus}
                   </span>
                 )}
@@ -224,7 +238,7 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
                   </span>
                 )}
                 {unionCardExpiration && (
-                  <span className="text-xs font-semibold text-slate-400 bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-full">
+                  <span className="text-xs font-semibold text-blue-300 bg-blue-900/30 border border-blue-700/40 px-2.5 py-1 rounded-full">
                     Card Exp. {new Date(unionCardExpiration).toLocaleDateString("en-US", { month: "short", year: "numeric" })}
                   </span>
                 )}
