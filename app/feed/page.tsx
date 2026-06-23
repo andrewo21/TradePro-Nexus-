@@ -1040,7 +1040,7 @@ function FeedPageInner() {
     setLoading(true);
     try {
       const db = getSupabase() as any;
-      const { data: raw } = await db.from("feed_posts").select("*").order("created_at", { ascending: false }).limit(50);
+      const { data: raw } = await db.from("feed_posts").select("*").order("created_at", { ascending: false }).limit(150);
       if (!raw?.length) { setPosts([]); setLoading(false); return; }
 
       const profileIds = raw.filter((p: any) => p.author_type === "profile").map((p: any) => p.author_id);
