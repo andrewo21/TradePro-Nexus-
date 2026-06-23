@@ -84,6 +84,10 @@ export async function GET(request: NextRequest) {
     // Resolve state abbreviation
     const stateAbbr = STATE_ABBR[state] ?? (state.length === 2 ? state.toUpperCase() : "");
 
+    // Detect if the location input is a zip code (5 digits) or a city/county name.
+    // unclaimed_profiles has no zip column — zip search is profiles-only.
+    const isZip = /^\d{5}$/.test(county.trim());
+
     // ── PROFILES query ──────────────────────────────────────────────────────────
     // Exclude internal / test profiles; must have a public slug
     let pq = db
@@ -101,9 +105,13 @@ export async function GET(request: NextRequest) {
     if (stateAbbr) pq = pq.eq("location_state", stateAbbr);
 
     if (county) {
-      pq = pq.or(
-        `location_city.ilike.%${county}%,location_zip.ilike.%${county}%`
-      );
+      if (isZip) {
+        // Exact zip prefix match on profiles (location_zip column)
+        pq = pq.ilike("location_zip", `${county}%`);
+      } else {
+        // City name — search city field
+        pq = pq.ilike("location_city", `%${county}%`);
+      }
     }
 
     if (union === "union")     pq = pq.eq("union_member", true);
@@ -169,7 +177,9 @@ export async function GET(request: NextRequest) {
 
       if (stateAbbr) uq = uq.eq("source_state", stateAbbr);
 
-      if (county) uq = uq.ilike("city", `%${county}%`);
+      // unclaimed_profiles has no zip column — skip city filter for zip searches
+      // so the user still sees registry results for the selected state.
+      if (county && !isZip) uq = uq.ilike("city", `%${county}%`);
 
       if (trade && TRADE_LICENSE_PATTERNS[trade]) {
         const orPat = buildOrPattern(TRADE_LICENSE_PATTERNS[trade]);

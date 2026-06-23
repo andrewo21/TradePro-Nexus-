@@ -375,7 +375,11 @@ export default function SearchPage() {
                         placeholder="e.g. Fort Myers, 33901"
                         className="filter-input"
                       />
-                      <p className="text-[10px] text-slate-600 mt-1">Searches by city name or ZIP code</p>
+                      <p className="text-[10px] text-slate-600 mt-1">
+                        {/^\d{5}$/.test(filters.county.trim())
+                          ? "ZIP search applies to member profiles — registry listings will show by state only"
+                          : "City name searches both member profiles and registry listings"}
+                      </p>
                     </div>
 
                     {/* Union status */}
