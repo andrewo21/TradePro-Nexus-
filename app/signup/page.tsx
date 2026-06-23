@@ -1,14 +1,23 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { HardHat, Building2, ArrowRight, Mail, Lock, User, CheckCircle, ShieldCheck, Ruler, Wrench } from "lucide-react";
+import { HardHat, Building2, ArrowRight, Mail, Lock, User, CheckCircle, ShieldCheck, Ruler, Wrench, MapPin, Sparkles, X } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { getSupabase } from "@/lib/supabase";
 import { PROFILE_TYPES, type ProfileType } from "@/lib/constants";
 import { trackEvent } from "@/lib/analytics";
+
+type UnclaimedMatch = {
+  id: string;
+  business_name: string;
+  license_type: string | null;
+  city: string | null;
+  source_state: string | null;
+  claim_token: string;
+};
 
 // Account type: 6 profile types + GC
 type AccountType = ProfileType | "gc" | null;
@@ -70,9 +79,47 @@ function SignupPageInner() {
   const [checkEmail, setCheckEmail] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
+  // Magic match — searches unclaimed_profiles as the user types their name
+  const [matches, setMatches] = useState<UnclaimedMatch[]>([]);
+  const [matchLoading, setMatchLoading] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState<UnclaimedMatch | null>(null);
+  const [matchDismissed, setMatchDismissed] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    // Only search for non-GC accounts, only when name is long enough
+    if (accountType === "gc" || name.length < 3 || matchDismissed) {
+      setMatches([]);
+      return;
+    }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setMatchLoading(true);
+      try {
+        const res = await fetch(`/api/unclaimed/match?name=${encodeURIComponent(name)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setMatches(data.matches ?? []);
+        }
+      } catch { /* ignore network errors */ }
+      finally { setMatchLoading(false); }
+    }, 400);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [name, accountType, matchDismissed]);
+
   const selectedOption = TYPE_OPTIONS.find(o => o.key === accountType);
   const colors = selectedOption ? COLOR_MAP[selectedOption.color] : COLOR_MAP.orange;
   const isGC = accountType === "gc";
+
+  // Build the post-signup destination, injecting the claim token if the user confirmed a match
+  function buildRedirect() {
+    if (isGC) return nextParam || "/search";
+    if (selectedMatch) {
+      const claimPath = `/build?claim=${selectedMatch.claim_token}&business=${encodeURIComponent(selectedMatch.business_name)}`;
+      return nextParam || claimPath;
+    }
+    return nextParam || "/build";
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -85,22 +132,23 @@ function SignupPageInner() {
     setError(null);
     try {
       const supabase = getSupabase();
+      const redirect = buildRedirect();
       const { data, error: authError } = await supabase!.auth.signUp({
         email,
         password,
         options: {
           data: {
             full_name: name,
-            role: isGC ? "gc" : "tradepro", // for legacy compat — profile_type stored on profile row
-            profile_type: accountType,       // the full type used by Phase 10
+            role: isGC ? "gc" : "tradepro",
+            profile_type: accountType,
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextParam || (isGC ? "/search" : "/build"))}`,
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirect)}`,
         },
       });
       if (authError) throw authError;
-      trackEvent("signup", { account_type: accountType });
+      trackEvent("signup", { account_type: accountType, claimed_match: !!selectedMatch });
       if (data.session) {
-        router.push(nextParam || (isGC ? "/search" : "/build"));
+        router.push(redirect);
         router.refresh();
       } else {
         setCheckEmail(true);
@@ -193,10 +241,75 @@ function SignupPageInner() {
                     </label>
                     <div className="relative">
                       {isGC ? <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" /> : <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />}
-                      <input type="text" required value={name} onChange={e => setName(e.target.value)}
+                      <input type="text" required value={name} onChange={e => { setName(e.target.value); setSelectedMatch(null); setMatchDismissed(false); }}
                         placeholder={isGC ? "Midwest Electrical Solutions" : accountType === "inspector" ? "James Sullivan" : "Your full name"}
-                        className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500" />
+                        className={`w-full bg-slate-900 border rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none transition-colors ${selectedMatch ? "border-orange-500" : "border-slate-600 focus:border-orange-500"}`} />
                     </div>
+
+                    {/* Magic match — shows when we find a match in the unclaimed directory */}
+                    {!isGC && !matchDismissed && !selectedMatch && matchLoading && name.length >= 3 && (
+                      <p className="text-[11px] text-slate-500 mt-1.5 flex items-center gap-1">
+                        <span className="w-3 h-3 border border-slate-500 border-t-transparent rounded-full animate-spin inline-block" />
+                        Checking the contractor directory…
+                      </p>
+                    )}
+
+                    {!isGC && !matchDismissed && !selectedMatch && !matchLoading && matches.length > 0 && (
+                      <div className="mt-2 space-y-2">
+                        {matches.map(m => (
+                          <div key={m.id} className="bg-orange-950/40 border border-orange-700/60 rounded-xl px-3 py-3">
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <div className="flex items-center gap-1.5">
+                                <Sparkles className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
+                                <p className="text-orange-300 text-[11px] font-bold uppercase tracking-wide">We found your business listing</p>
+                              </div>
+                              <button type="button" onClick={() => setMatchDismissed(true)} className="text-slate-600 hover:text-slate-400 flex-shrink-0">
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <p className="text-white font-black text-sm mb-0.5">{m.business_name}</p>
+                            <div className="flex items-center gap-2 text-xs text-slate-400 mb-3">
+                              {m.license_type && <span>{m.license_type}</span>}
+                              {(m.city || m.source_state) && (
+                                <span className="flex items-center gap-0.5">
+                                  <MapPin className="w-3 h-3" />
+                                  {[m.city, m.source_state].filter(Boolean).join(", ")}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex gap-2">
+                              <button type="button"
+                                onClick={() => setSelectedMatch(m)}
+                                className="flex-1 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold rounded-lg transition-colors">
+                                Yes, that's me — claim it free
+                              </button>
+                              <button type="button"
+                                onClick={() => setMatchDismissed(true)}
+                                className="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-400 text-xs font-semibold rounded-lg transition-colors">
+                                Not me
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Confirmed match banner */}
+                    {selectedMatch && (
+                      <div className="mt-2 bg-green-950/40 border border-green-700/50 rounded-xl px-3 py-2.5 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-green-300 text-xs font-bold">Listing linked</p>
+                            <p className="text-slate-400 text-[11px] truncate">{selectedMatch.business_name}</p>
+                          </div>
+                        </div>
+                        <button type="button" onClick={() => { setSelectedMatch(null); setMatchDismissed(false); }}
+                          className="text-slate-600 hover:text-slate-400 flex-shrink-0">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wide">Email</label>

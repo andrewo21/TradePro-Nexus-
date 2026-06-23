@@ -66,6 +66,137 @@ function isVideoUrl(url: string): boolean {
 
 type ReactionData = { counts: Record<string, number>; mine: string | null };
 
+// ── Comment types ──────────────────────────────────────────────────────────────
+
+interface FeedComment {
+  id: string;
+  content: string;
+  created_at: string;
+  user_id: string;
+  author_name: string;
+  author_slug: string | null;
+  author_trade: string | null;
+}
+
+// ── Comment Section ───────────────────────────────────────────────────────────
+
+function CommentSection({
+  postId,
+  currentUserId,
+  initialCount,
+  onCountChange,
+}: {
+  postId: string;
+  currentUserId: string | null;
+  initialCount: number;
+  onCountChange: (delta: number) => void;
+}) {
+  const [comments, setComments] = useState<FeedComment[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [text, setText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (loaded) return;
+    setLoading(true);
+    fetch(`/api/feed/${postId}/comments`)
+      .then(r => r.json())
+      .then(d => { setComments(d.comments ?? []); setLoaded(true); })
+      .catch(() => setLoaded(true))
+      .finally(() => setLoading(false));
+  }, [postId, loaded]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!text.trim() || submitting) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/feed/${postId}/comments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: text.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok && data.comment) {
+        setComments(prev => [...prev, data.comment]);
+        onCountChange(1);
+        setText("");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="border-t border-[#e2e8f0] bg-[#f8fafc] px-4 pt-3 pb-3">
+      {loading && (
+        <p className="text-xs text-slate-400 py-1">Loading comments...</p>
+      )}
+
+      {loaded && comments.length === 0 && !currentUserId && (
+        <p className="text-xs text-slate-400 py-1">No comments yet.</p>
+      )}
+
+      {comments.length > 0 && (
+        <div className="space-y-2.5 mb-3">
+          {comments.map(c => (
+            <div key={c.id} className="flex gap-2">
+              <div className="w-6 h-6 rounded-full bg-orange-100 border border-orange-200 flex items-center justify-center text-[10px] font-black text-orange-600 flex-shrink-0 mt-0.5">
+                {c.author_name.slice(0, 1).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0 bg-white rounded-xl px-3 py-2 border border-[#e2e8f0]">
+                <div className="flex items-baseline gap-2 flex-wrap mb-0.5">
+                  {c.author_slug ? (
+                    <Link href={`/pro/${c.author_slug}`} className="text-xs font-bold text-[#0f172a] hover:text-orange-600 transition-colors">
+                      {c.author_name}
+                    </Link>
+                  ) : (
+                    <span className="text-xs font-bold text-[#0f172a]">{c.author_name}</span>
+                  )}
+                  {c.author_trade && (
+                    <span className="text-[10px] text-orange-500 font-semibold">{c.author_trade}</span>
+                  )}
+                  <span className="text-[10px] text-slate-400 ml-auto">{timeAgo(c.created_at)}</span>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">{c.content}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {currentUserId ? (
+        <form onSubmit={handleSubmit} className="flex gap-2 items-center">
+          <div className="w-6 h-6 rounded-full bg-orange-100 border border-orange-200 flex items-center justify-center text-[10px] font-black text-orange-600 flex-shrink-0">
+            <MessageCircle className="w-3 h-3" />
+          </div>
+          <input
+            ref={inputRef}
+            value={text}
+            onChange={e => setText(e.target.value)}
+            placeholder="Add a comment..."
+            maxLength={1000}
+            className="flex-1 bg-white border border-[#e2e8f0] rounded-full px-3 py-1.5 text-xs text-[#0f172a] placeholder-slate-400 focus:outline-none focus:border-orange-400 transition-colors"
+          />
+          <button
+            type="submit"
+            disabled={!text.trim() || submitting}
+            className="flex items-center gap-1 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white text-xs font-bold rounded-full transition-colors flex-shrink-0"
+          >
+            <Send className="w-3 h-3" />
+          </button>
+        </form>
+      ) : (
+        <p className="text-xs text-slate-400">
+          <Link href="/login" className="text-orange-500 font-semibold hover:text-orange-400">Sign in</Link> to comment.
+        </p>
+      )}
+    </div>
+  );
+}
+
 const REACTIONS = [
   { type: "like",       emoji: "👍", label: "Like" },
   { type: "fire",       emoji: "🔥", label: "Fire" },
@@ -230,7 +361,7 @@ function timeAgo(iso: string) {
 
 function PostCard({
   post, reactionData, saved, followed, currentUserId, isGC, isAdmin, currentAuthorId,
-  onReact, onSave, onFollow, onShare, onDelete, onEdit, onPin, onDM,
+  commentCount, onReact, onSave, onFollow, onShare, onDelete, onEdit, onPin, onDM, onCommentCountChange,
 }: {
   post: FeedPost;
   reactionData: ReactionData;
@@ -240,6 +371,7 @@ function PostCard({
   isGC: boolean;
   isAdmin: boolean;
   currentAuthorId: string | null;
+  commentCount: number;
   onReact: (type: string | null) => void;
   onSave: () => void;
   onFollow: () => void;
@@ -248,8 +380,16 @@ function PostCard({
   onEdit: () => void;
   onPin: () => void;
   onDM: () => void;
+  onCommentCountChange: (delta: number) => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [localCommentCount, setLocalCommentCount] = useState(commentCount);
+
+  function handleCommentCountChange(delta: number) {
+    setLocalCommentCount(n => n + delta);
+    onCommentCountChange(delta);
+  }
   const isOwner = post.author_id !== null && post.author_id === currentAuthorId;
   const isNews = post.is_industry_news;
   const canDelete = isOwner || isAdmin;
@@ -471,11 +611,20 @@ function PostCard({
 
       {/* Footer */}
       <div className="flex items-center justify-between px-4 py-2.5 border-t border-[#e2e8f0] mt-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {!isNews && (
             <button onClick={onSave} className={`flex items-center gap-1 text-xs font-semibold transition-colors ${saved ? "text-orange-600" : "text-slate-400 hover:text-orange-600"}`}>
               <Bookmark className={`w-3.5 h-3.5 ${saved ? "fill-orange-500" : ""}`} />
               <span>{saved ? "Saved" : "Save"}</span>
+            </button>
+          )}
+          {!isNews && (
+            <button
+              onClick={() => setCommentsOpen(v => !v)}
+              className={`flex items-center gap-1 text-xs font-semibold transition-colors ${commentsOpen ? "text-orange-600" : "text-slate-400 hover:text-orange-600"}`}
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              <span>{localCommentCount > 0 ? localCommentCount : "Comment"}</span>
             </button>
           )}
         </div>
@@ -491,6 +640,16 @@ function PostCard({
           </Link>
         )}
       </div>
+
+      {/* Comments section — lazy loaded on first open */}
+      {!isNews && commentsOpen && (
+        <CommentSection
+          postId={post.id}
+          currentUserId={currentUserId}
+          initialCount={localCommentCount}
+          onCountChange={handleCommentCountChange}
+        />
+      )}
     </div>
   );
 }
@@ -861,6 +1020,7 @@ function FeedPageInner() {
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [reactions, setReactions] = useState<Record<string, ReactionData>>({});
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
   const [savedPosts, setSavedPosts] = useState<Set<string>>(new Set());
   const [followedSources, setFollowedSources] = useState<Set<string>>(new Set());
   const [availableNow] = useState(() => searchParams.get("available") === "1");
@@ -927,6 +1087,12 @@ function FeedPageInner() {
         if (r.user_id === currentUid) rxMap[r.post_id].mine = r.reaction_type;
       }
       setReactions(rxMap);
+
+      // Fetch comment counts for all posts in one round-trip via RPC
+      const { data: cmtRows } = await db.rpc("get_post_comment_counts", { post_ids: postIds });
+      const cmtMap: Record<string, number> = {};
+      for (const r of cmtRows ?? []) cmtMap[r.post_id] = Number(r.cnt);
+      setCommentCounts(cmtMap);
 
       setPosts(mapped60);
     } catch (err) {
@@ -1191,6 +1357,7 @@ function FeedPageInner() {
                     isGC={isGC}
                     isAdmin={isAdmin}
                     currentAuthorId={currentAuthorId}
+                    commentCount={commentCounts[post.id] ?? 0}
                     onReact={(type) => handleReact(post.id, type)}
                     onSave={() => toggleSave(post.id)}
                     onFollow={() => post.news_source_name && toggleFollowSource(post.news_source_name)}
@@ -1199,6 +1366,7 @@ function FeedPageInner() {
                     onEdit={() => setEditingPost(post)}
                     onPin={() => pinPost(post.id)}
                     onDM={() => dmPost(post)}
+                    onCommentCountChange={(delta) => setCommentCounts(prev => ({ ...prev, [post.id]: (prev[post.id] ?? 0) + delta }))}
                   />
                 </motion.div>
               )}

@@ -3,139 +3,238 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Search, Building2, MapPin, Users, Shield, HardHat,
-  X, Loader2, ChevronRight, Zap, CheckCircle, Clock
+  X, Loader2, ChevronRight, Zap, Clock, Filter,
+  CheckCircle, ChevronDown
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
-import { ALL_TRADES } from "@/lib/constants";
 
-const US_STATES = [
-  "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
-  "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
-  "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
-  "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
-  "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY",
+// ── Filter constants ──────────────────────────────────────────────────────────
+
+const TRADES = [
+  "Electrical", "Plumbing", "HVAC", "Carpentry", "Structural Steel",
+  "Mechanical", "Roofing", "Concrete", "Masonry", "Drywall",
+  "Painting", "Fire Suppression", "Civil", "Demolition", "Welding", "Other",
 ];
 
-type Profile = {
-  slug: string;
-  first_name: string | null;
-  last_name: string | null;
-  firm_name: string | null;
-  trade: string | null;
-  location_city: string | null;
-  location_state: string | null;
-  availability_status: string | null;
-  union_member: boolean | null;
-  union_name: string | null;
-  union_local_number: string | null;
-  crew_size: number | null;
-  years_experience: number | null;
-  verification_status: string | null;
-  avatar_url: string | null;
-  profile_type: string | null;
+const SECTORS = [
+  "Commercial", "Residential", "Industrial", "Government",
+  "Healthcare", "Education", "Hospitality", "Mixed Use",
+];
+
+// Only states with data in the directory
+const DIRECTORY_STATES = [
+  { label: "Florida", abbr: "FL" },
+  { label: "California", abbr: "CA" },
+  { label: "Washington", abbr: "WA" },
+  { label: "Nevada", abbr: "NV" },
+  { label: "Texas", abbr: "TX" },
+  { label: "Ohio", abbr: "OH" },
+  { label: "Georgia", abbr: "GA" },
+  { label: "Tennessee", abbr: "TN" },
+  { label: "New York", abbr: "NY" },
+  { label: "Pennsylvania", abbr: "PA" },
+  { label: "Illinois", abbr: "IL" },
+  { label: "Arizona", abbr: "AZ" },
+];
+
+const SORT_OPTIONS = [
+  { value: "recent",    label: "Most Recently Added" },
+  { value: "available", label: "Available Now First" },
+  { value: "union",     label: "Union Members First" },
+  { value: "verified",  label: "Verified First" },
+];
+
+const FIRM_SIZE_OPTIONS = [
+  { value: "any",   label: "Any Size" },
+  { value: "1-25",  label: "1–25" },
+  { value: "25-50", label: "25–50" },
+  { value: "50+",   label: "50+" },
+];
+
+const UNION_OPTIONS = [
+  { value: "both",      label: "Both" },
+  { value: "union",     label: "Union Only" },
+  { value: "non-union", label: "Non-Union" },
+];
+
+const VERIFIED_OPTIONS = [
+  { value: "both",        label: "Both" },
+  { value: "verified",    label: "Verified Only" },
+  { value: "not-verified", label: "Not Verified" },
+];
+
+// ── Types ────────────────────────────────────────────────────────────────────
+
+type SearchResult = {
+  source: "profile" | "unclaimed";
+  // Profile fields
+  slug?: string;
+  first_name?: string;
+  last_name?: string;
+  firm_name?: string;
+  trade?: string;
+  location_city?: string;
+  location_state?: string;
+  availability_status?: string;
+  union_member?: boolean;
+  union_name?: string;
+  union_local_number?: string;
+  crew_size?: number;
+  years_experience?: number;
+  verification_status?: string;
+  avatar_url?: string;
+  // Unclaimed fields
+  id?: string;
+  business_name?: string;
+  license_type?: string;
+  city?: string;
+  source_state?: string;
+  claim_token?: string;
+  phone?: string;
+  quality_score?: number;
 };
 
 type Mode = "crews" | "union" | "gcs";
 
 const BANNER_KEY = "fc_banner_dismissed";
 
+// ── Default filter state ──────────────────────────────────────────────────────
+
+const DEFAULT_FILTERS = {
+  q:        "",
+  trade:    "",
+  sector:   "",
+  state:    "",
+  county:   "",
+  union:    "both",
+  verified: "both",
+  firmSize: "any",
+  sort:     "recent",
+  local:    "",
+};
+type Filters = typeof DEFAULT_FILTERS;
+
+function isFiltersDefault(f: Filters) {
+  return (
+    f.q === ""        && f.trade === ""   && f.sector === ""  &&
+    f.state === ""    && f.county === ""  && f.union === "both" &&
+    f.verified === "both" && f.firmSize === "any" &&
+    f.sort === "recent" && f.local === ""
+  );
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
 export default function SearchPage() {
   const [mode, setMode] = useState<Mode>("crews");
   const [bannerDismissed, setBannerDismissed] = useState(true);
+  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
 
-  // Shared filters (crews + union)
-  const [trade, setTrade] = useState("");
-  const [state, setState] = useState("");
-  const [availableOnly, setAvailableOnly] = useState(false);
-  const [q, setQ] = useState("");
-
-  // Crews-only filter
-  const [unionOnly, setUnionOnly] = useState(false);
-
-  // Union directory-only filter
-  const [localNum, setLocalNum] = useState("");
-
-  const [results, setResults] = useState<Profile[]>([]);
-  const [total, setTotal] = useState(0);
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [total, setTotal] = useState<number | null>(null);
+  const [totalProfiles, setTotalProfiles] = useState(0);
+  const [totalUnclaimed, setTotalUnclaimed] = useState(0);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDirty = !isFiltersDefault(filters);
 
   useEffect(() => {
     setBannerDismissed(localStorage.getItem(BANNER_KEY) === "1");
   }, []);
+
+  const set = (key: keyof Filters, value: string) =>
+    setFilters(f => ({ ...f, [key]: value }));
+
+  function clearAll() {
+    setFilters(DEFAULT_FILTERS);
+    setPage(1);
+  }
 
   function dismissBanner() {
     localStorage.setItem(BANNER_KEY, "1");
     setBannerDismissed(true);
   }
 
-  const fetchResults = useCallback(async (p = 1) => {
-    if (mode === "gcs") return;
+  const fetchResults = useCallback(async (p: number, f: Filters, m: Mode) => {
+    if (m === "gcs") return;
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(p) });
-      if (trade)         params.set("trade", trade);
-      if (state)         params.set("state", state);
-      if (availableOnly) params.set("available", "true");
-      if (q)             params.set("q", q);
-
-      if (mode === "union") {
-        params.set("union", "true");
-        if (localNum) params.set("local", localNum);
-      } else {
-        if (unionOnly) params.set("union", "true");
-      }
+      if (f.trade)   params.set("trade",    f.trade);
+      if (f.sector)  params.set("sector",   f.sector);
+      if (f.state)   params.set("state",    f.state);
+      if (f.county)  params.set("county",   f.county);
+      if (f.local)   params.set("local",    f.local);
+      if (f.q)       params.set("q",        f.q);
+      if (f.sort)    params.set("sort",     f.sort);
+      params.set("union",    m === "union" ? "union" : f.union);
+      params.set("verified", f.verified);
+      params.set("firmSize", f.firmSize);
 
       const res = await fetch(`/api/search/crews?${params}`);
-      if (res.ok) {
-        const data = await res.json();
-        setResults(data.results ?? []);
-        setTotal(data.total ?? 0);
-        setPage(data.page ?? 1);
-        setPages(data.pages ?? 1);
-      }
+      if (!res.ok) return;
+      const data = await res.json();
+      setResults(data.results ?? []);
+      setTotal(data.total ?? 0);
+      setTotalProfiles(data.totalProfiles ?? 0);
+      setTotalUnclaimed(data.totalUnclaimed ?? 0);
+      setPage(data.page ?? 1);
+      setPages(data.pages ?? 1);
     } finally {
       setLoading(false);
     }
-  }, [mode, trade, state, availableOnly, unionOnly, localNum, q]);
+  }, []);
 
-  // Immediate fetch when dropdowns/toggles change
-  useEffect(() => {
-    if (mode === "gcs") return;
-    setPage(1);
-    fetchResults(1);
-  }, [trade, state, availableOnly, unionOnly, localNum, mode, fetchResults]);
-
-  // Debounced fetch for text inputs
+  // Immediate refetch on filter changes (debounced for text fields)
   useEffect(() => {
     if (mode === "gcs") return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => { setPage(1); fetchResults(1); }, 300);
+    const delay = (filters.q || filters.county || filters.local) ? 350 : 0;
+    debounceRef.current = setTimeout(() => {
+      setPage(1);
+      fetchResults(1, filters, mode);
+    }, delay);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [q, localNum, mode, fetchResults]);
-
-  function displayName(p: Profile) {
-    if (p.firm_name) return p.firm_name;
-    return [p.first_name, p.last_name].filter(Boolean).join(" ") || "Trade Pro";
-  }
+  }, [filters, mode, fetchResults]);
 
   function switchMode(m: Mode) {
     setMode(m);
     setResults([]);
-    setTotal(0);
+    setTotal(null);
+    setPage(1);
   }
 
-  const hasCrewsFilters = trade || state || unionOnly || availableOnly || q;
-  const hasUnionFilters = trade || state || availableOnly || q || localNum;
+  // ── Result card helpers ────────────────────────────────────────────────────
+
+  function displayName(r: SearchResult) {
+    if (r.source === "unclaimed") return r.business_name ?? "Unlisted Business";
+    return r.firm_name || [r.first_name, r.last_name].filter(Boolean).join(" ") || "Trade Pro";
+  }
+
+  function displayTrade(r: SearchResult) {
+    if (r.source === "profile") return r.trade ?? "";
+    // Shorten verbose license type strings
+    const lt = r.license_type ?? "";
+    if (lt.length > 34) return lt.slice(0, 34) + "…";
+    return lt;
+  }
+
+  function displayLocation(r: SearchResult) {
+    if (r.source === "profile") {
+      return [r.location_city, r.location_state].filter(Boolean).join(", ");
+    }
+    return [r.city, r.source_state].filter(Boolean).join(", ");
+  }
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100">
       <Navbar />
-      <div className="max-w-4xl mx-auto px-4 pt-24 pb-16">
+      <div className="max-w-5xl mx-auto px-4 pt-24 pb-16">
 
         {/* Launch banner */}
         {!bannerDismissed && (
@@ -144,14 +243,14 @@ export default function SearchPage() {
             <div className="flex-1 min-w-0">
               <p className="text-orange-200 text-sm font-semibold leading-relaxed">
                 <span className="text-orange-400 font-black">Free during our launch period.</span>{" "}
-                Find Crews is open to everyone right now. This will become a paid GC feature soon —{" "}
+                Find Crews is open to everyone right now. This becomes a paid GC feature soon —{" "}
                 <Link href="/signup" className="underline text-orange-300 hover:text-white transition-colors">
                   create a free account
                 </Link>{" "}
-                to lock in your access before the paywall goes up.
+                to lock in your access.
               </p>
             </div>
-            <button onClick={dismissBanner} className="text-orange-500 hover:text-white transition-colors flex-shrink-0 mt-0.5" aria-label="Dismiss">
+            <button onClick={dismissBanner} className="text-orange-500 hover:text-white transition-colors flex-shrink-0 mt-0.5">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -159,280 +258,424 @@ export default function SearchPage() {
 
         {/* Header + tabs */}
         <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-black text-white mb-4">Search</h1>
+          <h1 className="text-2xl md:text-3xl font-black text-white mb-4">Contractor Directory</h1>
           <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => switchMode("crews")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-                mode === "crews" ? "bg-blue-700 text-white" : "bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-500"
-              }`}
-            >
+            <button onClick={() => switchMode("crews")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors ${mode === "crews" ? "bg-blue-700 text-white" : "bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-500"}`}>
               <Building2 className="w-4 h-4" /> Find Crews
               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-orange-600/40 text-orange-300">Free Now</span>
             </button>
-            <button
-              onClick={() => switchMode("union")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-                mode === "union" ? "bg-blue-800 text-white border border-blue-600" : "bg-slate-800 text-slate-400 border border-slate-700 hover:border-blue-700"
-              }`}
-            >
+            <button onClick={() => switchMode("union")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors ${mode === "union" ? "bg-blue-800 text-white border border-blue-600" : "bg-slate-800 text-slate-400 border border-slate-700 hover:border-blue-700"}`}>
               <Shield className="w-4 h-4" /> Union Directory
             </button>
-            <button
-              onClick={() => switchMode("gcs")}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-                mode === "gcs" ? "bg-orange-600 text-white" : "bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-500"
-              }`}
-            >
+            <button onClick={() => switchMode("gcs")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors ${mode === "gcs" ? "bg-orange-600 text-white" : "bg-slate-800 text-slate-400 border border-slate-700 hover:border-slate-500"}`}>
               <HardHat className="w-4 h-4" /> Find GCs
-              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-orange-600/40 text-orange-300">Free</span>
             </button>
           </div>
-          <p className="text-slate-500 text-xs mt-2">
-            {mode === "crews" && "Search verified trade pros and subs by trade, state, union status, and availability. No account required."}
-            {mode === "union" && "Union members only — search by local number, trade, and state. Perfect for GCs sourcing union crews."}
-            {mode === "gcs"  && "Find General Contractors actively looking for qualified subs. Always free for trade pros."}
-          </p>
         </div>
 
-        {/* ── FIND CREWS tab ── */}
-        {mode === "crews" && (
-          <div>
-            <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 mb-6 space-y-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                <input
-                  value={q}
-                  onChange={e => setQ(e.target.value)}
-                  placeholder="Search by name, trade, company…"
-                  className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-orange-500"
-                />
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <select value={trade} onChange={e => setTrade(e.target.value)}
-                  className="bg-slate-900 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500 min-w-40">
-                  <option value="">All Trades</option>
-                  {ALL_TRADES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-                <select value={state} onChange={e => setState(e.target.value)}
-                  className="bg-slate-900 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-orange-500">
-                  <option value="">All States</option>
-                  {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <button onClick={() => setUnionOnly(v => !v)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold border transition-colors ${unionOnly ? "bg-blue-700 border-blue-600 text-white" : "bg-slate-900 border-slate-600 text-slate-400 hover:border-slate-400"}`}>
-                  <Shield className="w-3.5 h-3.5" /> Union Only
-                </button>
-                <button onClick={() => setAvailableOnly(v => !v)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold border transition-colors ${availableOnly ? "bg-green-700 border-green-600 text-white" : "bg-slate-900 border-slate-600 text-slate-400 hover:border-slate-400"}`}>
-                  <CheckCircle className="w-3.5 h-3.5" /> Available Now
-                </button>
-                {hasCrewsFilters && (
-                  <button onClick={() => { setTrade(""); setState(""); setUnionOnly(false); setAvailableOnly(false); setQ(""); }}
-                    className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-300 border border-transparent hover:border-slate-600 transition-colors">
-                    <X className="w-3 h-3" /> Clear
-                  </button>
-                )}
-              </div>
-            </div>
-            <ResultsList results={results} total={total} loading={loading} page={page} pages={pages} onPage={fetchResults} displayName={displayName} />
-          </div>
-        )}
-
-        {/* ── UNION DIRECTORY tab ── */}
-        {mode === "union" && (
-          <div>
-            <div className="bg-blue-950/30 border border-blue-800/50 rounded-2xl p-4 mb-6 space-y-3">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-blue-400 mb-1">
-                <Shield className="w-3.5 h-3.5" /> Union Member Directory — All members below are self-reported union affiliates
-              </div>
-
-              {/* Local number search — primary field for this view */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                <input
-                  value={localNum}
-                  onChange={e => setLocalNum(e.target.value)}
-                  placeholder='Search by local number or union — e.g. "349" or "IBEW Local 349"'
-                  className="w-full bg-slate-900 border border-blue-800/60 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              {/* Name / keyword search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                <input
-                  value={q}
-                  onChange={e => setQ(e.target.value)}
-                  placeholder="Search by name or company…"
-                  className="w-full bg-slate-900 border border-slate-600 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
-                />
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <select value={trade} onChange={e => setTrade(e.target.value)}
-                  className="bg-slate-900 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 min-w-40">
-                  <option value="">All Trades</option>
-                  {ALL_TRADES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-                <select value={state} onChange={e => setState(e.target.value)}
-                  className="bg-slate-900 border border-slate-600 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
-                  <option value="">All States</option>
-                  {US_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <button onClick={() => setAvailableOnly(v => !v)}
-                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold border transition-colors ${availableOnly ? "bg-green-700 border-green-600 text-white" : "bg-slate-900 border-slate-600 text-slate-400 hover:border-slate-400"}`}>
-                  <CheckCircle className="w-3.5 h-3.5" /> Available Now
-                </button>
-                {hasUnionFilters && (
-                  <button onClick={() => { setTrade(""); setState(""); setAvailableOnly(false); setQ(""); setLocalNum(""); }}
-                    className="flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-300 border border-transparent hover:border-slate-600 transition-colors">
-                    <X className="w-3 h-3" /> Clear
-                  </button>
-                )}
-              </div>
-            </div>
-            <ResultsList results={results} total={total} loading={loading} page={page} pages={pages} onPage={fetchResults} displayName={displayName} unionMode />
-          </div>
-        )}
-
-        {/* ── FIND GCs tab ── */}
+        {/* ── GCs tab ── */}
         {mode === "gcs" && (
           <div className="text-center py-16 bg-slate-800/30 border border-slate-700/40 rounded-2xl">
             <Clock className="w-10 h-10 text-orange-400 mx-auto mb-3" />
             <p className="text-white font-black text-lg mb-2">GC Directory — Coming Soon</p>
             <p className="text-slate-400 text-sm max-w-sm mx-auto leading-relaxed">
-              General Contractor profiles are being verified now. The GC directory will be free for all trade pros and subs — no subscription required.
+              GC profiles are being verified now. Always free for trade pros.
             </p>
             <Link href="/#waitlist"
               className="inline-flex items-center gap-2 mt-6 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-sm transition-colors">
-              <Zap className="w-4 h-4" /> Get Notified When It Launches
+              <Zap className="w-4 h-4" /> Get Notified
             </Link>
           </div>
         )}
 
+        {/* ── Find Crews + Union Directory ── */}
+        {mode !== "gcs" && (
+          <div className="flex flex-col lg:flex-row gap-6">
+
+            {/* ── FILTER PANEL ── */}
+            <div className="lg:w-64 flex-shrink-0">
+              <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl overflow-hidden sticky top-24">
+
+                {/* Filter header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/50">
+                  <button
+                    onClick={() => setFiltersOpen(v => !v)}
+                    className="flex items-center gap-2 text-sm font-bold text-white"
+                  >
+                    <Filter className="w-3.5 h-3.5 text-orange-400" />
+                    Filters
+                    {isDirty && (
+                      <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />
+                    )}
+                    <ChevronDown className={`w-3.5 h-3.5 text-slate-500 transition-transform ${filtersOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {isDirty && (
+                    <button onClick={clearAll}
+                      className="flex items-center gap-1 text-xs text-slate-400 hover:text-orange-400 transition-colors font-semibold">
+                      <X className="w-3 h-3" /> Clear All
+                    </button>
+                  )}
+                </div>
+
+                {filtersOpen && (
+                  <div className="p-4 space-y-5">
+
+                    {/* Keyword search */}
+                    <div>
+                      <label className="filter-label">Keyword</label>
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                        <input
+                          value={filters.q}
+                          onChange={e => set("q", e.target.value)}
+                          placeholder="Name, company, trade…"
+                          className="filter-input pl-8"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Trade */}
+                    <div>
+                      <label className="filter-label">Trade</label>
+                      <select value={filters.trade} onChange={e => set("trade", e.target.value)} className="filter-input">
+                        <option value="">All Trades</option>
+                        {TRADES.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+
+                    {/* Sector */}
+                    <div>
+                      <label className="filter-label">Sector</label>
+                      <select value={filters.sector} onChange={e => set("sector", e.target.value)} className="filter-input">
+                        <option value="">All Sectors</option>
+                        {SECTORS.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+
+                    {/* State */}
+                    <div>
+                      <label className="filter-label">State</label>
+                      <select value={filters.state} onChange={e => set("state", e.target.value)} className="filter-input">
+                        <option value="">All States</option>
+                        {DIRECTORY_STATES.map(s => (
+                          <option key={s.abbr} value={s.label}>{s.label}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* City / ZIP */}
+                    <div>
+                      <label className="filter-label">City or ZIP</label>
+                      <input
+                        value={filters.county}
+                        onChange={e => set("county", e.target.value)}
+                        placeholder="e.g. Fort Myers, 33901"
+                        className="filter-input"
+                      />
+                      <p className="text-[10px] text-slate-600 mt-1">Searches by city name or ZIP code</p>
+                    </div>
+
+                    {/* Union status */}
+                    {mode === "crews" && (
+                      <div>
+                        <label className="filter-label">Union Status</label>
+                        <div className="flex rounded-xl overflow-hidden border border-slate-600">
+                          {UNION_OPTIONS.map(opt => (
+                            <button key={opt.value}
+                              onClick={() => set("union", opt.value)}
+                              className={`flex-1 py-1.5 text-[11px] font-bold transition-colors ${filters.union === opt.value ? "bg-blue-700 text-white" : "bg-slate-900 text-slate-400 hover:text-slate-200"}`}>
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Union local (union directory mode only) */}
+                    {mode === "union" && (
+                      <div>
+                        <label className="filter-label">Local Number</label>
+                        <input
+                          value={filters.local}
+                          onChange={e => set("local", e.target.value)}
+                          placeholder='e.g. "349" or "IBEW 349"'
+                          className="filter-input"
+                        />
+                      </div>
+                    )}
+
+                    {/* Verified status */}
+                    <div>
+                      <label className="filter-label">
+                        Verified Status
+                        <span className="ml-1 text-[9px] text-slate-500 font-normal">(coming soon)</span>
+                      </label>
+                      <div className="flex rounded-xl overflow-hidden border border-slate-600">
+                        {VERIFIED_OPTIONS.map(opt => (
+                          <button key={opt.value}
+                            onClick={() => set("verified", opt.value)}
+                            className={`flex-1 py-1.5 text-[11px] font-bold transition-colors ${filters.verified === opt.value ? "bg-green-700 text-white" : "bg-slate-900 text-slate-400 hover:text-slate-200"}`}>
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Firm size */}
+                    <div>
+                      <label className="filter-label">Firm Size <span className="font-normal text-slate-500">(crew)</span></label>
+                      <div className="grid grid-cols-4 rounded-xl overflow-hidden border border-slate-600">
+                        {FIRM_SIZE_OPTIONS.map(opt => (
+                          <button key={opt.value}
+                            onClick={() => set("firmSize", opt.value)}
+                            className={`py-1.5 text-[11px] font-bold transition-colors ${filters.firmSize === opt.value ? "bg-orange-600 text-white" : "bg-slate-900 text-slate-400 hover:text-slate-200"}`}>
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Sort */}
+                    <div>
+                      <label className="filter-label">Sort By</label>
+                      <select value={filters.sort} onChange={e => set("sort", e.target.value)} className="filter-input">
+                        {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    </div>
+
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ── RESULTS PANE ── */}
+            <div className="flex-1 min-w-0">
+
+              {/* Result count bar */}
+              <div className="flex items-center justify-between mb-4 min-h-[24px]">
+                {loading ? (
+                  <div className="flex items-center gap-2 text-slate-400 text-sm">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Searching…
+                  </div>
+                ) : total !== null ? (
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <p className="text-white font-black text-lg">
+                      {total.toLocaleString()}
+                      <span className="text-slate-400 font-normal text-sm ml-1.5">
+                        contractor{total !== 1 ? "s" : ""}
+                      </span>
+                    </p>
+                    {(totalProfiles > 0 || totalUnclaimed > 0) && (
+                      <div className="flex items-center gap-2 text-[11px] text-slate-500">
+                        {totalProfiles > 0 && <span>{totalProfiles.toLocaleString()} claimed</span>}
+                        {totalProfiles > 0 && totalUnclaimed > 0 && <span>·</span>}
+                        {totalUnclaimed > 0 && <span>{totalUnclaimed.toLocaleString()} registry listings</span>}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+                {isDirty && !loading && (
+                  <button onClick={clearAll}
+                    className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-orange-400 transition-colors font-semibold">
+                    <X className="w-3 h-3" /> Clear filters
+                  </button>
+                )}
+              </div>
+
+              {/* Empty state */}
+              {!loading && total === 0 && (
+                <div className="text-center py-16 bg-slate-800/30 border border-slate-700/40 rounded-2xl">
+                  <Building2 className="w-10 h-10 text-slate-600 mx-auto mb-3" />
+                  <p className="text-slate-400 font-semibold mb-1">No contractors match your filters</p>
+                  <p className="text-slate-500 text-sm mb-4">Try a different trade, state, or loosen the filters.</p>
+                  <button onClick={clearAll}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-xl text-sm text-slate-300 font-semibold transition-colors">
+                    <X className="w-3.5 h-3.5" /> Clear All Filters
+                  </button>
+                </div>
+              )}
+
+              {/* Results */}
+              {!loading && results.length > 0 && (
+                <div className="space-y-2.5">
+                  {results.map((r, i) =>
+                    r.source === "profile"
+                      ? <ProfileCard key={`p-${r.slug}-${i}`} r={r} displayName={displayName(r)} displayTrade={displayTrade(r)} displayLocation={displayLocation(r)} />
+                      : <UnclaimedCard key={`u-${r.id}-${i}`} r={r} displayTrade={displayTrade(r)} displayLocation={displayLocation(r)} />
+                  )}
+                </div>
+              )}
+
+              {/* Loading skeleton */}
+              {loading && (
+                <div className="space-y-2.5">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="bg-slate-800/40 border border-slate-700/30 rounded-2xl p-4 animate-pulse">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-slate-700 flex-shrink-0" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-3.5 bg-slate-700 rounded w-2/5" />
+                          <div className="h-3 bg-slate-700/60 rounded w-3/5" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Pagination */}
+              {pages > 1 && !loading && (
+                <div className="flex items-center justify-center gap-3 mt-6">
+                  <button disabled={page <= 1}
+                    onClick={() => { setPage(p => p - 1); fetchResults(page - 1, filters, mode); }}
+                    className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-400 hover:text-white disabled:opacity-30 transition-colors">
+                    Previous
+                  </button>
+                  <span className="text-sm text-slate-500">Page {page} of {pages.toLocaleString()}</span>
+                  <button disabled={page >= pages}
+                    onClick={() => { setPage(p => p + 1); fetchResults(page + 1, filters, mode); }}
+                    className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-400 hover:text-white disabled:opacity-30 transition-colors">
+                    Next
+                  </button>
+                </div>
+              )}
+
+            </div>
+          </div>
+        )}
+
       </div>
+
+      {/* Inline Tailwind class definitions via a style tag since we use non-utility classes */}
+      <style>{`
+        .filter-label {
+          display: block;
+          font-size: 10px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          color: #64748b;
+          margin-bottom: 6px;
+        }
+        .filter-input {
+          width: 100%;
+          background: #0f172a;
+          border: 1px solid #334155;
+          border-radius: 10px;
+          padding: 7px 10px;
+          font-size: 13px;
+          color: #f1f5f9;
+        }
+        .filter-input:focus {
+          outline: none;
+          border-color: #f97316;
+        }
+        .filter-input option {
+          background: #1e293b;
+        }
+      `}</style>
     </div>
   );
 }
 
-// ── Shared results list ────────────────────────────────────────────────────────
+// ── Profile result card ───────────────────────────────────────────────────────
 
-function ResultsList({
-  results, total, loading, page, pages, onPage, displayName, unionMode = false
-}: {
-  results: Profile[];
-  total: number;
-  loading: boolean;
-  page: number;
-  pages: number;
-  onPage: (p: number) => void;
-  displayName: (p: Profile) => string;
-  unionMode?: boolean;
+function ProfileCard({ r, displayName, displayTrade, displayLocation }: {
+  r: SearchResult; displayName: string; displayTrade: string; displayLocation: string;
 }) {
   return (
-    <>
-      {!loading && (
-        <p className="text-xs text-slate-500 mb-3">
-          {total === 0
-            ? "No results"
-            : `Showing ${results.length} of ${total.toLocaleString()} ${unionMode ? "union member" : "trade pro"}${total !== 1 ? "s" : ""}`}
-        </p>
-      )}
+    <Link href={`/pro/${r.slug}`}
+      className="flex items-start gap-3 bg-slate-800/60 border border-slate-700/50 hover:border-orange-700/40 rounded-2xl p-3.5 transition-colors group">
+      {/* Avatar */}
+      <div className="w-10 h-10 rounded-xl bg-slate-700 flex-shrink-0 overflow-hidden flex items-center justify-center font-black text-slate-400 text-base">
+        {r.avatar_url
+          ? <img src={r.avatar_url} alt="" className="w-full h-full object-cover" />
+          : displayName.charAt(0).toUpperCase()
+        }
+      </div>
 
-      {loading && (
-        <div className="flex items-center justify-center py-16 gap-2 text-slate-400">
-          <Loader2 className="w-5 h-5 animate-spin" /> Searching…
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap mb-0.5">
+          <p className="font-bold text-white group-hover:text-orange-300 transition-colors text-sm truncate">
+            {displayName}
+          </p>
+          {r.verification_status === "verified" && (
+            <span className="text-[9px] font-black text-green-400 bg-green-900/30 border border-green-800/50 px-1.5 py-0.5 rounded-full flex-shrink-0">
+              VERIFIED
+            </span>
+          )}
+          {r.union_member && (
+            <span className="inline-flex items-center gap-0.5 text-[9px] font-black text-white bg-blue-700 border border-blue-500 px-1.5 py-0.5 rounded-full flex-shrink-0">
+              <Shield className="w-2.5 h-2.5" /> UNION
+            </span>
+          )}
+          {r.availability_status === "available" && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border text-green-400 bg-green-900/30 border-green-800/50 flex-shrink-0">
+              Available
+            </span>
+          )}
         </div>
-      )}
 
-      {!loading && results.length === 0 && (
-        <div className="text-center py-16 bg-slate-800/30 border border-slate-700/40 rounded-2xl">
-          <Building2 className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-          <p className="text-slate-400 font-semibold mb-1">No results match your filters</p>
-          <p className="text-slate-500 text-sm">Try broadening your search or clearing some filters.</p>
+        <div className="flex items-center gap-2 flex-wrap text-xs text-slate-400">
+          {displayTrade && <span className="text-orange-400 font-semibold">{displayTrade}</span>}
+          {displayLocation && (
+            <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3" />{displayLocation}</span>
+          )}
+          {r.crew_size && (
+            <span className="flex items-center gap-0.5"><Users className="w-3 h-3" />{r.crew_size} crew</span>
+          )}
+          {r.years_experience && <span>{r.years_experience}yr</span>}
+          {r.union_local_number && (
+            <span className="text-blue-400">Local {r.union_local_number}</span>
+          )}
         </div>
-      )}
+      </div>
 
-      {!loading && results.length > 0 && (
-        <div className="space-y-3">
-          {results.map(pro => {
-            const name = displayName(pro);
-            const local = pro.union_local_number ? `Local ${pro.union_local_number}` : null;
-            const unionAffiliation = [pro.union_name, local].filter(Boolean).join(" · ");
+      <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 flex-shrink-0 mt-1 transition-colors" />
+    </Link>
+  );
+}
 
-            return (
-              <Link
-                key={pro.slug}
-                href={`/pro/${pro.slug}`}
-                className="block bg-slate-800/60 border border-slate-700/50 hover:border-slate-500 rounded-2xl p-4 transition-colors group"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-slate-700 flex-shrink-0 overflow-hidden">
-                    {pro.avatar_url
-                      ? <img src={pro.avatar_url} alt="" className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center text-slate-400 font-black text-lg">
-                          {name.charAt(0).toUpperCase()}
-                        </div>
-                    }
-                  </div>
+// ── Unclaimed registry card ───────────────────────────────────────────────────
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                      <p className="font-black text-white group-hover:text-orange-300 transition-colors truncate">{name}</p>
-                      {pro.availability_status === "available" && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border text-green-400 bg-green-900/30 border-green-800/50 flex-shrink-0">
-                          Available Now
-                        </span>
-                      )}
-                      {pro.union_member && (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-black text-white bg-blue-700 border border-blue-500 px-2 py-0.5 rounded-full flex-shrink-0">
-                          <Shield className="w-3 h-3" /> UNION
-                        </span>
-                      )}
-                    </div>
+function UnclaimedCard({ r, displayTrade, displayLocation }: {
+  r: SearchResult; displayTrade: string; displayLocation: string;
+}) {
+  const claimUrl = r.claim_token
+    ? `/build?claim=${r.claim_token}&business=${encodeURIComponent(r.business_name ?? "")}`
+    : "/build";
 
-                    <div className="flex items-center gap-3 flex-wrap text-xs text-slate-400">
-                      {pro.trade && <span className="text-orange-400 font-semibold">{pro.trade}</span>}
-                      {(pro.location_city || pro.location_state) && (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3 h-3" />
-                          {[pro.location_city, pro.location_state].filter(Boolean).join(", ")}
-                        </span>
-                      )}
-                      {pro.crew_size && (
-                        <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {pro.crew_size} crew</span>
-                      )}
-                      {pro.years_experience && <span>{pro.years_experience}yr exp</span>}
-                    </div>
+  return (
+    <div className="flex items-start gap-3 bg-slate-800/30 border border-slate-700/30 hover:border-slate-600/60 rounded-2xl p-3.5 transition-colors group">
+      {/* Placeholder avatar */}
+      <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex-shrink-0 flex items-center justify-center text-slate-500 font-black text-base">
+        {(r.business_name ?? "?").charAt(0).toUpperCase()}
+      </div>
 
-                    {/* Show union affiliation in union directory view */}
-                    {unionMode && unionAffiliation && (
-                      <p className="text-[11px] text-blue-300 mt-1 font-semibold">{unionAffiliation}</p>
-                    )}
-                  </div>
-
-                  <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 flex-shrink-0 mt-1 transition-colors" />
-                </div>
-              </Link>
-            );
-          })}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap mb-0.5">
+          <p className="font-bold text-slate-300 text-sm truncate">{r.business_name}</p>
+          <span className="text-[9px] font-bold text-amber-400 bg-amber-950/40 border border-amber-800/40 px-1.5 py-0.5 rounded-full flex-shrink-0 uppercase tracking-wide">
+            Unclaimed
+          </span>
         </div>
-      )}
 
-      {pages > 1 && !loading && (
-        <div className="flex items-center justify-center gap-3 mt-6">
-          <button disabled={page <= 1} onClick={() => onPage(page - 1)}
-            className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-400 hover:text-white disabled:opacity-30 transition-colors">
-            Previous
-          </button>
-          <span className="text-sm text-slate-500">Page {page} of {pages}</span>
-          <button disabled={page >= pages} onClick={() => onPage(page + 1)}
-            className="px-4 py-2 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-400 hover:text-white disabled:opacity-30 transition-colors">
-            Next
-          </button>
+        <div className="flex items-center gap-2 flex-wrap text-xs text-slate-500">
+          {displayTrade && <span className="text-slate-400">{displayTrade}</span>}
+          {displayLocation && (
+            <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3" />{displayLocation}</span>
+          )}
+          {r.phone && <span>{r.phone}</span>}
         </div>
-      )}
-    </>
+      </div>
+
+      <Link href={claimUrl}
+        className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 bg-orange-600/20 hover:bg-orange-600/40 border border-orange-700/40 text-orange-400 hover:text-orange-300 text-[11px] font-bold rounded-xl transition-colors whitespace-nowrap">
+        <CheckCircle className="w-3 h-3" /> Claim
+      </Link>
+    </div>
   );
 }

@@ -120,11 +120,11 @@ async function sendViaSendGrid(toEmail: string, subject: string, html: string): 
 
 // Fixed cap — only changed manually, no automatic ramp
 function getRampInfo(startDateStr: string | undefined, todayUtc: string): { dailyCap: number; rampDay: number } {
-  if (!startDateStr) return { dailyCap: 10, rampDay: 1 };
+  if (!startDateStr) return { dailyCap: 1000, rampDay: 1 };
   const daysElapsed = Math.round(
     (new Date(todayUtc).getTime() - new Date(startDateStr).getTime()) / 86400000
   );
-  return { dailyCap: 10, rampDay: daysElapsed + 1 };
+  return { dailyCap: 1000, rampDay: daysElapsed + 1 };
 }
 
 Deno.serve(async (req: Request) => {
