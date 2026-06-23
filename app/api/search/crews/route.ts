@@ -6,21 +6,41 @@ const PAGE_SIZE = 20;
 // Maps UI trade values to license_type ILIKE patterns for unclaimed_profiles.
 // Multiple patterns per trade — Supabase .or() unions them.
 const TRADE_LICENSE_PATTERNS: Record<string, string[]> = {
-  "Electrical":        ["electrical", "electrician", "C10", "C-8", "Registered Electrical"],
-  "Plumbing":          ["plumb", "C36", "C-36", "CPC"],
-  "HVAC":              ["hvac", "air cond", "refriger", "C20", "C-20", "CAC", "HVAC Contractor"],
-  "Carpentry":         ["carpent", "finish carp", "CBC", "Certified Building"],
+  // FL: "Electrical Contractor", "Certified Specialty Contractor (Electrical)", "Registered Electrical Contractor"
+  // CA: "C10"   NV: "C-8"   OH: "Electrical"   WA: "Electrical Contractor (EC)"
+  "Electrical":        ["electrical", "electrician", "C10", "C-8"],
+
+  // FL: "Certified Plumbing Contractor", "Plumbing Contractor"   WA: "Plumbing Contractor"
+  "Plumbing":          ["plumb", "C36", "C-36"],
+
+  // FL: "Certified Air Conditioning Contractor"   OH: "HVAC", "Refrigeration", "Hydronics"   TX: "A/C & Refrigeration"
+  "HVAC":              ["air cond", "hvac", "refriger", "hydron", "C20", "C-20"],
+
+  // FL: "Certified Building Contractor" (CBC)   CA: "B" general building
+  "Carpentry":         ["carpent", "Certified Building Contractor", "Building Contractor"],
+
   "Structural Steel":  ["steel", "ironwork", "structural"],
-  "Mechanical":        ["mechanic", "CMC", "Certified Mechanical"],
-  "Roofing":           ["roof", "D49", "CRC", "Certified Roofing"],
-  "Concrete":          ["concrete", "cement", "C-6", "CCC", "Certified Concrete"],
+
+  // FL: "Certified Mechanical Contractor"
+  "Mechanical":        ["mechanic", "Certified Mechanical"],
+
+  // FL: "Certified Roofing Contractor", "Roofing"   CA: "C39"   NV: "C-15"
+  "Roofing":           ["roof", "C39", "C-15"],
+
+  "Concrete":          ["concrete", "cement", "C-6", "flatwork"],
   "Masonry":           ["mason", "C29", "brick"],
-  "Drywall":           ["drywall", "gypsum", "plaster", "drywall"],
+  "Drywall":           ["drywall", "gypsum", "plaster"],
   "Painting":          ["paint", "C33", "C-9", "coating"],
-  "Fire Suppression":  ["fire suppr", "sprinkler", "CFC", "C-16", "fire protect"],
-  "Civil":             ["general contractor", "general building", "civil", "excavation",
-                        "utility", "CGC", "Certified General", "Certified Residential"],
-  "Demolition":        ["demoli", "wreck", "C-21"],
+
+  // FL: "Certified Fire Contractor" (CFC)   CA: "C-16"
+  "Fire Suppression":  ["fire", "sprinkler", "C-16"],
+
+  // FL: "Certified General Contractor" (CGC), "Certified Residential Contractor", "Certified Utility & Excavation Contractor"
+  // CA: "B" (General Building), "A" (General Engineering)   WA: "Construction Contractor"
+  "Civil":             ["General Contractor", "Certified General", "Certified Residential",
+                        "Utility & Excavation", "Construction Contractor", "civil", "General Engineering"],
+
+  "Demolition":        ["demoli", "wreck", "abate"],
   "Welding":           ["weld", "C-60"],
 };
 
