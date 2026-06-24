@@ -118,13 +118,14 @@ async function sendViaSendGrid(toEmail: string, subject: string, html: string): 
   }
 }
 
-// Fixed cap — only changed manually, no automatic ramp
-function getRampInfo(startDateStr: string | undefined, todayUtc: string): { dailyCap: number; rampDay: number } {
-  if (!startDateStr) return { dailyCap: 1000, rampDay: 1 };
+// Cap is read from admin_settings.outreach_daily_cap so it can be changed
+// without a redeployment (pg_cron updates it on schedule).
+function getRampInfo(startDateStr: string | undefined, todayUtc: string, capFromSettings: number): { dailyCap: number; rampDay: number } {
+  if (!startDateStr) return { dailyCap: capFromSettings, rampDay: 1 };
   const daysElapsed = Math.round(
     (new Date(todayUtc).getTime() - new Date(startDateStr).getTime()) / 86400000
   );
-  return { dailyCap: 1000, rampDay: daysElapsed + 1 };
+  return { dailyCap: capFromSettings, rampDay: daysElapsed + 1 };
 }
 
 Deno.serve(async (req: Request) => {
@@ -154,6 +155,7 @@ Deno.serve(async (req: Request) => {
       "outreach_start_date",
       "daily_emails_sent",
       "daily_emails_date",
+      "outreach_daily_cap",
     ]);
 
   const sm: Record<string, string> = {};
@@ -183,7 +185,8 @@ Deno.serve(async (req: Request) => {
     dailySent = parseInt(sm["daily_emails_sent"] ?? "0") || 0;
     if (sm["daily_emails_date"] !== todayUtc) dailySent = 0;
 
-    ({ dailyCap, rampDay } = getRampInfo(sm["outreach_start_date"], todayUtc));
+    const capFromSettings = Math.max(1, parseInt(sm["outreach_daily_cap"] ?? "1000") || 1000);
+    ({ dailyCap, rampDay } = getRampInfo(sm["outreach_start_date"], todayUtc, capFromSettings));
 
     const remaining = dailyCap - dailySent;
     if (remaining <= 0) {

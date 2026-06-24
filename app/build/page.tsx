@@ -194,8 +194,15 @@ function BuildPageInner() {
   const [authedUserId, setAuthedUserId] = useState<string | null>(null);
   const [claimData, setClaimData] = useState<{
     id: string; business_name: string; city?: string; state?: string;
-    phone?: string; email?: string; license_number?: string;
+    phone?: string; email?: string; license_number?: string; license_type?: string;
   } | null>(null);
+
+  // Magic claim flow state (used when unauthenticated + claim token present)
+  const [magicEmail, setMagicEmail] = useState("");
+  const [magicSubmitting, setMagicSubmitting] = useState(false);
+  const [magicError, setMagicError] = useState<string | null>(null);
+  const [magicDone, setMagicDone] = useState<{ slug: string; profileUrl: string; businessName: string } | null>(null);
+  const [magicCopied, setMagicCopied] = useState(false);
 
   // Gate: check auth before showing the form. 2-second hard timeout so
   // a stalled Supabase call never leaves the page in a spinner forever.
@@ -230,27 +237,62 @@ function BuildPageInner() {
     return () => clearTimeout(timeout);
   }, [router]);
 
-  // When auth resolves and a claim token is present, fetch the unclaimed profile
-  // and pre-fill what we know (firm name, email, phone, city, state, license).
+  // Fetch claim data as soon as the token is available — works before auth resolves.
+  // Used both by the magic claim UI (unauthenticated) and the full builder pre-fill (authenticated).
   useEffect(() => {
-    if (!isAuthed || !claimToken) return;
+    if (!claimToken) return;
     fetch(`/api/registry/claim?token=${encodeURIComponent(claimToken)}`)
       .then(r => r.ok ? r.json() : null)
       .then((data) => {
         if (!data || data.error) return;
         setClaimData(data);
-        setForm(prev => ({
-          ...prev,
-          firmName: data.business_name || prev.firmName,
-          email: data.email || prev.email,
-          phone: data.phone || prev.phone,
-          locationCity: data.city || prev.locationCity,
-          locationState: data.state || prev.locationState,
-          licenseNumber: data.license_number || prev.licenseNumber,
-        }));
+        if (isAuthed) {
+          setForm(prev => ({
+            ...prev,
+            firmName: data.business_name || prev.firmName,
+            email: data.email || prev.email,
+            phone: data.phone || prev.phone,
+            locationCity: data.city || prev.locationCity,
+            locationState: data.state || prev.locationState,
+            licenseNumber: data.license_number || prev.licenseNumber,
+          }));
+        }
       })
       .catch(() => {});
-  }, [isAuthed, claimToken]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claimToken, isAuthed]);
+
+  async function handleMagicClaim(e: React.FormEvent) {
+    e.preventDefault();
+    if (!magicEmail.trim() || !claimToken) return;
+    setMagicSubmitting(true);
+    setMagicError(null);
+    try {
+      const res = await fetch("/api/registry/claim-magic", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: claimToken, email: magicEmail.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setMagicError(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      setMagicDone({ slug: data.slug, profileUrl: data.profileUrl, businessName: claimData?.business_name ?? "Your Business" });
+    } catch {
+      setMagicError("Network error. Please try again.");
+    } finally {
+      setMagicSubmitting(false);
+    }
+  }
+
+  function copyMagicLink() {
+    if (!magicDone) return;
+    navigator.clipboard.writeText(magicDone.profileUrl).then(() => {
+      setMagicCopied(true);
+      setTimeout(() => setMagicCopied(false), 2000);
+    }).catch(() => {});
+  }
 
   function set<K extends keyof FormData>(key: K, value: FormData[K]) {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -475,6 +517,142 @@ function BuildPageInner() {
   }
 
   if (!isAuthed) {
+    // ── Magic Claim Flow — 2 clicks, no password ───────────────────────────
+    if (claimToken && (claimData || claimBusiness)) {
+      const biz = claimData?.business_name ?? claimBusiness ?? "Your Business";
+
+      // Confirmation screen after claiming
+      if (magicDone) {
+        return (
+          <div className="min-h-screen bg-[#0f172a] text-slate-100 flex items-center justify-center px-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-md w-full text-center">
+              <div className="w-16 h-16 bg-green-500/20 border border-green-500/40 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle className="w-9 h-9 text-green-400" />
+              </div>
+              <h1 className="text-2xl font-black text-white mb-2">Your profile is live.</h1>
+              <p className="text-slate-400 mb-6">
+                <span className="text-white font-semibold">{magicDone.businessName}</span> is now on TradePro Nexus.
+                GCs in your area can find you right now.
+              </p>
+              <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-4 mb-6 text-left">
+                <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-1 font-bold">Your Profile URL</p>
+                <p className="text-orange-400 font-mono text-sm break-all">{magicDone.profileUrl}</p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                <Link href={`/pro/${magicDone.slug}`}
+                  className="flex-1 flex items-center justify-center gap-2 px-5 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl transition-colors text-sm">
+                  <ArrowRight className="w-4 h-4" /> View My Profile
+                </Link>
+                <button onClick={copyMagicLink}
+                  className="flex-1 flex items-center justify-center gap-2 px-5 py-3 border border-slate-600 hover:border-slate-400 text-slate-300 hover:text-white font-semibold rounded-xl transition-colors text-sm">
+                  {magicCopied ? <><CheckCircle className="w-4 h-4 text-green-400" /> Copied!</> : "Copy Link"}
+                </button>
+              </div>
+              <p className="text-slate-500 text-sm">
+                Check your email — we sent your login link so you can edit your profile anytime.
+              </p>
+            </motion.div>
+          </div>
+        );
+      }
+
+      // Magic claim form
+      return (
+        <div className="min-h-screen bg-[#0f172a] text-slate-100 flex items-center justify-center px-4">
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="max-w-md w-full">
+            {/* Header */}
+            <div className="text-center mb-6">
+              <span className="text-white font-black text-lg">TradePro <span className="text-orange-500">Nexus</span></span>
+            </div>
+
+            <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl overflow-hidden">
+              {/* Orange accent bar */}
+              <div className="h-1 bg-orange-600" />
+
+              <div className="p-6">
+                <p className="text-xs font-bold uppercase tracking-widest text-orange-400 mb-3">We Found Your Listing</p>
+                <h1 className="text-xl font-black text-white mb-4">Is this your business?</h1>
+
+                {/* Pre-filled business info */}
+                <div className="bg-slate-900/80 border border-slate-700 rounded-xl p-4 mb-6 space-y-2">
+                  <div>
+                    <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Business</p>
+                    <p className="text-white font-black text-base">{biz}</p>
+                  </div>
+                  {claimData?.license_type && (
+                    <div>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">License Type</p>
+                      <p className="text-slate-300 text-sm">{claimData.license_type}</p>
+                    </div>
+                  )}
+                  {claimData?.license_number && (
+                    <div>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">License #</p>
+                      <p className="text-orange-400 font-mono text-sm">{claimData.license_number}</p>
+                    </div>
+                  )}
+                  {(claimData?.city || claimData?.state) && (
+                    <div>
+                      <p className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Location</p>
+                      <p className="text-slate-300 text-sm">{[claimData?.city, claimData?.state].filter(Boolean).join(", ")}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Email + submit */}
+                <form onSubmit={handleMagicClaim} className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">
+                      Enter your email to claim this profile
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      value={magicEmail}
+                      onChange={e => setMagicEmail(e.target.value)}
+                      placeholder="you@company.com"
+                      autoComplete="email"
+                      className="w-full bg-slate-900 border border-slate-600 focus:border-orange-500 rounded-xl px-4 py-3 text-white text-base placeholder-slate-500 focus:outline-none transition-colors"
+                    />
+                  </div>
+
+                  {magicError && (
+                    <div className="bg-red-950/40 border border-red-800/50 text-red-400 text-sm rounded-xl px-4 py-3">
+                      {magicError}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={magicSubmitting || !magicEmail.trim()}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-black rounded-xl text-base transition-colors"
+                  >
+                    {magicSubmitting
+                      ? <><Loader2 className="w-5 h-5 animate-spin" /> Setting up your profile...</>
+                      : <><CheckCircle className="w-5 h-5" /> Yes, this is my business</>
+                    }
+                  </button>
+                </form>
+
+                <p className="text-center text-xs text-slate-500 mt-4">
+                  No password needed. We'll email you a login link.{" "}
+                  <Link href="/terms-of-use" className="text-slate-400 hover:text-slate-300 underline">Terms apply.</Link>
+                </p>
+              </div>
+            </div>
+
+            <p className="text-center mt-4 text-xs text-slate-600">
+              Not your business?{" "}
+              <Link href={`/signup`} className="text-slate-400 hover:text-slate-300">
+                Create a new account instead
+              </Link>
+            </p>
+          </motion.div>
+        </div>
+      );
+    }
+
+    // ── Standard auth gate (no claim token) ───────────────────────────────
     return (
       <div className="min-h-screen bg-[#0f172a] text-slate-100">
         <Navbar />
@@ -488,13 +666,13 @@ function BuildPageInner() {
           </p>
           <div className="space-y-3">
             <Link
-              href={`/signup?next=${encodeURIComponent(claimToken ? `/build?claim=${claimToken}${claimBusiness ? `&business=${encodeURIComponent(claimBusiness)}` : ""}` : "/build")}`}
+              href={`/signup?next=${encodeURIComponent("/build")}`}
               className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-xl text-base transition-colors"
             >
               <HardHat className="w-5 h-5" /> Create Account — Free
             </Link>
             <Link
-              href={`/login?next=${encodeURIComponent(claimToken ? `/build?claim=${claimToken}${claimBusiness ? `&business=${encodeURIComponent(claimBusiness)}` : ""}` : "/build")}`}
+              href={`/login?next=${encodeURIComponent("/build")}`}
               className="w-full flex items-center justify-center gap-2 px-6 py-3.5 border border-slate-600 hover:border-slate-400 text-slate-300 hover:text-white font-semibold rounded-xl text-base transition-colors"
             >
               Already have an account? Sign In

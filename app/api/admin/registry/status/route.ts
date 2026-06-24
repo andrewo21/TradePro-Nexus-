@@ -47,25 +47,24 @@ export async function GET(request: NextRequest) {
       "outreach_start_date",
       "daily_emails_sent",
       "daily_emails_date",
+      "outreach_daily_cap",
     ]);
 
   const settingsMap: Record<string, string> = {};
   for (const s of settings ?? []) settingsMap[s.key] = s.value;
 
-  // Fixed cap — only changed manually
-  function getRampInfo(startDate: string | undefined, todayUtc: string) {
-    if (!startDate) return { dailyCap: 10, rampDay: 1 };
+  // Cap is read from admin_settings so pg_cron can update it on schedule
+  function getRampInfo(startDate: string | undefined, todayUtc: string, cap: number) {
+    if (!startDate) return { dailyCap: cap, rampDay: 1 };
     const daysElapsed = Math.round(
       (new Date(todayUtc).getTime() - new Date(startDate).getTime()) / 86400000
     );
-    return {
-      rampDay: daysElapsed + 1,
-      dailyCap: 1000,
-    };
+    return { rampDay: daysElapsed + 1, dailyCap: cap };
   }
 
   const todayUtc = new Date().toISOString().split("T")[0];
-  const { dailyCap, rampDay } = getRampInfo(settingsMap.outreach_start_date, todayUtc);
+  const capFromSettings = Math.max(1, parseInt(settingsMap.outreach_daily_cap ?? "1000") || 1000);
+  const { dailyCap, rampDay } = getRampInfo(settingsMap.outreach_start_date, todayUtc, capFromSettings);
   const rawDailySent = parseInt(settingsMap.daily_emails_sent ?? "0") || 0;
   // Reset to 0 if the counter is from a previous day
   const dailySent = settingsMap.daily_emails_date === todayUtc ? rawDailySent : 0;
