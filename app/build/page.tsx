@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   HardHat, ChevronRight, ChevronLeft, Upload, CheckCircle,
   User, Briefcase, ShieldCheck, ImageIcon, Calendar, ArrowRight,
-  AlertCircle, X, Loader2, FileText, Ruler, Wrench, Shield, Lock
+  AlertCircle, X, Loader2, FileText, Ruler, Wrench, Shield, Lock, Share2
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
@@ -191,6 +191,7 @@ function BuildPageInner() {
   const [finalSlug, setFinalSlug] = useState("");
   const [authChecking, setAuthChecking] = useState(true);
   const [isAuthed, setIsAuthed] = useState(false);
+  const [authedUserId, setAuthedUserId] = useState<string | null>(null);
   const [claimData, setClaimData] = useState<{
     id: string; business_name: string; city?: string; state?: string;
     phone?: string; email?: string; license_number?: string;
@@ -209,6 +210,7 @@ function BuildPageInner() {
         return;
       }
       setIsAuthed(true);
+      setAuthedUserId(user.id);
       const pt = (user.user_metadata?.profile_type ?? user.user_metadata?.role ?? "tradepro") as ProfileType;
       const validTypes: ProfileType[] = ["tradepro", "sub", "inspector", "architect", "engineer"];
       const resolved = validTypes.includes(pt) ? pt : "tradepro";
@@ -415,6 +417,30 @@ function BuildPageInner() {
                 Back to Home
               </Link>
             </div>
+
+            {/* Refer and Earn CTA */}
+            {authedUserId && (
+              <div className="mt-6 bg-orange-950/30 border border-orange-800/40 rounded-2xl p-5 text-left">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-orange-600/20 border border-orange-600/40 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Share2 className="w-5 h-5 text-orange-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-black text-white text-sm mb-1">Refer a crew and earn rewards</p>
+                    <p className="text-slate-400 text-xs mb-3 leading-relaxed">
+                      Share your referral link with other trade pros. Refer 1 person for 10% off verification.
+                      Refer 10 and get it free ($99 value). Your discount applies automatically when verification launches.
+                    </p>
+                    <Link
+                      href="/account"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold rounded-xl transition-colors"
+                    >
+                      Get My Referral Link <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="mt-8 pt-6 border-t border-slate-800">
               <p className="text-sm text-slate-400 mb-3">Follow TradePro Nexus for updates and new features</p>

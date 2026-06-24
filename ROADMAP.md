@@ -1,5 +1,21 @@
 # TradePro Nexus — Product Roadmap
 
+## ✅ PHASE 12 — COMPLETE (Referral Engine + Advertising Page + Verification Discount Storage)
+
+1. **Referral engine** — `referral_tracking` table (referrer_id, referred_user_id, status, created_at). Unique referral link per user at `/signup?ref={user_id}`. Ref param captured in signup flow; on completion calls `POST /api/referral/credit` which inserts the referral row, recalculates the referrer's discount tier, and sends a SendGrid notification email. Reward tiers stored in `profiles.verification_discount_pct` (0/10/20/100%). Dashboard on `/account` shows count, progress bar, tier breakdown, copy link, and share buttons (text/email/native share). "Refer and Earn" CTA added to post-profile-creation success screen in `/build`.
+
+2. **Advertising page** (`/advertise`) rebuilt with: live directory count pulled from `/api/stats`, audience stats (422K+ contractors, 12 states, trades, union), 4 pricing tiers ($500/$1K/$2.5K/Enterprise), each tier links to `mailto:` with subject pre-filled as "Advertising Inquiry — {tier}". "Advertise With Us" added to global footer.
+
+3. **`profiles.verification_discount_pct` (INTEGER DEFAULT 0)** — stores referral-earned verification discount. Updated automatically by the referral credit API based on referral count tiers:
+   - 0 referrals → 0%
+   - 1–2 referrals → 10% off ($99 × 0.90 = $89.10)
+   - 3–9 referrals → 20% off ($99 × 0.80 = $79.20)
+   - 10+ referrals → 100% off (free)
+
+   **Phase 4 integration note:** When verification Stripe checkout launches, read `profiles.verification_discount_pct` for the purchasing user and apply a percentage discount at checkout. The field is already populated — just hook it into the Stripe `checkout.sessions.create` call as a coupon or price override. Never auto-apply — verify the field at checkout time so it reflects the latest referral count.
+
+---
+
 ## ✅ PHASE 1 — COMPLETE
 Supabase Auth, Trading Card builder, /pro/[slug], /company/[slug], DB schema, domain live.
 

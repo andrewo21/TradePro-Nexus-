@@ -6,6 +6,7 @@ import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabaseServer";
 import { GC_TIERS, FOUNDER_LIMIT, type GCTier } from "@/lib/stripe-config";
 import ProfileCompletion from "@/components/ProfileCompletion";
 import BadgeDisplay from "@/components/BadgeDisplay";
+import ReferralDashboard from "@/components/ReferralDashboard";
 import { BADGES } from "@/lib/badge-definitions";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
 import JobPreferences from "@/components/JobPreferences";
@@ -360,6 +361,12 @@ export default async function AccountPage() {
             </div>
           </div>
         )}
+
+        {/* Referral Dashboard — shown to all logged-in users */}
+        <ReferralDashboard
+          userId={user.id}
+          initialDiscount={(profile as any)?.verification_discount_pct ?? 0}
+        />
 
         {/* Saved Posts */}
         {savedPosts.length > 0 && (

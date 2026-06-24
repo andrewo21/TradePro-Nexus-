@@ -87,6 +87,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/privacy-policy" className="hover:text-slate-400 transition-colors underline">Privacy Policy</Link>
             {" "}·{" "}
             <Link href="/terms-of-use" className="hover:text-slate-400 transition-colors underline">Terms of Use</Link>
+            {" "}·{" "}
+            <Link href="/advertise" className="hover:text-slate-400 transition-colors underline">Advertise With Us</Link>
           </p>
         </div>
 

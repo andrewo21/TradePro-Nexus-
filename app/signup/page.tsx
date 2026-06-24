@@ -69,7 +69,8 @@ const COLOR_MAP = {
 function SignupPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextParam = searchParams.get("next");
+  const nextParam  = searchParams.get("next");
+  const refParam   = searchParams.get("ref") ?? "";
   const [accountType, setAccountType] = useState<AccountType>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -147,6 +148,15 @@ function SignupPageInner() {
       });
       if (authError) throw authError;
       trackEvent("signup", { account_type: accountType, claimed_match: !!selectedMatch });
+      // Credit the referrer if this signup came through a referral link
+      if (data.session && refParam) {
+        fetch("/api/referral/credit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ referrer_id: refParam }),
+        }).catch(() => {});
+      }
+
       if (data.session) {
         router.push(redirect);
         router.refresh();
