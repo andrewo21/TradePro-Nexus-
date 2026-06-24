@@ -379,6 +379,24 @@ export default function RegistryAdminPage() {
     { total: 0, pending: 0, promoted: 0 }
   );
 
+  // All-states aggregate for the top stats bar
+  const allStatesSummary = statusData?.staging?.reduce(
+    (acc, s) => ({
+      total:       acc.total       + (s.total       ?? 0),
+      pending:     acc.pending     + (s.pending      ?? 0),
+      promoted:    acc.promoted    + (s.promoted     ?? 0),
+      avg_quality: 0, // recalculated below
+    }),
+    { total: 0, pending: 0, promoted: 0, avg_quality: 0 }
+  );
+  if (allStatesSummary && statusData?.staging?.length) {
+    const validStates = statusData.staging.filter(s => s.avg_quality > 0);
+    allStatesSummary.avg_quality = validStates.length
+      ? Math.round((validStates.reduce((a, s) => a + s.avg_quality, 0) / validStates.length) * 10) / 10
+      : 0;
+  }
+  const activeStateCount = statusData?.staging?.length ?? 0;
+
   return (
     <div className="min-h-screen bg-[#0f172a] text-slate-100">
       <Navbar />
@@ -391,7 +409,7 @@ export default function RegistryAdminPage() {
               <Database className="w-5 h-5 text-orange-400" />
               <h1 className="text-xl font-black text-white">Registry Import Admin</h1>
             </div>
-            <p className="text-slate-400 text-sm">Florida — Session 1</p>
+            <p className="text-slate-400 text-sm">{activeStateCount} states — FL, TX, CA, NV, OH, WA, VA</p>
           </div>
           <button onClick={() => { fetchStatus(); fetchRecords(); }}
             className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-xs font-semibold text-slate-400 hover:text-white transition-colors">
@@ -407,14 +425,14 @@ export default function RegistryAdminPage() {
           </div>
         )}
 
-        {/* Stats bar */}
-        {flSummary && (
+        {/* Stats bar — all states aggregate */}
+        {allStatesSummary && allStatesSummary.total > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
             {[
-              { label: "Total Staged", value: flSummary.total?.toLocaleString(), color: "text-white" },
-              { label: "Pending Review", value: flSummary.pending?.toLocaleString(), color: "text-blue-400" },
-              { label: "Promoted", value: flSummary.promoted?.toLocaleString(), color: "text-green-400" },
-              { label: "Avg Quality", value: `${flSummary.avg_quality}/10`, color: "text-orange-400" },
+              { label: "Total Staged", value: allStatesSummary.total?.toLocaleString(), color: "text-white" },
+              { label: "Pending Review", value: allStatesSummary.pending?.toLocaleString(), color: "text-blue-400" },
+              { label: "Promoted", value: allStatesSummary.promoted?.toLocaleString(), color: "text-green-400" },
+              { label: "Avg Quality", value: `${allStatesSummary.avg_quality}/10`, color: "text-orange-400" },
             ].map(s => (
               <div key={s.label} className="bg-slate-800 border border-slate-700 rounded-xl p-4 text-center">
                 <p className={`text-2xl font-black ${s.color}`}>{s.value ?? "—"}</p>
@@ -601,11 +619,15 @@ export default function RegistryAdminPage() {
             <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden">
               <div
                 className="bg-green-500 h-2 rounded-full transition-all"
-                style={{ width: `${Math.min(100, (autoPromoteTotals.promoted / autoPromoteTotals.total) * 100)}%` }}
+                style={{ width: autoPromoteTotals.pending === 0 ? "100%" : `${Math.min(100, (autoPromoteTotals.promoted / (autoPromoteTotals.promoted + autoPromoteTotals.pending)) * 100)}%` }}
               />
             </div>
             <p className="text-xs text-slate-500 mt-1.5">
-              {autoPromoteTotals.promoted.toLocaleString()} / {autoPromoteTotals.total.toLocaleString()} promoted
+              {autoPromoteTotals.promoted.toLocaleString()} promoted
+              {autoPromoteTotals.total > autoPromoteTotals.promoted + autoPromoteTotals.pending
+                ? ` · ${(autoPromoteTotals.total - autoPromoteTotals.promoted - autoPromoteTotals.pending).toLocaleString()} flagged/duplicate/skipped`
+                : ""}
+              {autoPromoteTotals.pending > 0 ? ` · ${autoPromoteTotals.pending.toLocaleString()} pending` : ""}
             </p>
           </div>
         )}
@@ -613,7 +635,7 @@ export default function RegistryAdminPage() {
         {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-slate-800/60 border border-slate-700/50 rounded-2xl p-1">
           {[
-            { key: "records", label: `Records (${flSummary?.total?.toLocaleString() ?? "…"})` },
+            { key: "records", label: `Records (${allStatesSummary?.total?.toLocaleString() ?? "…"})` },
             { key: "imports", label: `Import Runs (${statusData?.imports?.length ?? 0})` },
             { key: "actions", label: "Actions" },
           ].map(t => (

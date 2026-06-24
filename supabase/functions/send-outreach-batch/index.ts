@@ -213,7 +213,10 @@ Deno.serve(async (req: Request) => {
     .eq("source_state", "FL")
     .not("email", "is", null)
     .order("created_at", { ascending: true })
-    .limit(batchSize * 4); // over-fetch a bit to skip already-contacted client-side
+    // Over-fetch enough to clear all already-contacted records plus fill the batch.
+    // Must exceed contactedIds.size + batchSize to avoid returning 0 results as
+    // the contacted list grows. Floor at 1000 so the function never stalls.
+    .limit(Math.max(batchSize * 20, contactedIds.size + batchSize * 2, 1000));
 
   const batch = (candidates ?? []).filter((p: { id: string }) => !contactedIds.has(p.id)).slice(0, batchSize);
 
