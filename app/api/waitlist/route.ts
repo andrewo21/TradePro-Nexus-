@@ -93,7 +93,7 @@ function buildEmail({
         <!-- Footer -->
         <tr><td style="padding:0 32px 32px;text-align:center;border-top:1px solid #1e293b;">
           <p style="color:#475569;font-size:12px;margin:24px 0 0;">
-            TradePro Nexus · A TradePro Enterprises product<br>
+            TradePro Nexus · A TradePro Technologies LLC product<br>
             <span style="color:#334155;">Verified by Paper. Not by Algorithm.</span><br>
             <span style="color:#334155;">TradePro Technologies LLC | 17629 Fallen Branch Way, Punta Gorda FL 33982</span>
           </p>

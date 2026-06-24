@@ -543,7 +543,7 @@ export default function LandingPage() {
             </Suspense>
           </div>
           <p className="text-xs text-slate-600 mt-5">
-            A TradePro Enterprises product. Also from us:{" "}
+            A TradePro Technologies LLC product. Also from us:{" "}
             <a href="https://tradeprotech.ai" className="text-slate-500 hover:text-slate-400 underline">TradePro Resume Builder</a>
           </p>
         </div>
@@ -608,8 +608,8 @@ export default function LandingPage() {
               </a>
             </div>
             <p className="text-slate-600 text-xs">
-              © {new Date().getFullYear()} TradePro Enterprises. All rights reserved.
-              {" "}· A TradePro Enterprises product ·{" "}
+              © {new Date().getFullYear()} TradePro Technologies LLC. All rights reserved.
+              {" "}· A TradePro Technologies LLC product ·{" "}
               <a href="https://tradeprotech.ai" className="hover:text-slate-400 transition-colors">TradePro Resume Builder</a>
             </p>
           </div>

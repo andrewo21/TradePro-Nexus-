@@ -1,5 +1,19 @@
 # TradePro Nexus — Product Roadmap
 
+## ✅ PHASE 13 — COMPLETE
+
+1. **SendGrid suppression sync** — Unsubscribe and remove actions now call SendGrid global suppression API. Admin backfill endpoint at `POST /api/admin/registry/sendgrid-sync` (call once from deployed site to sync 4 existing suppressed records).
+2. **Footer entity fix** — All 12 instances of "TradePro Enterprises" replaced with "TradePro Technologies LLC" across app pages, emails, and edge functions.
+3. **Post comments UI** — `post_comments` table, `GET/POST /api/feed/[id]/comments`, `CommentSection` component in feed, batch comment counts via RPC, 12 seed comments on bot posts, seed accounts excluded from `active_commenting_users` metric.
+4. **GA4 claim_profile event** — Fires on both magic claim (2-click) and authenticated claim paths. Properties: `business_name`, `trade_type`, `state`, `source`.
+5. **Southeast registry** — Virginia: 80,991 records staged, 80,961 promotable, promote cron running. NC/SC/AL blocked; scrapers built and ready; FOIA/public records requests needed.
+6. **Legal entity update** — Identified all locations requiring update to "TradePro Nexus Inc." — pending Delaware C-Corp EIN arrival. No changes made.
+7. **Search result count** — "Showing X contractors in [State]" / "matching your filters" — live count from same query, updates on every filter change.
+8. **Active Member badge** — Already triggered on first post. Seed accounts now excluded at top of `checkAndAwardBadges` (all triggers). Badge displays on Trade Card with `BadgeCelebration` notification.
+9. **First post badge notification email** — Sends via SendGrid when `active_member` is awarded. Includes badge confirmation, referral link, discount progress toward verification, CTA to Trade Card.
+
+---
+
 ## ✅ PHASE 12 — COMPLETE (Referral Engine + Advertising Page + Verification Discount Storage)
 
 1. **Referral engine** — `referral_tracking` table (referrer_id, referred_user_id, status, created_at). Unique referral link per user at `/signup?ref={user_id}`. Ref param captured in signup flow; on completion calls `POST /api/referral/credit` which inserts the referral row, recalculates the referrer's discount tier, and sends a SendGrid notification email. Reward tiers stored in `profiles.verification_discount_pct` (0/10/20/100%). Dashboard on `/account` shows count, progress bar, tier breakdown, copy link, and share buttons (text/email/native share). "Refer and Earn" CTA added to post-profile-creation success screen in `/build`.

@@ -18,6 +18,14 @@ export async function checkAndAwardBadges(
 ): Promise<Badge[]> {
   const db = getSupabaseAdmin() as any;
 
+  // Never award badges to seed/bot accounts
+  const { data: seedCheck } = await db
+    .from("profiles")
+    .select("is_seed_account")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (seedCheck?.is_seed_account) return [];
+
   const { data: existing } = await db
     .from("user_badges")
     .select("badge_slug")
@@ -27,8 +35,12 @@ export async function checkAndAwardBadges(
   const toAward: Array<{ slug: string; coupon_code?: string }> = [];
 
   if (trigger === "post") {
-    const { data: prof } = await db.from("profiles").select("id").eq("user_id", userId).single();
-    if (prof) {
+    const { data: prof } = await db.from("profiles")
+      .select("id, is_seed_account")
+      .eq("user_id", userId)
+      .single();
+    // Never award badges to seed/bot accounts
+    if (prof && !prof.is_seed_account) {
       const { count: totalPosts } = await db
         .from("feed_posts")
         .select("id", { count: "exact", head: true })
@@ -99,5 +111,86 @@ export async function checkAndAwardBadges(
     { onConflict: "user_id,badge_slug", ignoreDuplicates: true }
   );
 
+  // Send notification email for active_member badge
+  if (toAward.some(b => b.slug === "active_member")) {
+    sendActiveMemberEmail(db, userId).catch(() => {});
+  }
+
   return toAward.map(b => getBadgeBySlug(b.slug)!).filter(Boolean);
+}
+
+const SITE_URL         = "https://www.tradepronexus.com";
+const SENDGRID_KEY     = process.env.SENDGRID_API_KEY_NEXUS ?? "";
+const FROM_EMAIL       = "outreach@mail.tradepronexus.com";
+const PHYSICAL_ADDRESS = "TradePro Technologies LLC | TradePro Nexus, 17629 Fallen Branch Way, Punta Gorda, FL 33982";
+
+async function sendActiveMemberEmail(db: any, userId: string): Promise<void> {
+  if (!SENDGRID_KEY) return;
+
+  const { data: { user } } = await db.auth.admin.getUserById(userId);
+  if (!user?.email) return;
+
+  const { data: prof } = await db
+    .from("profiles")
+    .select("first_name, slug")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const firstName    = prof?.first_name || "there";
+  const referralLink = `${SITE_URL}/signup?ref=${userId}`;
+  const profileUrl   = prof?.slug ? `${SITE_URL}/pro/${prof.slug}` : `${SITE_URL}/account`;
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"></head>
+<body style="margin:0;padding:0;background:#0f172a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#0f172a;min-height:100vh;">
+<tr><td align="center" style="padding:40px 16px;">
+<table width="100%" style="max-width:520px;">
+  <tr><td align="center" style="padding-bottom:24px;">
+    <span style="font-size:20px;font-weight:900;color:#f1f5f9;">TradePro <span style="color:#f97316;">Nexus</span></span>
+  </td></tr>
+  <tr><td style="background:#1e293b;border-radius:16px;border:1px solid #334155;overflow:hidden;">
+    <tr><td style="background:#eab308;height:4px;"></td></tr>
+    <tr><td style="padding:32px;">
+      <div style="font-size:32px;text-align:center;margin-bottom:16px;">⚡</div>
+      <h1 style="margin:0 0 8px;color:#f1f5f9;font-size:20px;font-weight:900;text-align:center;">You earned the Active Member badge.</h1>
+      <p style="margin:0 0 20px;color:#94a3b8;font-size:15px;line-height:1.6;text-align:center;">
+        Hey ${firstName}, your first post is live on the TradePro Nexus feed.
+        The badge is on your Trade Card now.
+      </p>
+      <div style="background:#0f172a;border-radius:10px;padding:16px;margin-bottom:24px;">
+        <p style="margin:0 0 8px;color:#64748b;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Your discount progress</p>
+        <p style="margin:0 0 4px;color:#94a3b8;font-size:13px;">Refer 3 trade pros to earn 20% off verification when it launches.</p>
+        <p style="margin:0 0 4px;color:#94a3b8;font-size:13px;">Refer 10 to get verification free ($99 value).</p>
+        <p style="margin:8px 0 0;color:#f97316;font-size:13px;font-weight:700;">Your referral link:</p>
+        <p style="margin:4px 0 0;"><a href="${referralLink}" style="color:#f97316;font-size:13px;">${referralLink}</a></p>
+      </div>
+      <table cellpadding="0" cellspacing="0" style="width:100%;margin-bottom:12px;">
+        <tr><td style="background:#f97316;border-radius:12px;text-align:center;">
+          <a href="${profileUrl}" style="display:block;padding:12px 24px;color:#fff;font-weight:800;font-size:14px;text-decoration:none;">View My Trade Card</a>
+        </td></tr>
+      </table>
+    </td></tr>
+    <tr><td style="padding:16px 32px;border-top:1px solid #334155;text-align:center;">
+      <p style="margin:0;color:#475569;font-size:11px;">${PHYSICAL_ADDRESS}</p>
+    </td></tr>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+
+  await fetch("https://api.sendgrid.com/v3/mail/send", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${SENDGRID_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      personalizations: [{ to: [{ email: user.email }] }],
+      from: { email: FROM_EMAIL, name: "TradePro Nexus" },
+      reply_to: { email: "andrew@tradepronexus.com", name: "TradePro Nexus" },
+      subject: "You just earned your Active Member badge on TradePro Nexus",
+      content: [{ type: "text/html", value: html }],
+    }),
+  });
 }

@@ -12,6 +12,7 @@ import Navbar from "@/components/Navbar";
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
 import { SOCIAL_LINKS } from "@/lib/social";
+import { trackEvent } from "@/lib/analytics";
 import { LinkedinIcon, FacebookIcon, InstagramIcon } from "@/components/SocialIcons";
 import {
   PROFILE_TYPES, type ProfileType,
@@ -278,7 +279,15 @@ function BuildPageInner() {
         setMagicError(data.error ?? "Something went wrong. Please try again.");
         return;
       }
-      setMagicDone({ slug: data.slug, profileUrl: data.profileUrl, businessName: claimData?.business_name ?? "Your Business" });
+      const bizName = claimData?.business_name ?? "Your Business";
+      setMagicDone({ slug: data.slug, profileUrl: data.profileUrl, businessName: bizName });
+      // GA4 — most important conversion event on the platform
+      trackEvent("claim_profile", {
+        business_name: bizName,
+        trade_type:    claimData?.license_type ?? "",
+        state:         claimData?.state ?? "",
+        source:        "magic_claim",
+      });
     } catch {
       setMagicError("Network error. Please try again.");
     } finally {
@@ -419,6 +428,13 @@ function BuildPageInner() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token: claimToken }),
         }).catch(() => {});
+        // GA4 — authenticated claim path (user was already signed in)
+        trackEvent("claim_profile", {
+          business_name: claimData?.business_name ?? form.firmName ?? "",
+          trade_type:    claimData?.license_type ?? form.trade ?? "",
+          state:         claimData?.state ?? form.locationState ?? "",
+          source:        "authenticated_claim",
+        });
       }
 
       setFinalSlug(slug);

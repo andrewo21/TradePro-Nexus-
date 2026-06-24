@@ -467,14 +467,17 @@ export default function SearchPage() {
                 ) : total !== null ? (
                   <div className="flex items-center gap-3 flex-wrap">
                     <p className="text-white font-black text-lg">
-                      {total.toLocaleString()}
+                      Showing {total.toLocaleString()}
                       <span className="text-slate-400 font-normal text-sm ml-1.5">
                         contractor{total !== 1 ? "s" : ""}
+                        {filters.state ? ` in ${filters.state}` : ""}
+                        {(filters.trade || filters.county) && !filters.state ? " matching your filters" : ""}
+                        {(filters.trade || filters.county) && filters.state ? " matching your filters" : ""}
                       </span>
                     </p>
                     {(totalProfiles > 0 || totalUnclaimed > 0) && (
                       <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                        {totalProfiles > 0 && <span>{totalProfiles.toLocaleString()} claimed</span>}
+                        {totalProfiles > 0 && <span>{totalProfiles.toLocaleString()} members</span>}
                         {totalProfiles > 0 && totalUnclaimed > 0 && <span>·</span>}
                         {totalUnclaimed > 0 && <span>{totalUnclaimed.toLocaleString()} registry listings</span>}
                       </div>

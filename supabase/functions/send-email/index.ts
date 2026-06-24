@@ -47,7 +47,7 @@ const TMPL_SIGNUP = `<!DOCTYPE html>
       </div>
     </td></tr>
     <tr><td style="padding:16px 32px 28px;border-top:1px solid #334155;text-align:center;">
-      <p style="margin:0;color:#475569;font-size:12px;">TradePro Nexus &middot; A TradePro Enterprises product<br><span style="color:#334155;">Verified by Paper. Not by Algorithm.</span></p>
+      <p style="margin:0;color:#475569;font-size:12px;">TradePro Nexus &middot; A TradePro Technologies LLC product<br><span style="color:#334155;">Verified by Paper. Not by Algorithm.</span></p>
     </td></tr>
   </td></tr>
 </table>
@@ -97,7 +97,7 @@ const TMPL_RECOVERY = `<!DOCTYPE html>
       </div>
     </td></tr>
     <tr><td style="padding:16px 32px 28px;border-top:1px solid #334155;text-align:center;">
-      <p style="margin:0;color:#475569;font-size:12px;">TradePro Nexus &middot; A TradePro Enterprises product</p>
+      <p style="margin:0;color:#475569;font-size:12px;">TradePro Nexus &middot; A TradePro Technologies LLC product</p>
     </td></tr>
   </td></tr>
 </table>
@@ -147,7 +147,7 @@ const TMPL_MAGIC = `<!DOCTYPE html>
       </div>
     </td></tr>
     <tr><td style="padding:16px 32px 28px;border-top:1px solid #334155;text-align:center;">
-      <p style="margin:0;color:#475569;font-size:12px;">TradePro Nexus &middot; A TradePro Enterprises product</p>
+      <p style="margin:0;color:#475569;font-size:12px;">TradePro Nexus &middot; A TradePro Technologies LLC product</p>
     </td></tr>
   </td></tr>
 </table>
@@ -197,7 +197,7 @@ const TMPL_EMAIL_CHANGE = `<!DOCTYPE html>
       </div>
     </td></tr>
     <tr><td style="padding:16px 32px 28px;border-top:1px solid #334155;text-align:center;">
-      <p style="margin:0;color:#475569;font-size:12px;">TradePro Nexus &middot; A TradePro Enterprises product</p>
+      <p style="margin:0;color:#475569;font-size:12px;">TradePro Nexus &middot; A TradePro Technologies LLC product</p>
     </td></tr>
   </td></tr>
 </table>

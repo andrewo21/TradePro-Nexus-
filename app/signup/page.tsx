@@ -364,7 +364,7 @@ function SignupPageInner() {
 
           <p className="text-center text-xs text-slate-600 mt-6">
             <Link href="/" className="hover:text-slate-500 transition-colors">TradePro Nexus</Link>
-            {" "}· A TradePro Enterprises product
+            {" "}· A TradePro Technologies LLC product
           </p>
         </motion.div>
       </div>

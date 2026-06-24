@@ -402,7 +402,7 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
 
         <p className="text-center text-xs text-slate-600 mt-8">
           <Link href="/" className="hover:text-slate-400 transition-colors">TradePro Nexus</Link>
-          {" "}· A TradePro Enterprises product ·{" "}
+          {" "}· A TradePro Technologies LLC product ·{" "}
           <Link href="/build" className="hover:text-slate-400 transition-colors">Build Your Trade Card</Link>
         </p>
       </div>

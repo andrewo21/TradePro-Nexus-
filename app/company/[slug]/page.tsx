@@ -235,7 +235,7 @@ export default async function CompanyPage({ params }: { params: Promise<{ slug: 
 
         <p className="text-center text-xs text-slate-600 mt-8">
           <Link href="/" className="hover:text-slate-400 transition-colors">TradePro Nexus</Link>
-          {" "}· A TradePro Enterprises product
+          {" "}· A TradePro Technologies LLC product
         </p>
       </div>
     </div>
