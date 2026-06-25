@@ -1,616 +1,494 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
 import {
-  ShieldCheck, Search, Zap, HardHat, Building2, CheckCircle,
-  Star, MapPin, Clock, ArrowRight, Wrench, Hammer,
-  Bolt, Flame, Wind, ChevronRight, Rss
+  HardHat,
+  Search,
+  CheckCircle,
+  Zap,
+  ShieldCheck,
+  Building2,
+  Shield,
+  Rss,
+  Menu,
+  X,
 } from "lucide-react";
-import Navbar from "@/components/Navbar";
-import WaitlistForm from "@/components/WaitlistForm";
-import { SOCIAL_LINKS } from "@/lib/social";
-import { LinkedinIcon, FacebookIcon, InstagramIcon } from "@/components/SocialIcons";
-import { getSupabase } from "@/lib/supabase";
-import { canBeVerified } from "@/lib/constants";
 
-// ── Live Feed Preview ─────────────────────────────────────────────────────────
+// ── Inline SVG logo ───────────────────────────────────────────────────────────
 
-interface LiveFeedItem {
-  id: string;
-  name: string;
-  project: string;
-  url: string | null;
-  time: string;
-  color: "orange" | "blue";
+function TrussLogo({ className }: { className?: string }) {
+  return (
+    <svg
+      width="28"
+      height="28"
+      viewBox="0 0 52 52"
+      fill="none"
+      className={className}
+    >
+      <rect width="52" height="52" rx="10" fill="#0f172a" />
+      <path
+        d="M12 38 L26 14 L40 38"
+        stroke="#f1f5f9"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      <path
+        d="M17 30 L35 30"
+        stroke="#f1f5f9"
+        strokeWidth="3"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <circle cx="26" cy="38" r="3.5" fill="#f97316" />
+      <path
+        d="M22 14 L30 14"
+        stroke="#f97316"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
 }
-
-function timeAgo(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
-
-
-const TRADES = [
-  { icon: Bolt, label: "Electrical" },
-  { icon: Flame, label: "Plumbing" },
-  { icon: Wind, label: "HVAC" },
-  { icon: Hammer, label: "General Construction" },
-  { icon: Wrench, label: "Mechanical" },
-  { icon: HardHat, label: "Civil / Site" },
-];
-
-const SECTORS = [
-  "Senior Living",
-  "Healthcare",
-  "Federal / Gov't",
-  "Multifamily",
-  "Industrial",
-  "K-12 Education",
-  "Mixed-Use",
-  "Data Centers",
-];
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-interface AvailablePro {
-  id: string;
-  slug: string;
-  first_name: string;
-  last_name: string;
-  trade: string;
-  location_city: string | null;
-  location_state: string | null;
-  verification_status: string;
-  profile_type: string | null;
-}
-
 export default function LandingPage() {
-  const [availablePros, setAvailablePros] = useState<AvailablePro[]>([]);
-  const [liveFeedItems, setLiveFeedItems] = useState<LiveFeedItem[]>([]);
-  const [liveFeedLoading, setLiveFeedLoading] = useState(true);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [directoryCount, setDirectoryCount] = useState(0);
 
   useEffect(() => {
-    const db = getSupabase() as any;
-    db.from("feed_posts")
-      .select("id, project_name, news_source_name, news_article_url, created_at")
-      .eq("is_industry_news", true)
-      .order("created_at", { ascending: false })
-      .limit(30)
-      .then(({ data }: { data: any[] | null }) => {
-        // Take the latest item from each distinct source, then randomly
-        // sample 5 — so the preview rotates across all sources over time
-        // instead of always showing the same handful.
-        const seenSources = new Set<string>();
-        const latestPerSource: any[] = [];
-        for (const row of data ?? []) {
-          const source = row.news_source_name ?? "Industry News";
-          if (seenSources.has(source)) continue;
-          seenSources.add(source);
-          latestPerSource.push(row);
-        }
-
-        for (let i = latestPerSource.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [latestPerSource[i], latestPerSource[j]] = [latestPerSource[j], latestPerSource[i]];
-        }
-        const diverse = latestPerSource.slice(0, 5);
-
-        const items: LiveFeedItem[] = diverse.map((row, i) => ({
-          id: row.id,
-          name: row.news_source_name ?? "Industry News",
-          project: row.project_name ?? "",
-          url: row.news_article_url ?? null,
-          time: timeAgo(row.created_at),
-          color: i % 2 === 0 ? "orange" : "blue",
-        }));
-        setLiveFeedItems(items);
-      })
-      .catch(() => {})
-      .finally(() => setLiveFeedLoading(false));
-  }, []);
-
-  useEffect(() => {
-    const db = getSupabase() as any;
-    db.from("profiles")
-      .select("id, slug, first_name, last_name, trade, location_city, location_state, verification_status, profile_type")
-      .eq("availability_status", "available")
-      .neq("is_internal", true)
-      .limit(6)
-      .then(({ data }: { data: AvailablePro[] | null }) => {
-        if (data?.length) setAvailablePros(data);
-      })
+    fetch("/api/stats")
+      .then((r) => r.json())
+      .then((d) => setDirectoryCount(d.directoryListings ?? 0))
       .catch(() => {});
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-slate-100">
-      <Navbar />
+    <div className="min-h-screen">
+
+      {/* ── NAVBAR ──────────────────────────────────────────────────────────── */}
+      <header className="bg-white border-b border-[#e2e8f0] sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2">
+            <TrussLogo />
+            <span className="text-[#0f172a] font-black text-base leading-none">
+              TradePro<span className="text-[#f97316]"> Nexus</span>
+            </span>
+          </Link>
+
+          {/* Desktop nav */}
+          <nav className="hidden md:flex items-center gap-6">
+            <Link
+              href="/search"
+              className="text-[#64748b] hover:text-[#0f172a] text-sm font-semibold transition-colors"
+            >
+              Find Crews
+            </Link>
+            <Link
+              href="/feed"
+              className="text-[#64748b] hover:text-[#0f172a] text-sm font-semibold transition-colors"
+            >
+              Live Feed
+            </Link>
+            <Link
+              href="/work"
+              className="text-[#64748b] hover:text-[#0f172a] text-sm font-semibold transition-colors"
+            >
+              Work Opportunities
+            </Link>
+          </nav>
+
+          {/* Desktop buttons */}
+          <div className="hidden md:flex items-center gap-3">
+            <Link
+              href="/login"
+              className="border border-[#e2e8f0] text-[#475569] hover:border-[#cbd5e1] rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
+            >
+              Sign In
+            </Link>
+            <Link
+              href="/signup"
+              className="bg-[#f97316] text-white rounded-xl px-4 py-2 text-sm font-bold hover:bg-[#ea6c00] transition-colors"
+            >
+              Join Free
+            </Link>
+          </div>
+
+          {/* Mobile hamburger */}
+          <button
+            className="md:hidden p-2 text-[#475569]"
+            onClick={() => setMobileOpen((v) => !v)}
+            aria-label="Toggle menu"
+          >
+            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+
+        {/* Mobile menu */}
+        {mobileOpen && (
+          <div className="md:hidden border-t border-[#e2e8f0] bg-white px-4 py-4 space-y-3">
+            <Link
+              href="/search"
+              className="block text-[#64748b] hover:text-[#0f172a] text-sm font-semibold py-1"
+              onClick={() => setMobileOpen(false)}
+            >
+              Find Crews
+            </Link>
+            <Link
+              href="/feed"
+              className="block text-[#64748b] hover:text-[#0f172a] text-sm font-semibold py-1"
+              onClick={() => setMobileOpen(false)}
+            >
+              Live Feed
+            </Link>
+            <Link
+              href="/work"
+              className="block text-[#64748b] hover:text-[#0f172a] text-sm font-semibold py-1"
+              onClick={() => setMobileOpen(false)}
+            >
+              Work Opportunities
+            </Link>
+            <div className="flex flex-col gap-2 pt-2">
+              <Link
+                href="/login"
+                className="border border-[#e2e8f0] text-[#475569] rounded-xl px-4 py-2 text-sm font-semibold text-center"
+                onClick={() => setMobileOpen(false)}
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/signup"
+                className="bg-[#f97316] text-white rounded-xl px-4 py-2 text-sm font-bold text-center hover:bg-[#ea6c00] transition-colors"
+                onClick={() => setMobileOpen(false)}
+              >
+                Join Free
+              </Link>
+            </div>
+          </div>
+        )}
+      </header>
 
       {/* ── HERO ────────────────────────────────────────────────────────────── */}
-      <section className="relative pt-16 overflow-hidden">
+      <section className="bg-[#0f172a] py-20 px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          {/* Badge */}
+          <div className="inline-flex items-center bg-[#1e293b] border border-[#f97316]/40 text-[#f97316] text-xs font-bold px-3 py-1.5 rounded-full mb-6">
+            Now Live in 7 States
+          </div>
 
-        {/* Background grid */}
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{
-            backgroundImage: `linear-gradient(rgba(234,88,12,0.3) 1px, transparent 1px),
-                              linear-gradient(90deg, rgba(234,88,12,0.3) 1px, transparent 1px)`,
-            backgroundSize: "60px 60px",
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0f172a]/50 to-[#0f172a]" />
+          {/* H1 */}
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-black leading-tight mb-4">
+            <span className="text-white">The verified marketplace for </span>
+            <span className="text-[#f97316]">construction professionals.</span>
+          </h1>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 pt-20 pb-12 md:pt-28 md:pb-20">
+          {/* Subheadline */}
+          <p className="text-[#94a3b8] text-lg md:text-xl max-w-2xl mx-auto text-center mt-4 mb-8">
+            Build your free Trade Card. Get discovered by GCs. Connect with the
+            trades. Built by a 30-year construction veteran.
+          </p>
 
-          {/* Headline */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.1 }}
-            className="text-center max-w-4xl mx-auto mb-8"
-          >
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black leading-tight tracking-tight mb-5">
-              <span className="text-white">The Verified Marketplace for</span>
-              <br />
-              <span className="text-orange-500">Construction Professionals.</span>
-            </h1>
-            <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto leading-relaxed">
-              Build your free Trade Card. Get discovered by GCs. Connect with the trades.
-            </p>
-          </motion.div>
-
-          {/* Primary CTAs */}
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.25 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10"
-          >
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-14">
             <Link
               href="/build"
-              className="btn-glow w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 bg-orange-600 hover:bg-orange-500 text-white font-black rounded-xl text-base shadow-lg shadow-orange-900/40 transition-colors"
+              className="w-full sm:w-auto inline-flex items-center justify-center bg-[#f97316] hover:bg-[#ea6c00] text-white font-black px-8 py-4 rounded-xl text-base transition-colors"
             >
-              <HardHat className="w-5 h-5" /> Build My Trade Card — Free
+              Build My Trade Card -- Free
             </Link>
             <Link
               href="/search"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 border border-slate-600 hover:border-slate-400 text-slate-300 hover:text-white font-bold rounded-xl text-base transition-colors"
+              className="w-full sm:w-auto inline-flex items-center justify-center border border-[#334155] hover:border-[#475569] text-[#94a3b8] hover:text-white font-bold px-8 py-4 rounded-xl text-base transition-colors"
             >
-              <Search className="w-5 h-5" /> Find Contractors
+              Find Contractors
             </Link>
-          </motion.div>
+          </div>
 
+          {/* Stat boxes */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-[#1e293b] border border-[#334155] rounded-2xl p-6 text-center">
+              <p className="text-3xl font-black text-white mb-1">
+                {directoryCount > 0
+                  ? `${directoryCount.toLocaleString()}+`
+                  : "500,000+"}
+              </p>
+              <p className="text-[#64748b] text-sm">Licensed contractors listed</p>
+            </div>
+            <div className="bg-[#1e293b] border border-[#334155] rounded-2xl p-6 text-center">
+              <p className="text-3xl font-black text-[#f97316] mb-1">7</p>
+              <p className="text-[#64748b] text-sm">States covered</p>
+            </div>
+            <div className="bg-[#1e293b] border border-[#334155] rounded-2xl p-6 text-center">
+              <p className="text-3xl font-black text-white mb-1">Free</p>
+              <p className="text-[#64748b] text-sm">Always free to join</p>
+            </div>
+            <div className="bg-[#1e293b] border border-[#334155] rounded-2xl p-6 text-center">
+              <p className="text-3xl font-black text-[#f97316] mb-1">5 min</p>
+              <p className="text-[#64748b] text-sm">To build your Trade Card</p>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* ── LIVE FEED ───────────────────────────────────────────────────────── */}
-      <section className="py-16 px-4 sm:px-6 bg-slate-900/50">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                <span className="text-xs font-bold uppercase tracking-widest text-green-400">Live Feed</span>
-              </div>
-              <h2 className="text-2xl md:text-3xl font-black text-white">Work is Currency.</h2>
-              <p className="text-slate-400 text-sm mt-1">Real progress from the field, updated continuously.</p>
-            </div>
-            <Link
-              href="/feed"
-              className="hidden sm:flex items-center gap-1 text-orange-400 hover:text-orange-300 text-sm font-semibold transition-colors"
-            >
-              View All <ChevronRight className="w-4 h-4" />
-            </Link>
-          </div>
+      {/* ── ORANGE TAGLINE STRIP ─────────────────────────────────────────────── */}
+      <div className="bg-[#f97316] py-4 px-4 text-center">
+        <p className="text-[#0f172a] font-black text-lg tracking-tight">
+          Verified by Paper. Not by Algorithm.
+        </p>
+      </div>
 
-          <div className="space-y-3">
-            {liveFeedLoading ? (
-              [0, 1, 2].map(i => (
-                <div key={i} className="flex items-start gap-4 bg-slate-800/60 border border-slate-700/50 rounded-xl p-4 animate-pulse">
-                  <div className="w-10 h-10 rounded-lg bg-slate-700/50 flex-shrink-0" />
-                  <div className="flex-1 min-w-0 space-y-2 py-1">
-                    <div className="h-3 bg-slate-700/50 rounded w-1/3" />
-                    <div className="h-3 bg-slate-700/50 rounded w-2/3" />
+      {/* ── TWO COLUMN FEATURES ──────────────────────────────────────────────── */}
+      <section className="bg-white py-20 px-4">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-[#0f172a] font-black text-3xl text-center mb-12">
+            Built for every side of the job site
+          </h2>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Left column -- Trade Professionals */}
+            <div className="border border-[#e2e8f0] rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-2">
+                <HardHat className="w-6 h-6 text-[#f97316]" />
+                <h3 className="text-[#0f172a] font-black text-xl">
+                  For Trade Professionals
+                </h3>
+              </div>
+              <p className="text-[#64748b] text-sm mb-5">
+                Get your digital identity on the platform GCs actually use.
+              </p>
+              <div className="space-y-3">
+                <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-2xl p-5">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle className="w-5 h-5 text-[#f97316] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[#0f172a] font-bold text-sm mb-1">
+                        Free Trade Card
+                      </p>
+                      <p className="text-[#64748b] text-sm leading-relaxed">
+                        Build your digital profile with trade, certs, crew size,
+                        and availability. Yours to keep forever.
+                      </p>
+                    </div>
                   </div>
                 </div>
-              ))
-            ) : liveFeedItems.length > 0 ? (
-              liveFeedItems.map((item, i) => {
-                const Wrapper = item.url ? motion.a : motion.div;
-                return (
-                  <Wrapper
-                    key={item.id}
-                    {...(item.url ? { href: item.url, target: "_blank", rel: "noopener noreferrer" } : {})}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.4, delay: i * 0.08 }}
-                    className="card-hover flex items-start gap-4 bg-slate-800/60 border border-slate-700/50 rounded-xl p-4 hover:border-slate-600 hover:bg-slate-800 transition-all"
-                  >
-                    {/* Avatar */}
-                    <div
-                      className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-sm ${
-                        item.color === "orange"
-                          ? "bg-orange-600/20 text-orange-400 border border-orange-800/50"
-                          : "bg-blue-600/20 text-blue-400 border border-blue-800/50"
-                      }`}
-                    >
-                      {item.name.slice(0, 2).toUpperCase()}
+                <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-2xl p-5">
+                  <div className="flex items-start gap-3">
+                    <Zap className="w-5 h-5 text-[#f97316] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[#0f172a] font-bold text-sm mb-1">
+                        Available for Work Toggle
+                      </p>
+                      <p className="text-[#64748b] text-sm leading-relaxed">
+                        One tap to tell the entire network you are open for new
+                        opportunities.
+                      </p>
                     </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                        <span className="font-bold text-white text-sm">{item.name}</span>
-                        <span className="text-xs text-orange-400 font-medium">Industry News</span>
-                      </div>
-                      <p className="text-slate-300 text-sm leading-snug">{item.project}</p>
-                      <div className="flex items-center gap-3 mt-1.5 text-xs text-slate-500">
-                        <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{item.time}</span>
-                      </div>
+                  </div>
+                </div>
+                <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-2xl p-5">
+                  <div className="flex items-start gap-3">
+                    <ShieldCheck className="w-5 h-5 text-[#f97316] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[#0f172a] font-bold text-sm mb-1">
+                        Verification Badge -- Coming Soon
+                      </p>
+                      <p className="text-[#64748b] text-sm leading-relaxed">
+                        Verifiable credentials for GCs who need proof before
+                        they call.
+                      </p>
                     </div>
-                  </Wrapper>
-                );
-              })
-            ) : (
-              <div className="text-center bg-slate-800/60 border border-slate-700/50 rounded-xl p-8">
-                <Rss className="w-8 h-8 text-orange-400 mx-auto mb-3" />
-                <p className="text-white font-bold mb-1">Activity will appear here as the network grows</p>
-                <p className="text-slate-400 text-sm mb-4">Be one of the first to share an update from the field.</p>
-                <Link href="/build" className="inline-flex items-center gap-1 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white text-sm font-bold rounded-xl transition-colors">
-                  Build Your Trade Card <ArrowRight className="w-4 h-4" />
-                </Link>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
 
+            {/* Right column -- General Contractors */}
+            <div className="border border-[#e2e8f0] rounded-2xl p-6">
+              <div className="flex items-center gap-3 mb-2">
+                <Building2 className="w-6 h-6 text-[#f97316]" />
+                <h3 className="text-[#0f172a] font-black text-xl">
+                  For General Contractors
+                </h3>
+              </div>
+              <p className="text-[#64748b] text-sm mb-5">
+                Stop calling buddies. Search 500,000+ verified contractors by
+                trade, state, and availability.
+              </p>
+              <div className="space-y-3">
+                <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-2xl p-5">
+                  <div className="flex items-start gap-3">
+                    <Search className="w-5 h-5 text-[#f97316] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[#0f172a] font-bold text-sm mb-1">
+                        Search 500,000+ Contractors
+                      </p>
+                      <p className="text-[#64748b] text-sm leading-relaxed">
+                        Filter by trade, state, city, union status, and
+                        availability. Real people. Real licenses.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-2xl p-5">
+                  <div className="flex items-start gap-3">
+                    <Shield className="w-5 h-5 text-[#f97316] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[#0f172a] font-bold text-sm mb-1">
+                        Union Features Built In
+                      </p>
+                      <p className="text-[#64748b] text-sm leading-relaxed">
+                        Search union-only crews, filter by prevailing wage and
+                        Davis-Bacon certification.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-2xl p-5">
+                  <div className="flex items-start gap-3">
+                    <Rss className="w-5 h-5 text-[#f97316] flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[#0f172a] font-bold text-sm mb-1">
+                        Live Industry Feed
+                      </p>
+                      <p className="text-[#64748b] text-sm leading-relaxed">
+                        Stay current on materials, labor market conditions, and
+                        what crews are saying from the field.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── HOW IT WORKS ─────────────────────────────────────────────────────── */}
+      <section className="bg-[#0f172a] py-20 px-4">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="text-white font-black text-3xl text-center mb-12">
+            How it works
+          </h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-full bg-[#f97316] flex items-center justify-center text-white font-black text-xl mx-auto mb-4">
+                1
+              </div>
+              <h3 className="font-black text-white text-lg mb-2">
+                Sign up free
+              </h3>
+              <p className="text-[#94a3b8] text-sm leading-relaxed">
+                No credit card. No subscription. Takes 60 seconds and your
+                account is yours permanently.
+              </p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-full bg-[#f97316] flex items-center justify-center text-white font-black text-xl mx-auto mb-4">
+                2
+              </div>
+              <h3 className="font-black text-white text-lg mb-2">
+                Build your Trade Card
+              </h3>
+              <p className="text-[#94a3b8] text-sm leading-relaxed">
+                Add your trade, licenses, certifications, crew size, and union
+                status. Your profile goes live immediately.
+              </p>
+            </div>
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-full bg-[#f97316] flex items-center justify-center text-white font-black text-xl mx-auto mb-4">
+                3
+              </div>
+              <h3 className="font-black text-white text-lg mb-2">
+                Get discovered or start searching
+              </h3>
+              <p className="text-[#94a3b8] text-sm leading-relaxed">
+                GCs find you by trade and location. Or search 500,000+ licensed
+                contractors yourself.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA SECTION ──────────────────────────────────────────────────────── */}
+      <section className="bg-[#f97316] py-20 px-4 text-center">
+        <div className="max-w-3xl mx-auto">
+          <p className="text-[#0f172a] font-black text-3xl md:text-4xl">
+            The construction industry built this country.
+          </p>
+          <p className="text-[#0f172a] font-black text-3xl md:text-4xl mt-2 mb-8">
+            It deserves a platform built for it.
+          </p>
           <Link
-            href="/feed"
-            className="mt-5 flex sm:hidden items-center justify-center gap-1 text-orange-400 text-sm font-semibold"
+            href="/signup"
+            className="inline-block bg-[#0f172a] text-white hover:bg-[#1e293b] font-black px-10 py-4 rounded-xl text-lg transition-colors"
           >
-            View All Feed Posts <ChevronRight className="w-4 h-4" />
+            Join Free Today
           </Link>
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ────────────────────────────────────────────────────── */}
-      <section className="py-16 px-4 sm:px-6 border-t border-slate-800">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-black text-white mb-2">How It Works</h2>
-            <p className="text-slate-400">Three steps. Free to start.</p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              {
-                step: "01",
-                heading: "Create your free Trade Card",
-                body: "Add your trade, certifications, and availability. It takes about 5 minutes. Your card becomes your public profile — shareable, searchable, and yours.",
-                color: "orange",
-                href: "/build",
-                cta: "Build My Trade Card",
-              },
-              {
-                step: "02",
-                heading: "Join the community",
-                body: "Post project updates, connect with other trade professionals, and follow industry news from the field. The feed is live and public.",
-                color: "slate",
-                href: "/feed",
-                cta: "View the Feed",
-              },
-              {
-                step: "03",
-                heading: "Get discovered",
-                body: "GCs and contractors search the directory to find verified crews in new markets. When your card is verified, you stand out. No algorithm. No pay-to-play.",
-                color: "green",
-                href: "/search",
-                cta: "See the Directory",
-              },
-            ].map(({ step, heading, body, color, href, cta }) => (
-              <div key={step} className={`relative bg-slate-800/50 border rounded-2xl p-6 ${
-                color === "orange" ? "border-orange-900/50" : color === "green" ? "border-green-900/50" : "border-slate-700/50"
-              }`}>
-                <p className={`text-4xl font-black mb-4 ${
-                  color === "orange" ? "text-orange-600/40" : color === "green" ? "text-green-600/40" : "text-slate-600/60"
-                }`}>{step}</p>
-                <h3 className="text-base font-black text-white mb-2">{heading}</h3>
-                <p className="text-slate-400 text-sm leading-relaxed mb-5">{body}</p>
+      {/* ── FOOTER ───────────────────────────────────────────────────────────── */}
+      <footer className="bg-[#0f172a] border-t border-[#1e293b] py-10 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid sm:grid-cols-2 gap-8 mb-8">
+            <div>
+              <Link href="/" className="flex items-center gap-2 mb-3">
+                <TrussLogo />
+                <span className="text-white font-black text-base leading-none">
+                  TradePro<span className="text-[#f97316]"> Nexus</span>
+                </span>
+              </Link>
+              <p className="text-[#475569] text-sm">
+                Verified by Paper. Not by Algorithm.
+              </p>
+            </div>
+            <div>
+              <p className="text-[#64748b] text-xs font-bold uppercase tracking-widest mb-3">
+                Quick Links
+              </p>
+              <div className="space-y-2">
                 <Link
-                  href={href}
-                  className={`inline-flex items-center gap-1 text-sm font-bold transition-colors ${
-                    color === "orange" ? "text-orange-400 hover:text-orange-300" : color === "green" ? "text-green-400 hover:text-green-300" : "text-slate-300 hover:text-white"
-                  }`}
+                  href="/search"
+                  className="block text-[#475569] hover:text-[#94a3b8] text-sm transition-colors"
                 >
-                  {cta} <ArrowRight className="w-3.5 h-3.5" />
+                  Find Crews
+                </Link>
+                <Link
+                  href="/feed"
+                  className="block text-[#475569] hover:text-[#94a3b8] text-sm transition-colors"
+                >
+                  Live Feed
+                </Link>
+                <Link
+                  href="/work"
+                  className="block text-[#475569] hover:text-[#94a3b8] text-sm transition-colors"
+                >
+                  Work Opportunities
+                </Link>
+                <Link
+                  href="/build"
+                  className="block text-[#475569] hover:text-[#94a3b8] text-sm transition-colors"
+                >
+                  Build Trade Card
+                </Link>
+                <Link
+                  href="/login"
+                  className="block text-[#475569] hover:text-[#94a3b8] text-sm transition-colors"
+                >
+                  Sign In
                 </Link>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── TRADE CATEGORIES ────────────────────────────────────────────────── */}
-      <section className="py-14 px-4 sm:px-6 bg-slate-900/40 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-xl font-black text-white mb-6 text-center">All Major Trades. Every Sector.</h2>
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-10">
-            {TRADES.map(({ icon: Icon, label }) => (
-              <div key={label} className="flex flex-col items-center gap-2 bg-slate-800/60 border border-slate-700/50 rounded-xl py-4 px-2">
-                <Icon className="w-6 h-6 text-orange-400" />
-                <span className="text-xs font-semibold text-slate-300">{label}</span>
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-wrap justify-center gap-2">
-            {SECTORS.map((s) => (
-              <span key={s} className="px-3 py-1.5 bg-blue-950/50 border border-blue-800/40 text-blue-300 text-xs font-semibold rounded-full">
-                {s}
-              </span>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── MATCH ENGINE PREVIEW ────────────────────────────────────────────── */}
-      <section className="py-16 px-4 sm:px-6 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl md:text-3xl font-black text-white mb-2">The Match Engine</h2>
-            <p className="text-slate-400 max-w-xl mx-auto">
-              Three tiers. Instant clarity. Know exactly which subs can execute your project
-              before you pick up the phone.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className="bg-green-950/30 border border-green-800/50 rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-3 h-3 bg-green-400 rounded-full" />
-                <span className="font-bold text-green-400 uppercase text-xs tracking-widest">Prime</span>
-              </div>
-              <p className="text-white font-semibold mb-2">Full Capacity Match</p>
-              <p className="text-slate-400 text-sm">Bonding ≥ project value. Direct payroll &gt; 70%. 5+ sector-specific project photos. Ready to execute.</p>
             </div>
-            <div className="bg-yellow-950/30 border border-yellow-800/50 rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-3 h-3 bg-yellow-400 rounded-full" />
-                <span className="font-bold text-yellow-400 uppercase text-xs tracking-widest">Potential</span>
-              </div>
-              <p className="text-white font-semibold mb-2">Growing Capacity</p>
-              <p className="text-slate-400 text-sm">High skill, bonding within ±10% of project value. Strong work record, may need bonding increase to close.</p>
-            </div>
-            <div className="bg-blue-950/30 border border-blue-800/50 rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="w-3 h-3 bg-blue-400 rounded-full" />
-                <span className="font-bold text-blue-400 uppercase text-xs tracking-widest">Local Force</span>
-              </div>
-              <p className="text-white font-semibold mb-2">High Local Reputation</p>
-              <p className="text-slate-400 text-sm">Strong local notoriety, proven work portfolio. Uses mixed or 1099 workforce. Best for local scopes.</p>
-            </div>
-          </div>
-          <div className="text-center mt-8">
-            <Link
-              href="/search"
-              className="btn-glow inline-flex items-center gap-2 px-6 py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-sm shadow-lg shadow-orange-900/30"
-            >
-              <Search className="w-4 h-4" /> Run a Match Search
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ── TRUST STATEMENT ─────────────────────────────────────────────────── */}
-      <section className="py-14 px-4 sm:px-6 bg-slate-900/50 border-t border-slate-800">
-        <div className="max-w-3xl mx-auto">
-          <div className="text-center mb-10">
-            <span className="inline-block px-3 py-1.5 bg-orange-950/60 border border-orange-800/50 text-orange-400 text-xs font-bold rounded-full uppercase tracking-wider mb-4">
-              How We Are Different
-            </span>
-            <h2 className="text-2xl md:text-3xl font-black text-white mb-4">
-              Built for contractors. Not for compliance departments.
-            </h2>
-            <p className="text-slate-300 text-lg max-w-2xl mx-auto leading-relaxed">
-              The construction industry already has enough platforms that will grade your safety record, score your financials, and sell that data back to you as a subscription. That is not what this is.
-            </p>
           </div>
 
-          <div className="grid sm:grid-cols-3 gap-4 mb-8">
-            {[
-              {
-                heading: "Verified or not. That's it.",
-                body: "No scores. No grades. No EMR ratings. You are either verified or you are not. Simple.",
-              },
-              {
-                heading: "No rankings.",
-                body: "We do not rank contractors against each other. A verified electrician in Tampa is not better or worse than a verified electrician in Houston. They are both verified.",
-              },
-              {
-                heading: "No judgment.",
-                body: "Not having a badge does not mean you are a bad contractor. It just means you have not been through our process yet. No judgment. No grades.",
-              },
-            ].map(item => (
-              <div key={item.heading} className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4">
-                <p className="text-orange-400 font-black text-sm mb-2">{item.heading}</p>
-                <p className="text-slate-300 text-sm leading-relaxed">{item.body}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="bg-gradient-to-br from-orange-950/30 to-slate-900 border border-orange-800/40 rounded-2xl p-6 text-center">
-            <p className="text-white font-black text-lg mb-2">
-              "Verified by Paper. Not by Algorithm."
-            </p>
-            <p className="text-slate-400 text-sm max-w-xl mx-auto">
-              We check documents. We check references. We run a basic public web scan. A clear result gets a badge. That's it. We will never issue a grade, score, rank, or rating for any contractor on this platform. Ever.
-            </p>
-            <Link href="/policy/no-grades" className="inline-block mt-4 text-orange-400 hover:text-orange-300 text-sm font-semibold underline transition-colors">
-              Read Our No-Grade Policy →
-            </Link>
-          </div>
-
-          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-            {[
-              { icon: ShieldCheck, label: "AI-Verified Bonding", desc: "Bonding certs read and extracted automatically" },
-              { icon: CheckCircle, label: "COI & Insurance", desc: "Current certificates, expiration tracked" },
-              { icon: Zap, label: "W9 on File", desc: "Tax compliance verified before first call" },
-              { icon: Star, label: "OSHA Certifications", desc: "Safety credentials confirmed and displayed" },
-            ].map(({ icon: Icon, label, desc }) => (
-              <div key={label} className="text-center bg-slate-800/40 border border-slate-700/50 rounded-xl p-4">
-                <Icon className="w-7 h-7 text-orange-400 mx-auto mb-2" />
-                <p className="text-white font-semibold text-sm mb-1">{label}</p>
-                <p className="text-slate-400 text-xs">{desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── GET DISCOVERED ──────────────────────────────────────────────────── */}
-      {availablePros.length > 0 && (
-        <section className="py-16 px-4 sm:px-6 border-t border-slate-800">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                  <span className="text-xs font-bold uppercase tracking-widest text-green-400">Available Now</span>
-                </div>
-                <h2 className="text-2xl font-black text-white">Get Discovered</h2>
-                <p className="text-slate-400 text-sm mt-1">Trade pros ready to mobilize. Browse free.</p>
-              </div>
-              <Link href="/feed?available=1" className="hidden sm:flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300 font-semibold transition-colors">
-                See All <ChevronRight className="w-3.5 h-3.5" />
-              </Link>
-            </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {availablePros.map(pro => (
-                <Link
-                  key={pro.id}
-                  href={`/pro/${pro.slug}`}
-                  className="card-hover bg-slate-800/60 border border-slate-700 hover:border-green-700/60 rounded-2xl p-4 transition-all group"
-                >
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className="w-10 h-10 bg-orange-600/20 border border-orange-600/40 rounded-xl flex items-center justify-center font-black text-orange-400 text-sm flex-shrink-0">
-                      {pro.first_name[0]}{pro.last_name[0]}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-bold text-white text-sm truncate group-hover:text-orange-300 transition-colors">
-                        {pro.first_name} {pro.last_name}
-                      </p>
-                      <p className="text-orange-400 text-xs truncate">{pro.trade}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1 text-xs text-slate-400">
-                      {pro.location_city && <><MapPin className="w-3 h-3" />{pro.location_city}{pro.location_state ? `, ${pro.location_state}` : ""}</>}
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-                      <span className="text-[10px] font-bold text-green-400">Available</span>
-                      {canBeVerified(pro.profile_type) && pro.verification_status === "verified" && <ShieldCheck className="w-3 h-3 text-green-400" />}
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-            <div className="mt-4 text-center sm:hidden">
-              <Link href="/feed?available=1" className="text-xs text-orange-400 font-semibold">
-                See all available pros →
-              </Link>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── FINAL CTA ───────────────────────────────────────────────────────── */}
-      <section className="py-20 px-4 sm:px-6 border-t border-slate-800" id="waitlist">
-        <div className="max-w-lg mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-black text-white mb-3">
-            Your work speaks for itself.<br />
-            <span className="text-orange-500">Now let the right people hear it.</span>
-          </h2>
-          <p className="text-slate-400 mb-8">
-            We&apos;re launching soon. Get your spot now. Free forever.
-          </p>
-          <div className="bg-slate-800/60 border border-slate-700/60 rounded-2xl p-6">
-            <Suspense fallback={null}>
-              <WaitlistForm />
-            </Suspense>
-          </div>
-          <p className="text-xs text-slate-600 mt-5">
-            A TradePro Technologies LLC product. Also from us:{" "}
-            <a href="https://tradeprotech.ai" className="text-slate-500 hover:text-slate-400 underline">TradePro Resume Builder</a>
-          </p>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-800 py-10 px-4 sm:px-6">
-        <div className="max-w-5xl mx-auto">
-          <div className="grid sm:grid-cols-4 gap-6 mb-8 text-xs">
-            <div>
-              <p className="text-slate-300 font-bold mb-2">Platform</p>
-              <div className="space-y-1.5">
-                <Link href="/feed" className="block text-slate-500 hover:text-slate-300 transition-colors">Live Feed</Link>
-                <Link href="/search" className="block text-slate-500 hover:text-slate-300 transition-colors">Find Crews</Link>
-                <Link href="/build" className="block text-slate-500 hover:text-slate-300 transition-colors">Build Trade Card</Link>
-                <Link href="/pricing" className="block text-slate-500 hover:text-slate-300 transition-colors">GC Pricing</Link>
-                <Link href="/verify" className="block text-slate-500 hover:text-slate-300 transition-colors">Get Verified</Link>
-              </div>
-            </div>
-            <div>
-              <p className="text-slate-300 font-bold mb-2">Policies</p>
-              <div className="space-y-1.5">
-                <Link href="/policy/verification" className="block text-slate-500 hover:text-slate-300 transition-colors">Verification Process</Link>
-                <Link href="/policy/no-grades" className="block text-slate-500 hover:text-slate-300 transition-colors">No-Grade Policy</Link>
-                <Link href="/policy/how-it-works" className="block text-slate-500 hover:text-slate-300 transition-colors">How It Works</Link>
-                <Link href="/policy/disclaimer" className="block text-slate-500 hover:text-slate-300 transition-colors">Platform Disclaimer</Link>
-                <Link href="/policy/documents" className="block text-slate-500 hover:text-slate-300 transition-colors">Document Policy</Link>
-                <Link href="/privacy-policy" className="block text-slate-500 hover:text-slate-300 transition-colors">Privacy Policy</Link>
-                <Link href="/terms-of-use" className="block text-slate-500 hover:text-slate-300 transition-colors">Terms of Use</Link>
-                <Link href="/membership-agreement" className="block text-slate-500 hover:text-slate-300 transition-colors">Membership Agreement</Link>
-              </div>
-            </div>
-            <div>
-              <p className="text-slate-300 font-bold mb-2">More Policies</p>
-              <div className="space-y-1.5">
-                <Link href="/policy/web-scan" className="block text-slate-500 hover:text-slate-300 transition-colors">Web Scan Disclaimer</Link>
-                <Link href="/policy/supply-house" className="block text-slate-500 hover:text-slate-300 transition-colors">Supply House Policy</Link>
-                <Link href="/advertise/guidelines" className="block text-slate-500 hover:text-slate-300 transition-colors">Advertiser Guidelines</Link>
-              </div>
-            </div>
-            <div>
-              <p className="text-slate-300 font-bold mb-2">Advertise</p>
-              <div className="space-y-1.5">
-                <Link href="/advertise" className="block text-slate-500 hover:text-slate-300 transition-colors">Advertising Info</Link>
-                <Link href="/advertise/guidelines" className="block text-slate-500 hover:text-slate-300 transition-colors">Ad Standards</Link>
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-slate-800 pt-6 text-center">
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <a href={SOCIAL_LINKS.linkedin} target="_blank" rel="noopener noreferrer" aria-label="TradePro Nexus on LinkedIn"
-                className="w-8 h-8 flex items-center justify-center bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors">
-                <LinkedinIcon className="w-3.5 h-3.5" />
-              </a>
-              <a href={SOCIAL_LINKS.facebook} target="_blank" rel="noopener noreferrer" aria-label="TradePro Nexus on Facebook"
-                className="w-8 h-8 flex items-center justify-center bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors">
-                <FacebookIcon className="w-3.5 h-3.5" />
-              </a>
-              <a href={SOCIAL_LINKS.instagram} target="_blank" rel="noopener noreferrer" aria-label="TradePro Nexus on Instagram"
-                className="w-8 h-8 flex items-center justify-center bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors">
-                <InstagramIcon className="w-3.5 h-3.5" />
-              </a>
-            </div>
-            <p className="text-slate-600 text-xs">
-              © {new Date().getFullYear()} TradePro Technologies LLC. All rights reserved.
-              {" "}· A TradePro Technologies LLC product ·{" "}
-              <a href="https://tradeprotech.ai" className="hover:text-slate-400 transition-colors">TradePro Resume Builder</a>
+          <div className="border-t border-[#1e293b] pt-6 mt-8 text-center">
+            <p className="text-[#334155] text-xs">
+              TradePro Technologies LLC
             </p>
           </div>
         </div>
