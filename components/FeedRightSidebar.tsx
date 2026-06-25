@@ -157,6 +157,23 @@ export default function FeedRightSidebar({ userId, userState, followedIds }: Pro
         </div>
       )}
 
+      {/* TradePro Tech cross-promo */}
+      <div className="bg-[#0f172a] rounded-2xl p-4 text-center">
+        <p className="text-[10px] font-bold text-[#475569] uppercase tracking-widest mb-2">Also from TradePro</p>
+        <p className="text-white font-black text-sm mb-1">Need a construction resume?</p>
+        <p className="text-[#94a3b8] text-xs leading-relaxed mb-3">
+          Build a professional trade resume in minutes with TradePro Tech. Free forever.
+        </p>
+        <a
+          href="https://www.tradeprotech.ai"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block w-full py-2.5 bg-[#f97316] hover:bg-[#ea6c00] text-white text-xs font-bold rounded-xl transition-colors"
+        >
+          Build My Resume Free →
+        </a>
+      </div>
+
     </div>
   );
 }

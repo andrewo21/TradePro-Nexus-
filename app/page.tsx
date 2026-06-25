@@ -104,6 +104,14 @@ export default function LandingPage() {
 
           {/* Desktop buttons */}
           <div className="hidden md:flex items-center gap-3">
+            <a
+              href="https://www.tradeprotech.ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-[#64748b] hover:text-[#0f172a] text-sm font-semibold transition-colors border-r border-[#e2e8f0] pr-3"
+            >
+              <span className="text-[#f97316]">&#128196;</span> Resume Builder
+            </a>
             <Link
               href="/login"
               className="border border-[#e2e8f0] text-[#475569] hover:border-[#cbd5e1] rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
