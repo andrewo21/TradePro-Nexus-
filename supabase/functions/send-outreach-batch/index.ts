@@ -200,28 +200,23 @@ Deno.serve(async (req: Request) => {
     batchSize = Math.min(batchSize, remaining);
   }
 
-  // ── Select eligible, not-yet-contacted profiles ─────────────────────────────
-  const { data: alreadyContacted } = await supabase
-    .from("outreach_log")
-    .select("unclaimed_profile_id");
-  const contactedIds = new Set((alreadyContacted ?? []).map((r: { unclaimed_profile_id: string }) => r.unclaimed_profile_id));
+  // ── Select eligible, not-yet-contacted profiles via DB anti-join ────────────
+  // Uses get_next_outreach_batch() RPC which does NOT EXISTS against outreach_log
+  // server-side. This is correct at any scale — no client-side filtering,
+  // no PostgREST 1K row cap, no over-fetch arithmetic.
+  const { data: batchRaw, error: batchErr } = await supabase.rpc("get_next_outreach_batch", {
+    p_batch_size: batchSize,
+    p_state: "FL",
+  });
 
-  const { data: candidates } = await supabase
-    .from("unclaimed_profiles")
-    .select("id, business_name, license_type, source_state, email, claim_token, remove_token")
-    .eq("outreach_eligible", true)
-    .eq("visible", true)
-    .eq("claimed", false)
-    .eq("remove_requested", false)
-    .eq("source_state", "FL")
-    .not("email", "is", null)
-    .order("created_at", { ascending: true })
-    // Over-fetch enough to clear all already-contacted records plus fill the batch.
-    // Must exceed contactedIds.size + batchSize to avoid returning 0 results as
-    // the contacted list grows. Floor at 1000 so the function never stalls.
-    .limit(Math.max(batchSize * 20, contactedIds.size + batchSize * 2, 1000));
+  if (batchErr) {
+    return new Response(
+      JSON.stringify({ error: "Batch query failed", detail: batchErr.message }),
+      { headers: { "Content-Type": "application/json" }, status: 500 }
+    );
+  }
 
-  const batch = (candidates ?? []).filter((p: { id: string }) => !contactedIds.has(p.id)).slice(0, batchSize);
+  const batch = batchRaw ?? [];
 
   let sent = 0;
   let failed = 0;
