@@ -15,8 +15,9 @@ import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
 import { canBeVerified } from "@/lib/constants";
 import FeedAdCard from "@/components/FeedAdCard";
-import DesktopAdRail from "@/components/DesktopAdRail";
 import BadgeCelebration from "@/components/BadgeCelebration";
+import FeedLeftSidebar from "@/components/FeedLeftSidebar";
+import FeedRightSidebar from "@/components/FeedRightSidebar";
 import type { Badge } from "@/lib/badge-definitions";
 import { trackEvent } from "@/lib/analytics";
 
@@ -1035,6 +1036,7 @@ function FeedPageInner() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [activePrompt, setActivePrompt] = useState<string | undefined>(undefined);
   const [celebrationBadges, setCelebrationBadges] = useState<Badge[]>([]);
+  const [userState, setUserState] = useState<string | null>(null);
 
   const fetchPosts = useCallback(async () => {
     setLoading(true);
@@ -1143,8 +1145,9 @@ function FeedPageInner() {
 
       // Get author ID (profile or company)
       const db = supabase as any;
-      const { data: prof } = await db.from("profiles").select("id").eq("user_id", user.id).single();
+      const { data: prof } = await db.from("profiles").select("id, location_state").eq("user_id", user.id).single();
       const authorId = prof?.id ?? null;
+      if (prof?.location_state) setUserState(prof.location_state);
       if (!authorId) {
         const { data: comp } = await db.from("companies").select("id").eq("user_id", user.id).single();
         if (comp) {
@@ -1281,14 +1284,21 @@ function FeedPageInner() {
   });
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-slate-100">
+    <div className="min-h-screen bg-[#f1f5f9]">
       <Navbar />
-      {/* Desktop ad rails — hidden on mobile per roadmap */}
-      <DesktopAdRail side="left" />
-      <DesktopAdRail side="right" />
       {celebrationBadges.length > 0 && (
         <BadgeCelebration badges={celebrationBadges} onClose={() => setCelebrationBadges([])} />
       )}
+      {/* Three-column layout: white sidebars, dark navy center */}
+      <div className="flex max-w-[1360px] mx-auto">
+
+        {/* LEFT SIDEBAR — white */}
+        <aside className="hidden xl:block w-[272px] flex-shrink-0 bg-white border-r border-[#e2e8f0] min-h-screen sticky top-0 pt-20 px-4 pb-12 overflow-y-auto max-h-screen">
+          <FeedLeftSidebar userId={currentUser?.id ?? null} authorId={currentAuthorId} />
+        </aside>
+
+        {/* CENTER FEED — dark navy, all existing content unchanged */}
+        <main className="flex-1 min-w-0 bg-[#0f172a] text-slate-100 min-h-screen">
       <div className="max-w-2xl mx-auto px-4 pt-24 pb-24">
 
         {/* Header */}
@@ -1299,7 +1309,7 @@ function FeedPageInner() {
               <span className="text-xs font-bold uppercase tracking-widest text-green-400">Live Feed</span>
               <Rss className="w-3.5 h-3.5 text-green-400" />
             </div>
-            <h1 className="text-2xl font-black text-white">Work is Currency.</h1>
+            <h1 className="text-2xl font-black text-white">Work is <span className="text-orange-400">Currency.</span></h1>
           </div>
           {isGC && (
             <Link href="/messages" className="flex items-center gap-1.5 px-3 py-2 bg-blue-900/40 border border-blue-800/50 rounded-xl text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors">
@@ -1395,6 +1405,20 @@ function FeedPageInner() {
           </div>
         )}
       </div>
+        </main>
+        {/* END CENTER FEED */}
+
+        {/* RIGHT SIDEBAR — white */}
+        <aside className="hidden xl:block w-[272px] flex-shrink-0 bg-white border-l border-[#e2e8f0] min-h-screen sticky top-0 pt-20 px-4 pb-12 overflow-y-auto max-h-screen">
+          <FeedRightSidebar
+            userId={currentUser?.id ?? null}
+            userState={userState}
+            followedIds={connectionAuthorKeys}
+          />
+        </aside>
+
+      </div>
+      {/* END three-column layout */}
     </div>
   );
 }

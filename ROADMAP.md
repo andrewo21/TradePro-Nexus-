@@ -1,5 +1,13 @@
 # TradePro Nexus — Product Roadmap
 
+## ✅ PHASE 14 — COMPLETE (Visual Redesign + Trade Pros Near You)
+
+1. **Homepage redesign** (`/`) — Complete visual overhaul: white sticky navbar with TradePro Nexus logo + center nav links + Sign In / Join Free buttons; dark navy hero with "Now Live in 7 States" badge, split-color H1, four live stat boxes (directory count from `/api/stats`, 7 states, Free, 5 min); orange "Verified by Paper. Not by Algorithm." strip; two-column features section on white background (Trade Pro / GC split); dark navy "How it works" 3-step section; full-width orange CTA; minimal dark footer. All em dashes removed. Mobile responsive with hamburger menu.
+
+2. **Feed three-column redesign** (`/feed`) — White left sidebar + dark navy center (unchanged) + white right sidebar. Left sidebar: Your Profile card (avatar initials, name, trade, availability), Quick Links (Find Crews / Union Jobs / Refer and Earn / Get Verified), Platform Stats (live contractors count, 7 states, available now count). Right sidebar: Trade Pros Near You (pulls 5 profiles from user's state or FL default, links to `/search?state=X`), Suggested Connections (3 unfollowed profiles with Follow button, hidden when logged out). Center feed: zero changes to existing functionality, post logic, reactions, comments. Sidebars collapse on mobile, center takes full width. "Work is Currency." headline updated with "Currency." in orange. DesktopAdRail replaced by sidebars.
+
+---
+
 ## ✅ PHASE 13 — COMPLETE
 
 1. **SendGrid suppression sync** — Unsubscribe and remove actions now call SendGrid global suppression API. Admin backfill endpoint at `POST /api/admin/registry/sendgrid-sync` (call once from deployed site to sync 4 existing suppressed records).
