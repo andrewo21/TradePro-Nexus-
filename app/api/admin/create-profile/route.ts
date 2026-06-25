@@ -114,19 +114,19 @@ function magicLinkHtml(firstName: string, magicLink: string, profileUrl: string)
 </html>`;
 }
 
-async function generateUniqueSlug(db: any, firstName: string, lastName: string): Promise<string> {
-  const base = `${firstName}-${lastName}`
+async function generateUniqueSlug(db: any, name1: string, name2: string, table: "profiles" | "companies"): Promise<string> {
+  const base = `${name1}-${name2}`
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 40) || "trade-pro";
 
-  const { data } = await db.from("profiles").select("slug").eq("slug", base).maybeSingle();
+  const { data } = await db.from(table).select("slug").eq("slug", base).maybeSingle();
   if (!data) return base;
 
   for (let i = 0; i < 8; i++) {
     const candidate = `${base}-${Math.random().toString(36).slice(2, 4)}`;
-    const { data: ex } = await db.from("profiles").select("slug").eq("slug", candidate).maybeSingle();
+    const { data: ex } = await db.from(table).select("slug").eq("slug", candidate).maybeSingle();
     if (!ex) return candidate;
   }
   return `${base}-${Date.now().toString(36)}`;
@@ -142,33 +142,47 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const {
-    firstName, lastName, businessName, email, phone,
-    trade, city, state, yearsExperience, crewSize,
-    unionMember, unionName, unionLocalNumber,
+    accountType = "tradepro",
+    // Trade Pro fields
+    firstName, lastName, businessName, trade,
+    yearsExperience, crewSize, unionMember, unionName, unionLocalNumber,
     certifications, availableForWork,
+    // GC fields
+    companyName, tradeSpecialties, yearsInBusiness,
+    // Shared
+    email, phone, city, state,
   } = body;
 
-  if (!firstName || !lastName || !email || !trade) {
-    return NextResponse.json({ error: "First name, last name, email, and trade are required." }, { status: 400 });
+  const isGC = accountType === "gc";
+
+  if (!email) {
+    return NextResponse.json({ error: "Email is required." }, { status: 400 });
+  }
+  if (isGC && !companyName) {
+    return NextResponse.json({ error: "Company name is required for GC accounts." }, { status: 400 });
+  }
+  if (!isGC && (!firstName || !lastName || !trade)) {
+    return NextResponse.json({ error: "First name, last name, and trade are required." }, { status: 400 });
   }
 
   const db = getSupabaseAdmin() as any;
 
   // 1. Create auth user — email pre-confirmed, no password
+  const displayName = isGC ? companyName : `${firstName} ${lastName}`;
   let userId: string;
   const { data: newUser, error: createErr } = await db.auth.admin.createUser({
     email,
     email_confirm: true,
     user_metadata: {
-      full_name: `${firstName} ${lastName}`,
-      profile_type: "tradepro",
-      via_claim: true,
+      full_name: displayName,
+      role: isGC ? "gc" : "tradepro",
+      profile_type: isGC ? "gc" : "tradepro",
+      via_claim: !isGC,
       admin_created: true,
     },
   });
 
   if (createErr) {
-    // If user already exists, reuse
     const { data: { users } } = await db.auth.admin.listUsers({ page: 1, perPage: 1000 });
     const existing = (users ?? []).find((u: any) => u.email === email);
     if (!existing) {
@@ -179,71 +193,93 @@ export async function POST(req: NextRequest) {
     userId = newUser.user.id;
   }
 
-  // 2. Generate slug and create profile
-  const slug = await generateUniqueSlug(db, firstName, lastName);
-  const certsArray = certifications
-    ? certifications.split(",").map((c: string) => c.trim()).filter(Boolean)
-    : [];
+  let profileUrl: string;
+  let slug: string;
+  const greetingName = isGC ? (companyName?.split(" ")[0] ?? "there") : (firstName ?? "there");
 
-  const { error: profileErr } = await db.from("profiles").insert({
-    user_id:             userId,
-    slug,
-    first_name:          firstName.trim(),
-    last_name:           lastName.trim(),
-    firm_name:           businessName?.trim() || null,
-    trade:               trade.trim(),
-    profile_type:        "tradepro",
-    location_city:       city?.trim() || null,
-    location_state:      state?.trim() || null,
-    phone:               phone?.trim() || null,
-    email:               email.trim(),
-    years_experience:    yearsExperience ? parseInt(yearsExperience) : null,
-    crew_size:           crewSize ? parseInt(crewSize) : null,
-    union_member:        !!unionMember,
-    union_name:          unionName?.trim() || null,
-    union_local_number:  unionLocalNumber?.trim() || null,
-    other_certifications: certsArray,
-    availability_status: availableForWork ? "available" : "booked",
-    is_internal:         false,
-    is_seed_account:     false,
-    // setup_reminder_sent_at left NULL — edge function will send Email 2
-  });
+  if (isGC) {
+    // ── GC account: creates a companies record ───────────────────────────────
+    slug = await generateUniqueSlug(db, companyName, "", "companies");
+    const specialtiesArray = tradeSpecialties
+      ? tradeSpecialties.split(",").map((t: string) => t.trim()).filter(Boolean)
+      : [];
 
-  if (profileErr) {
-    const { data: existing } = await db.from("profiles").select("slug").eq("user_id", userId).maybeSingle();
-    if (!existing) {
-      return NextResponse.json({ error: `Could not create profile: ${profileErr.message}` }, { status: 500 });
+    const { error: coErr } = await db.from("companies").insert({
+      user_id:         userId,
+      slug,
+      name:            companyName.trim(),
+      email:           email.trim(),
+      phone:           phone?.trim() || null,
+      location_city:   city?.trim() || null,
+      location_state:  state?.trim() || null,
+      trade_specialties: specialtiesArray,
+      years_in_business: yearsInBusiness ? parseInt(yearsInBusiness) : null,
+      availability_status: "available",
+    });
+
+    if (coErr) {
+      const { data: existing } = await db.from("companies").select("slug").eq("user_id", userId).maybeSingle();
+      if (!existing) {
+        return NextResponse.json({ error: `Could not create company: ${coErr.message}` }, { status: 500 });
+      }
+      slug = existing.slug;
+    }
+    profileUrl = `${SITE_URL}/company/${slug}`;
+
+  } else {
+    // ── Trade Pro account: creates a profiles record ─────────────────────────
+    slug = await generateUniqueSlug(db, firstName, lastName, "profiles");
+    const certsArray = certifications
+      ? certifications.split(",").map((c: string) => c.trim()).filter(Boolean)
+      : [];
+
+    const { error: profileErr } = await db.from("profiles").insert({
+      user_id:              userId,
+      slug,
+      first_name:           firstName.trim(),
+      last_name:            lastName.trim(),
+      firm_name:            businessName?.trim() || null,
+      trade:                trade.trim(),
+      profile_type:         "tradepro",
+      location_city:        city?.trim() || null,
+      location_state:       state?.trim() || null,
+      phone:                phone?.trim() || null,
+      email:                email.trim(),
+      years_experience:     yearsExperience ? parseInt(yearsExperience) : null,
+      crew_size:            crewSize ? parseInt(crewSize) : null,
+      union_member:         !!unionMember,
+      union_name:           unionName?.trim() || null,
+      union_local_number:   unionLocalNumber?.trim() || null,
+      other_certifications: certsArray,
+      availability_status:  availableForWork ? "available" : "booked",
+      is_internal:          false,
+      is_seed_account:      false,
+    });
+
+    if (profileErr) {
+      const { data: existing } = await db.from("profiles").select("slug").eq("user_id", userId).maybeSingle();
+      if (!existing) {
+        return NextResponse.json({ error: `Could not create profile: ${profileErr.message}` }, { status: 500 });
+      }
+      slug = existing.slug;
+    }
+    profileUrl = `${SITE_URL}/pro/${slug}`;
+
+    // Check for matching unclaimed_profiles record and mark as claimed
+    const biz = businessName?.trim() || (firstName?.trim() + " " + lastName?.trim());
+    if (biz || email) {
+      let uq = db.from("unclaimed_profiles").select("id").eq("claimed", false).eq("visible", true);
+      if (biz) uq = uq.ilike("business_name", `%${biz}%`); else uq = uq.eq("email", email);
+      const { data: unclaimed } = await uq.maybeSingle();
+      if (unclaimed) {
+        await db.from("unclaimed_profiles").update({
+          claimed: true, claimed_by: userId, claimed_at: new Date().toISOString(),
+        }).eq("id", unclaimed.id);
+      }
     }
   }
 
-  const profileUrl = `${SITE_URL}/pro/${slug}`;
-
-  // 3. Check for matching unclaimed_profiles record and mark as claimed
-  const biz = businessName?.trim();
-  if (biz || email) {
-    let unclaimedQuery = db
-      .from("unclaimed_profiles")
-      .select("id")
-      .eq("claimed", false)
-      .eq("visible", true);
-
-    if (biz) {
-      unclaimedQuery = unclaimedQuery.ilike("business_name", biz);
-    } else {
-      unclaimedQuery = unclaimedQuery.eq("email", email);
-    }
-
-    const { data: unclaimed } = await unclaimedQuery.maybeSingle();
-    if (unclaimed) {
-      await db.from("unclaimed_profiles").update({
-        claimed: true,
-        claimed_by: userId,
-        claimed_at: new Date().toISOString(),
-      }).eq("id", unclaimed.id);
-    }
-  }
-
-  // 4. Generate magic link for immediate login
+  // Generate magic link
   const { data: linkData } = await db.auth.admin.generateLink({
     type: "magiclink",
     email,
@@ -251,26 +287,10 @@ export async function POST(req: NextRequest) {
   });
   const magicLink = linkData?.properties?.action_link ?? `${SITE_URL}/login`;
 
-  // 5. Send welcome email from Andrew (Email 1)
+  // Send welcome email + magic link email
   const referralUrl = `${SITE_URL}/signup?ref=${userId}`;
-  await sendSg(
-    email,
-    "Welcome to TradePro Nexus",
-    welcomeHtml(firstName, profileUrl, referralUrl)
-  );
+  await sendSg(email, "Welcome to TradePro Nexus", welcomeHtml(greetingName, profileUrl, referralUrl));
+  await sendSg(email, "Your TradePro Nexus login link", magicLinkHtml(greetingName, magicLink, profileUrl));
 
-  // 6. Send magic link email so they can log in immediately
-  await sendSg(
-    email,
-    "Your TradePro Nexus login link",
-    magicLinkHtml(firstName, magicLink, profileUrl)
-  );
-
-  return NextResponse.json({
-    ok: true,
-    slug,
-    profileUrl,
-    userId,
-    magicLink,
-  });
+  return NextResponse.json({ ok: true, slug, profileUrl, userId, magicLink, accountType });
 }

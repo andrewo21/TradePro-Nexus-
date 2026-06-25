@@ -11,6 +11,7 @@ import Navbar from "@/components/Navbar";
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
 import { ALL_TRADES } from "@/lib/constants";
+import { Building2, HardHat } from "lucide-react";
 
 const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
@@ -42,11 +43,17 @@ export default function AdminCreateProfilePage() {
     });
   });
 
+  const [accountType, setAccountType] = useState<"tradepro" | "gc">("tradepro");
   const [form, setForm] = useState({
-    firstName: "", lastName: "", businessName: "", email: "", phone: "",
-    trade: "", city: "", state: "", yearsExperience: "", crewSize: "",
+    // Shared
+    email: "", phone: "", city: "", state: "",
+    // Trade Pro
+    firstName: "", lastName: "", businessName: "",
+    trade: "", yearsExperience: "", crewSize: "",
     unionMember: false, unionName: "", unionLocalNumber: "",
     certifications: "", availableForWork: true,
+    // GC
+    companyName: "", tradeSpecialties: "", yearsInBusiness: "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +72,7 @@ export default function AdminCreateProfilePage() {
       const res = await fetch("/api/admin/create-profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, accountType }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -90,10 +97,12 @@ export default function AdminCreateProfilePage() {
 
   function resetForm() {
     setForm({
-      firstName: "", lastName: "", businessName: "", email: "", phone: "",
-      trade: "", city: "", state: "", yearsExperience: "", crewSize: "",
+      email: "", phone: "", city: "", state: "",
+      firstName: "", lastName: "", businessName: "",
+      trade: "", yearsExperience: "", crewSize: "",
       unionMember: false, unionName: "", unionLocalNumber: "",
       certifications: "", availableForWork: true,
+      companyName: "", tradeSpecialties: "", yearsInBusiness: "",
     });
     setResult(null);
     setError(null);
@@ -180,27 +189,69 @@ export default function AdminCreateProfilePage() {
         {!result && (
           <form onSubmit={handleSubmit} className="space-y-5">
 
-            {/* Name row */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={label}><User className="w-3 h-3 inline mr-1" />First Name *</label>
-                <input value={form.firstName} onChange={e => set("firstName", e.target.value)}
-                  required placeholder="Marcus" className={input} />
-              </div>
-              <div>
-                <label className={label}>Last Name *</label>
-                <input value={form.lastName} onChange={e => set("lastName", e.target.value)}
-                  required placeholder="Hall" className={input} />
+            {/* Account type toggle */}
+            <div>
+              <label className={label}>Account Type *</label>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setAccountType("tradepro")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold border-2 transition-all ${accountType === "tradepro" ? "bg-orange-600 border-orange-500 text-white" : "bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500"}`}>
+                  <HardHat className="w-4 h-4" /> Trade Pro / Sub
+                </button>
+                <button type="button" onClick={() => setAccountType("gc")}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold border-2 transition-all ${accountType === "gc" ? "bg-blue-700 border-blue-500 text-white" : "bg-slate-800 border-slate-600 text-slate-400 hover:border-slate-500"}`}>
+                  <Building2 className="w-4 h-4" /> GC / Developer
+                </button>
               </div>
             </div>
 
-            {/* Business name */}
-            <div>
-              <label className={label}><Briefcase className="w-3 h-3 inline mr-1" />Business Name</label>
-              <input value={form.businessName} onChange={e => set("businessName", e.target.value)}
-                placeholder="Hall Electric LLC" className={input} />
-              <p className="text-[10px] text-slate-600 mt-1">Used to match and claim an existing registry listing.</p>
-            </div>
+            {/* GC fields */}
+            {accountType === "gc" && (
+              <>
+                <div>
+                  <label className={label}><Building2 className="w-3 h-3 inline mr-1" />Company Name *</label>
+                  <input value={form.companyName} onChange={e => set("companyName", e.target.value)}
+                    required={accountType === "gc"} placeholder="Northeast Builders LLC" className={input} />
+                </div>
+                <div>
+                  <label className={label}><Briefcase className="w-3 h-3 inline mr-1" />Trade Specialties <span className="text-slate-600 font-normal normal-case">(comma separated — what trades they look for)</span></label>
+                  <input value={form.tradeSpecialties} onChange={e => set("tradeSpecialties", e.target.value)}
+                    placeholder="Electrical, Plumbing, HVAC" className={input} />
+                </div>
+                <div>
+                  <label className={label}><Award className="w-3 h-3 inline mr-1" />Years in Business</label>
+                  <input type="number" min="0" max="100" value={form.yearsInBusiness}
+                    onChange={e => set("yearsInBusiness", e.target.value)}
+                    placeholder="12" className={input} />
+                </div>
+              </>
+            )}
+
+            {/* Trade Pro fields */}
+            {accountType === "tradepro" && (
+              <>
+                {/* Name row */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={label}><User className="w-3 h-3 inline mr-1" />First Name *</label>
+                    <input value={form.firstName} onChange={e => set("firstName", e.target.value)}
+                      required={accountType === "tradepro"} placeholder="Marcus" className={input} />
+                  </div>
+                  <div>
+                    <label className={label}>Last Name *</label>
+                    <input value={form.lastName} onChange={e => set("lastName", e.target.value)}
+                      required={accountType === "tradepro"} placeholder="Hall" className={input} />
+                  </div>
+                </div>
+
+                {/* Business name */}
+                <div>
+                  <label className={label}><Briefcase className="w-3 h-3 inline mr-1" />Business Name</label>
+                  <input value={form.businessName} onChange={e => set("businessName", e.target.value)}
+                    placeholder="Hall Electric LLC" className={input} />
+                  <p className="text-[10px] text-slate-600 mt-1">Used to match and claim an existing registry listing.</p>
+                </div>
+              </>
+            )}
 
             {/* Contact row */}
             <div className="grid grid-cols-2 gap-3">
@@ -216,15 +267,17 @@ export default function AdminCreateProfilePage() {
               </div>
             </div>
 
-            {/* Trade */}
-            <div>
-              <label className={label}><Briefcase className="w-3 h-3 inline mr-1" />Trade *</label>
-              <select value={form.trade} onChange={e => set("trade", e.target.value)}
-                required className={input}>
-                <option value="">Select a trade</option>
-                {ALL_TRADES.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
+            {/* Trade — Trade Pro only */}
+            {accountType === "tradepro" && (
+              <div>
+                <label className={label}><Briefcase className="w-3 h-3 inline mr-1" />Trade *</label>
+                <select value={form.trade} onChange={e => set("trade", e.target.value)}
+                  required={accountType === "tradepro"} className={input}>
+                  <option value="">Select a trade</option>
+                  {ALL_TRADES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+            )}
 
             {/* Location row */}
             <div className="grid grid-cols-2 gap-3">
@@ -242,63 +295,67 @@ export default function AdminCreateProfilePage() {
               </div>
             </div>
 
-            {/* Experience + crew row */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={label}><Award className="w-3 h-3 inline mr-1" />Years of Experience</label>
-                <input type="number" min="0" max="60" value={form.yearsExperience}
-                  onChange={e => set("yearsExperience", e.target.value)}
-                  placeholder="14" className={input} />
-              </div>
-              <div>
-                <label className={label}><Users className="w-3 h-3 inline mr-1" />Crew Size</label>
-                <input type="number" min="1" max="500" value={form.crewSize}
-                  onChange={e => set("crewSize", e.target.value)}
-                  placeholder="8" className={input} />
-              </div>
-            </div>
-
-            {/* Union section */}
-            <div className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-4 space-y-3">
-              <label className="flex items-center gap-2.5 cursor-pointer">
-                <input type="checkbox" checked={form.unionMember}
-                  onChange={e => set("unionMember", e.target.checked)}
-                  className="w-4 h-4 accent-blue-500" />
-                <span className="text-sm font-semibold text-slate-200 flex items-center gap-1.5">
-                  <Shield className="w-3.5 h-3.5 text-blue-400" /> Union Member
-                </span>
-              </label>
-              {form.unionMember && (
-                <div className="grid grid-cols-2 gap-3 pt-1">
+            {/* Experience + crew — Trade Pro only */}
+            {accountType === "tradepro" && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className={label}>Union Name</label>
-                    <input value={form.unionName} onChange={e => set("unionName", e.target.value)}
-                      placeholder="IBEW" className={input} />
+                    <label className={label}><Award className="w-3 h-3 inline mr-1" />Years of Experience</label>
+                    <input type="number" min="0" max="60" value={form.yearsExperience}
+                      onChange={e => set("yearsExperience", e.target.value)}
+                      placeholder="14" className={input} />
                   </div>
                   <div>
-                    <label className={label}>Local Number</label>
-                    <input value={form.unionLocalNumber} onChange={e => set("unionLocalNumber", e.target.value)}
-                      placeholder="824" className={input} />
+                    <label className={label}><Users className="w-3 h-3 inline mr-1" />Crew Size</label>
+                    <input type="number" min="1" max="500" value={form.crewSize}
+                      onChange={e => set("crewSize", e.target.value)}
+                      placeholder="8" className={input} />
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* Certifications */}
-            <div>
-              <label className={label}>Certifications <span className="text-slate-600 font-normal normal-case">(optional, comma separated)</span></label>
-              <input value={form.certifications} onChange={e => set("certifications", e.target.value)}
-                placeholder="OSHA 30, NFPA 70E, Arc Flash" className={input} />
-            </div>
+                {/* Union */}
+                <div className="bg-slate-800/40 border border-slate-700/40 rounded-xl p-4 space-y-3">
+                  <label className="flex items-center gap-2.5 cursor-pointer">
+                    <input type="checkbox" checked={form.unionMember}
+                      onChange={e => set("unionMember", e.target.checked)}
+                      className="w-4 h-4 accent-blue-500" />
+                    <span className="text-sm font-semibold text-slate-200 flex items-center gap-1.5">
+                      <Shield className="w-3.5 h-3.5 text-blue-400" /> Union Member
+                    </span>
+                  </label>
+                  {form.unionMember && (
+                    <div className="grid grid-cols-2 gap-3 pt-1">
+                      <div>
+                        <label className={label}>Union Name</label>
+                        <input value={form.unionName} onChange={e => set("unionName", e.target.value)}
+                          placeholder="IBEW" className={input} />
+                      </div>
+                      <div>
+                        <label className={label}>Local Number</label>
+                        <input value={form.unionLocalNumber} onChange={e => set("unionLocalNumber", e.target.value)}
+                          placeholder="824" className={input} />
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-            {/* Availability */}
-            <div className="flex items-center justify-between bg-slate-800/40 border border-slate-700/40 rounded-xl px-4 py-3">
-              <span className="text-sm font-semibold text-slate-200">Available for Work</span>
-              <button type="button" onClick={() => set("availableForWork", !form.availableForWork)}
-                className={`relative w-11 h-6 rounded-full transition-colors ${form.availableForWork ? "bg-green-600" : "bg-slate-600"}`}>
-                <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.availableForWork ? "translate-x-5" : "translate-x-0.5"}`} />
-              </button>
-            </div>
+                {/* Certifications */}
+                <div>
+                  <label className={label}>Certifications <span className="text-slate-600 font-normal normal-case">(optional, comma separated)</span></label>
+                  <input value={form.certifications} onChange={e => set("certifications", e.target.value)}
+                    placeholder="OSHA 30, NFPA 70E, Arc Flash" className={input} />
+                </div>
+
+                {/* Availability */}
+                <div className="flex items-center justify-between bg-slate-800/40 border border-slate-700/40 rounded-xl px-4 py-3">
+                  <span className="text-sm font-semibold text-slate-200">Available for Work</span>
+                  <button type="button" onClick={() => set("availableForWork", !form.availableForWork)}
+                    className={`relative w-11 h-6 rounded-full transition-colors ${form.availableForWork ? "bg-green-600" : "bg-slate-600"}`}>
+                    <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${form.availableForWork ? "translate-x-5" : "translate-x-0.5"}`} />
+                  </button>
+                </div>
+              </>
+            )}
 
             {error && (
               <div className="bg-red-950/40 border border-red-800/50 text-red-400 text-sm rounded-xl px-4 py-3 flex items-start gap-2">
