@@ -193,6 +193,7 @@ function BuildPageInner() {
   const [authChecking, setAuthChecking] = useState(true);
   const [isAuthed, setIsAuthed] = useState(false);
   const [authedUserId, setAuthedUserId] = useState<string | null>(null);
+  const [isLegacyMember, setIsLegacyMember] = useState(false);
   const [claimData, setClaimData] = useState<{
     id: string; business_name: string; city?: string; state?: string;
     phone?: string; email?: string; license_number?: string; license_type?: string;
@@ -281,6 +282,11 @@ function BuildPageInner() {
       }
       const bizName = claimData?.business_name ?? "Your Business";
       setMagicDone({ slug: data.slug, profileUrl: data.profileUrl, businessName: bizName });
+      // Send legacy member email if applicable (fire-and-forget after session establishes)
+      if (data.isLegacyMember) {
+        setIsLegacyMember(true);
+        // Email sent server-side in claim-magic route; show celebration in UI
+      }
       // GA4 — most important conversion event on the platform
       trackEvent("claim_profile", {
         business_name: bizName,
@@ -421,6 +427,12 @@ function BuildPageInner() {
       // Check for Profile Champion badge (fire-and-forget)
       fetch("/api/badges/check?trigger=profile", { method: "POST" }).catch(() => {});
 
+      // Check and notify Legacy Member status (fire-and-forget)
+      if ((profile as any)?.legacy_member) {
+        fetch("/api/legacy-member/notify", { method: "POST" }).catch(() => {});
+        setIsLegacyMember(true);
+      }
+
       // If arriving from a registry claim link, mark the unclaimed profile as claimed
       if (claimToken) {
         fetch("/api/registry/claim", {
@@ -454,6 +466,17 @@ function BuildPageInner() {
       <div className="min-h-screen bg-[#0f172a] text-slate-100"><Navbar />
         <div className="flex items-center justify-center min-h-screen px-4">
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-lg w-full text-center">
+            {/* Legacy Member celebration */}
+            {isLegacyMember && (
+              <div className="bg-gradient-to-br from-amber-950/60 to-slate-900 border border-amber-700/60 rounded-2xl px-6 py-5 mb-6 text-center">
+                <div className="text-4xl mb-2">&#127941;</div>
+                <p className="text-amber-400 font-black text-lg mb-1">You are a Legacy Member.</p>
+                <p className="text-amber-200/80 text-sm leading-relaxed">
+                  One of the first 100 members of TradePro Nexus. Your verification badge will always be free.
+                </p>
+              </div>
+            )}
+
             <div className="w-16 h-16 bg-green-600/20 border border-green-600/40 rounded-full flex items-center justify-center mx-auto mb-6">
               <CheckCircle className="w-8 h-8 text-green-400" />
             </div>
@@ -542,6 +565,17 @@ function BuildPageInner() {
         return (
           <div className="min-h-screen bg-[#0f172a] text-slate-100 flex items-center justify-center px-4">
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-md w-full text-center">
+            {/* Legacy Member celebration on magic claim */}
+            {isLegacyMember && (
+              <div className="bg-gradient-to-br from-amber-950/60 to-slate-900 border border-amber-700/60 rounded-2xl px-6 py-5 mb-6 text-center">
+                <div className="text-4xl mb-2">&#127941;</div>
+                <p className="text-amber-400 font-black text-lg mb-1">You are a Legacy Member.</p>
+                <p className="text-amber-200/80 text-sm leading-relaxed">
+                  One of the first 100 members of TradePro Nexus. Your verification badge will always be free.
+                </p>
+              </div>
+            )}
+
               <div className="w-16 h-16 bg-green-500/20 border border-green-500/40 rounded-full flex items-center justify-center mx-auto mb-6">
                 <CheckCircle className="w-9 h-9 text-green-400" />
               </div>

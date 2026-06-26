@@ -316,5 +316,14 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ ok: true, slug, profileUrl });
+  // 9. Check legacy member status and send notification if applicable
+  const { data: createdProfile } = await db
+    .from("profiles")
+    .select("legacy_member")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const isLegacy = !!createdProfile?.legacy_member;
+
+  return NextResponse.json({ ok: true, slug, profileUrl, isLegacyMember: isLegacy });
 }

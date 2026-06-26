@@ -33,6 +33,7 @@ export default async function AdminWaitlistPage() {
     { data: topReferrers },
     { data: engagementData },
     { data: trafficData },
+    { data: legacyMembers },
   ] = await Promise.all([
     db.from("waitlist").select("*", { count: "exact", head: true }),
     db.from("waitlist").select("*", { count: "exact", head: true }).eq("user_type", "pro"),
@@ -41,6 +42,12 @@ export default async function AdminWaitlistPage() {
     db.from("waitlist").select("referral_code, name").limit(500),
     db.rpc("get_platform_engagement_stats"),
     db.from("site_daily_visits").select("date, visits").order("date", { ascending: false }).limit(30),
+    db.from("profiles")
+      .select("first_name, last_name, trade, location_state, legacy_member_granted_at, slug")
+      .eq("legacy_member", true)
+      .eq("is_seed_account", false)
+      .order("legacy_member_granted_at", { ascending: true })
+      .limit(100),
   ]);
 
   const engagement = engagementData as {
@@ -300,6 +307,47 @@ export default async function AdminWaitlistPage() {
               )}
             </div>
           </div>
+
+          {/* Legacy Members */}
+          <div className="mt-8">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">&#127941;</span>
+              <h2 className="text-xs font-bold uppercase tracking-widest text-amber-400">
+                Legacy Members — {(legacyMembers as any[])?.length ?? 0} / 100
+              </h2>
+            </div>
+            <div className="bg-slate-800/50 border border-amber-800/30 rounded-xl overflow-hidden">
+              {!legacyMembers || (legacyMembers as any[]).length === 0 ? (
+                <p className="text-slate-500 text-sm text-center py-8">No legacy members yet.</p>
+              ) : (
+                (legacyMembers as any[]).map((m, i) => (
+                  <div key={m.slug ?? i} className="flex items-center justify-between px-4 py-3 border-b border-slate-700/30 last:border-0">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-xs text-amber-700 w-6 text-center font-black">{i + 1}</span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-white truncate">
+                          {m.first_name} {m.last_name}
+                        </p>
+                        <p className="text-xs text-amber-400/70">{m.trade}{m.location_state ? ` · ${m.location_state}` : ""}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0 ml-2">
+                      {m.slug && (
+                        <a href={`/pro/${m.slug}`} target="_blank" rel="noopener noreferrer"
+                          className="text-xs text-orange-400 hover:underline">View</a>
+                      )}
+                      <span className="text-xs text-slate-600">
+                        {m.legacy_member_granted_at
+                          ? new Date(m.legacy_member_granted_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                          : "—"}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
         </div>
 
       </div>

@@ -58,11 +58,15 @@ function TrussLogo({ className }: { className?: string }) {
 export default function LandingPage() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [directoryCount, setDirectoryCount] = useState(0);
+  const [legacyCount, setLegacyCount] = useState<number | null>(null);
 
   useEffect(() => {
     fetch("/api/stats")
       .then((r) => r.json())
-      .then((d) => setDirectoryCount(d.directoryListings ?? 0))
+      .then((d) => {
+        setDirectoryCount(d.directoryListings ?? 0);
+        setLegacyCount(d.legacyMemberCount ?? 0);
+      })
       .catch(() => {});
   }, []);
 
@@ -215,6 +219,20 @@ export default function LandingPage() {
               Find Contractors
             </Link>
           </div>
+
+          {/* Legacy Member counter */}
+          {legacyCount !== null && (
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8 text-sm font-bold ${
+              legacyCount >= 100
+                ? "bg-slate-800 border border-slate-700 text-slate-400"
+                : "bg-amber-950/40 border border-amber-700/60 text-amber-400"
+            }`}>
+              <span className="text-lg">&#127941;</span>
+              {legacyCount >= 100
+                ? "Legacy Member spots are full."
+                : `${100 - legacyCount} of 100 Legacy Member spots remaining — free verification forever`}
+            </div>
+          )}
 
           {/* Stat boxes */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

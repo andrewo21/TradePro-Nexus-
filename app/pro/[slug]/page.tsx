@@ -28,6 +28,17 @@ function VerificationBadge({ status, profileType }: { status: string; profileTyp
   );
 }
 
+// Legacy Member badge — auto-granted to first 100 real members.
+function LegacyBadge({ legacyMember }: { legacyMember: boolean }) {
+  if (!legacyMember) return null;
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs font-black text-white bg-gradient-to-r from-amber-700 to-yellow-600 border border-amber-500/60 px-3 py-1 rounded-full shadow-sm shadow-amber-900/40">
+      <span className="text-sm leading-none">&#127941;</span>
+      LEGACY MEMBER
+    </span>
+  );
+}
+
 // Union Member badge — self-reported only, never auto-assigned.
 // Prominently styled in IBEW/union blue to signal union affiliation at a glance.
 function UnionBadge({ unionMember, unionName, unionLocalNumber }: {
@@ -86,6 +97,9 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
   const licenseStates = (profile as any).license_states ?? [];
   const firmName = (profile as any).firm_name;
 
+  // Legacy member
+  const legacyMember = !!(profile as any).legacy_member;
+
   // Union fields — self-reported, optional
   const unionMember = !!(profile as any).union_member;
   const unionName = (profile as any).union_name;
@@ -129,6 +143,7 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
                 <div>
                   <h1 className="text-xl font-black text-white flex items-center gap-2 flex-wrap">
                     {profile.first_name} {profile.last_name}
+                    <LegacyBadge legacyMember={legacyMember} />
                     <UnionBadge
                       unionMember={unionMember}
                       unionName={unionName}
