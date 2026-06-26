@@ -62,18 +62,25 @@ export async function GET(request: NextRequest) {
     return { rampDay: daysElapsed + 1, dailyCap: cap };
   }
 
-  const todayUtc = new Date().toISOString().split("T")[0];
+  // Use Eastern time for day display — avoids rampDay jumping at 8 PM EDT
+  // when UTC rolls to the next calendar date.
+  const EDT_OFFSET_MS = 4 * 60 * 60 * 1000; // UTC-4 (Eastern Daylight Time)
+  const todayEastern = new Date(Date.now() - EDT_OFFSET_MS).toISOString().split("T")[0];
+  const todayUtc     = new Date().toISOString().split("T")[0]; // keep for daily cap reset check
+
   const capFromSettings = Math.max(1, parseInt(settingsMap.outreach_daily_cap ?? "1000") || 1000);
-  const { dailyCap, rampDay } = getRampInfo(settingsMap.outreach_start_date, todayUtc, capFromSettings);
+  const { dailyCap, rampDay } = getRampInfo(settingsMap.outreach_start_date, todayEastern, capFromSettings);
   const rawDailySent = parseInt(settingsMap.daily_emails_sent ?? "0") || 0;
-  // Reset to 0 if the counter is from a previous day
+  // Reset display to 0 if the counter is from a previous UTC day
   const dailySent = settingsMap.daily_emails_date === todayUtc ? rawDailySent : 0;
 
-  // Outreach log breakdown by status
-  const { data: outreachLog } = await db.from("outreach_log").select("status");
+  // Outreach log breakdown by status + total sent to date
+  const { data: outreachLog } = await db.from("outreach_log").select("status, is_test, email_number");
   const outreachCounts: Record<string, number> = {};
+  let totalSentToDate = 0;
   for (const row of outreachLog ?? []) {
     outreachCounts[row.status] = (outreachCounts[row.status] ?? 0) + 1;
+    if (!row.is_test && row.email_number === 1 && row.status === "sent") totalSentToDate++;
   }
 
   return NextResponse.json({
@@ -92,6 +99,7 @@ export async function GET(request: NextRequest) {
       dailySent,
       rampDay,
       startDate: settingsMap.outreach_start_date ?? null,
+      totalSentToDate,
       log: outreachCounts,
     },
   });

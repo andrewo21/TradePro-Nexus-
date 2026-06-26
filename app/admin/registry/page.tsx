@@ -71,6 +71,7 @@ interface OutreachSettings {
   physicalAddress: string;
   lastRun: string;
   lastCount: number;
+  totalSentToDate: number;
   dailyCap: number;
   dailySent: number;
   rampDay: number;
@@ -109,6 +110,19 @@ function timeAgo(iso: string) {
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}h ago`;
   return `${Math.floor(h / 24)}d ago`;
+}
+
+// Format a UTC ISO string as Eastern time for admin display
+function toEasternTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }) + " ET";
 }
 
 function QualityBadge({ score }: { score: number }) {
@@ -493,11 +507,13 @@ export default function RegistryAdminPage() {
             )}
 
             <div className="mt-3 pt-3 border-t border-slate-700/50 flex flex-wrap gap-4 text-xs text-slate-400">
-              <span>Sent: <span className="text-green-400 font-semibold">{statusData.outreach.log.sent ?? 0}</span></span>
+              <span>Total sent: <span className="text-green-400 font-semibold">{(statusData.outreach.totalSentToDate ?? 0).toLocaleString()}</span></span>
+              <span>Today: <span className="text-green-400 font-semibold">{statusData.outreach.log.sent ?? 0}</span></span>
               <span>Failed: <span className="text-red-400 font-semibold">{statusData.outreach.log.failed ?? 0}</span></span>
               <span>Unsubscribed: <span className="text-slate-300 font-semibold">{statusData.outreach.log.unsubscribed ?? 0}</span></span>
-              <span>Queued: <span className="text-blue-400 font-semibold">{statusData.outreach.log.queued ?? 0}</span></span>
-              <span className="text-slate-500">Last run: {statusData.outreach.lastRun === "never" ? "never" : timeAgo(statusData.outreach.lastRun)}</span>
+              <span className="text-slate-500">
+                Last run: {statusData.outreach.lastRun === "never" ? "never" : toEasternTime(statusData.outreach.lastRun)}
+              </span>
             </div>
 
             {/* Daily ramp progress */}
@@ -524,7 +540,7 @@ export default function RegistryAdminPage() {
                   />
                 </div>
                 {statusData.outreach.dailySent >= statusData.outreach.dailyCap && (
-                  <p className="text-[11px] text-yellow-400 mt-1">Daily cap reached — resumes at midnight UTC.</p>
+                  <p className="text-[11px] text-yellow-400 mt-1">Daily cap reached — resumes at 8:00 PM ET (midnight UTC).</p>
                 )}
               </div>
             )}
