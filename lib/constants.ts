@@ -98,6 +98,8 @@ export const TRADE_GROUPS = [
   {
     label: "Specialty Trades",
     trades: [
+      "Millwork",
+      "Casework",
       "Ornamental Metals",
       "Signage",
       "Window Treatments",
