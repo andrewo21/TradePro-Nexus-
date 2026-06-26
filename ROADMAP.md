@@ -1,5 +1,36 @@
 # TradePro Nexus — Product Roadmap
 
+## ✅ PHASE 15 — COMPLETE (Legacy Member Earned Status System)
+
+**Two conditions required to earn Legacy Member status:**
+1. One of the first 100 non-seed profiles to register (reserves `legacy_member_eligible = true`)
+2. Makes at least one post on the Live Feed (triggers `legacy_member = true`)
+
+**Database:**
+- `profiles.legacy_member_eligible BOOLEAN DEFAULT false` — set on signup when count <= 100
+- `profiles.legacy_member BOOLEAN DEFAULT false` — set only when eligible + first post
+- `profiles.legacy_member_granted_at TIMESTAMPTZ` — timestamp of first post
+- BEFORE INSERT trigger auto-sets eligible for first 100
+- All 6 existing real members retroactively set to eligible=true, member=false (await their post)
+
+**Badge system:** `checkAndAwardBadges` on first post checks `legacy_member_eligible` — if true, updates `profiles.legacy_member = true` and returns "legacy_member" badge to trigger celebration.
+
+**Gold badge on Trade Card:** ShieldCheck icon, gold gradient background, "LEGACY MEMBER" + "FIRST 100" text. Displayed prominently above the union badge.
+
+**Feed indicator:** Gold "Legacy" badge next to author name on any post from a legacy member.
+
+**Homepage counter:** "X of 100 Legacy spots remaining" — counts `legacy_member_eligible = true` non-seed profiles. Changes to "Legacy spots are full" at 100.
+
+**Celebration flow:** When `legacy_member` flips true (on first post), BadgeCelebration fires in feed. Sends personal email from andrew@tradepronexus.com: "You did it. Legacy Member badge earned."
+
+**Admin tracking:** `/admin/waitlist` Legacy section shows all 100 slots — EARNED (posted) vs pending (eligible but not yet posted), with signup date.
+
+**6 early member emails sent:** tylroneill@hotmail.com, climateproacfl@gmail.com, matt@constructioncorps.com, npiccinich2@gmail.com, alex@levelonegroup.com, info@ultimadeservices.com — all logged to outreach_log (email_number=4). Subject: "You are a Legacy Member of TradePro Nexus."
+
+**Phase 4 integration:** Verification checkout reads `legacy_member = true` for 100% discount.
+
+---
+
 ## ✅ PHASE 14 — COMPLETE (Visual Redesign + Trade Pros Near You)
 
 1. **Homepage redesign** (`/`) — Complete visual overhaul: white sticky navbar with TradePro Nexus logo + center nav links + Sign In / Join Free buttons; dark navy hero with "Now Live in 7 States" badge, split-color H1, four live stat boxes (directory count from `/api/stats`, 7 states, Free, 5 min); orange "Verified by Paper. Not by Algorithm." strip; two-column features section on white background (Trade Pro / GC split); dark navy "How it works" 3-step section; full-width orange CTA; minimal dark footer. All em dashes removed. Mobile responsive with hamburger menu.

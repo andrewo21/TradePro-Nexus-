@@ -222,15 +222,15 @@ export default function LandingPage() {
 
           {/* Legacy Member counter */}
           {legacyCount !== null && (
-            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8 text-sm font-bold ${
+            <div className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full mb-8 text-sm font-bold border ${
               legacyCount >= 100
-                ? "bg-slate-800 border border-slate-700 text-slate-400"
-                : "bg-amber-950/40 border border-amber-700/60 text-amber-400"
+                ? "bg-slate-800/60 border-slate-700 text-slate-400"
+                : "bg-amber-950/40 border-amber-700/60 text-amber-300"
             }`}>
-              <span className="text-lg">&#127941;</span>
+              <span className="text-base">🏅</span>
               {legacyCount >= 100
-                ? "Legacy Member spots are full."
-                : `${100 - legacyCount} of 100 Legacy Member spots remaining — free verification forever`}
+                ? "Legacy spots are full — verification discount still available via referrals."
+                : `${100 - legacyCount} of 100 Legacy spots remaining — free verification for life. Sign up and post once.`}
             </div>
           )}
 

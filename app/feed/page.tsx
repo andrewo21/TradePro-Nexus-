@@ -48,6 +48,7 @@ interface FeedPost {
   author_location: string;
   author_verified: boolean;
   author_availability: string;
+  author_legacy_member: boolean;
   is_industry_news: boolean;
   news_source_name: string | null;
   news_source_domain: string | null;
@@ -473,6 +474,11 @@ function PostCard({
                   <Link href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`} className="font-bold text-[#0f172a] text-sm hover:text-orange-600 transition-colors">
                     {post.author_name}
                   </Link>
+                )}
+                {!isNews && post.author_legacy_member && (
+                  <span className="flex items-center gap-1 text-[10px] font-black text-amber-900 bg-gradient-to-r from-amber-400 to-yellow-300 border border-amber-300 px-1.5 py-0.5 rounded-full">
+                    <ShieldCheck className="w-3 h-3" /> Legacy
+                  </span>
                 )}
                 {!isNews && post.author_verified && (
                   <span className="flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-100 border border-green-300 px-1.5 py-0.5 rounded-full">
@@ -1048,7 +1054,7 @@ function FeedPageInner() {
       const profileIds = raw.filter((p: any) => p.author_type === "profile").map((p: any) => p.author_id);
       const companyIds = raw.filter((p: any) => p.author_type === "company").map((p: any) => p.author_id);
       const [profRes, compRes] = await Promise.all([
-        profileIds.length > 0 ? db.from("profiles").select("id, first_name, last_name, slug, trade, location_city, location_state, verification_status, profile_type, availability_status").in("id", profileIds) : { data: [] },
+        profileIds.length > 0 ? db.from("profiles").select("id, first_name, last_name, slug, trade, location_city, location_state, verification_status, profile_type, availability_status, legacy_member").in("id", profileIds) : { data: [] },
         companyIds.length > 0 ? db.from("companies").select("id, name, slug, trade_specialties, location_city, location_state, verification_status, availability_status").in("id", companyIds) : { data: [] },
       ]);
 
@@ -1059,14 +1065,14 @@ function FeedPageInner() {
 
       const mapped: FeedPost[] = raw.map((p: any) => {
         if (p.author_type === "news" || p.is_industry_news) {
-          return { ...p, author_name: p.news_source_name ?? "Industry News", author_slug: "", author_trade: "Industry News", author_location: "", author_verified: false, author_availability: "available" };
+          return { ...p, author_name: p.news_source_name ?? "Industry News", author_slug: "", author_trade: "Industry News", author_location: "", author_verified: false, author_availability: "available", author_legacy_member: false };
         }
         if (p.author_type === "profile") {
           const prof = pm[p.author_id];
-          return { ...p, author_name: prof ? `${prof.first_name} ${prof.last_name}` : "Unknown", author_slug: prof?.slug ?? "", author_trade: prof?.trade ?? "", author_location: prof ? [prof.location_city, prof.location_state].filter(Boolean).join(", ") : "", author_verified: canBeVerified(prof?.profile_type) && prof?.verification_status === "verified", author_availability: prof?.availability_status ?? "available" };
+          return { ...p, author_name: prof ? `${prof.first_name} ${prof.last_name}` : "Unknown", author_slug: prof?.slug ?? "", author_trade: prof?.trade ?? "", author_location: prof ? [prof.location_city, prof.location_state].filter(Boolean).join(", ") : "", author_verified: canBeVerified(prof?.profile_type) && prof?.verification_status === "verified", author_availability: prof?.availability_status ?? "available", author_legacy_member: !!prof?.legacy_member };
         }
         const co = cm[p.author_id];
-        return { ...p, author_name: co?.name ?? "Unknown", author_slug: co?.slug ?? "", author_trade: (co?.trade_specialties ?? [])[0] ?? "", author_location: co ? [co.location_city, co.location_state].filter(Boolean).join(", ") : "", author_verified: co?.verification_status === "verified", author_availability: co?.availability_status ?? "available" };
+        return { ...p, author_name: co?.name ?? "Unknown", author_slug: co?.slug ?? "", author_trade: (co?.trade_specialties ?? [])[0] ?? "", author_location: co ? [co.location_city, co.location_state].filter(Boolean).join(", ") : "", author_verified: co?.verification_status === "verified", author_availability: co?.availability_status ?? "available", author_legacy_member: false };
       });
 
       // Drop industry news older than 60 days

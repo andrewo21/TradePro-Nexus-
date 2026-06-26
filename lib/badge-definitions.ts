@@ -10,6 +10,15 @@ export interface Badge {
 
 export const BADGES: Badge[] = [
   {
+    slug: "legacy_member",
+    label: "Legacy Member",
+    description: "One of the first 100 members — free verification for life",
+    icon: "🏅",
+    color: "text-amber-400",
+    bg: "bg-amber-900/30",
+    border: "border-amber-600",
+  },
+  {
     slug: "active_member",
     label: "Active Member",
     description: "Posted your first update to the Live Feed",

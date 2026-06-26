@@ -43,10 +43,10 @@ export default async function AdminWaitlistPage() {
     db.rpc("get_platform_engagement_stats"),
     db.from("site_daily_visits").select("date, visits").order("date", { ascending: false }).limit(30),
     db.from("profiles")
-      .select("first_name, last_name, trade, location_state, legacy_member_granted_at, slug")
-      .eq("legacy_member", true)
+      .select("first_name, last_name, trade, location_state, legacy_member, legacy_member_eligible, legacy_member_granted_at, created_at, slug")
+      .eq("legacy_member_eligible", true)
       .eq("is_seed_account", false)
-      .order("legacy_member_granted_at", { ascending: true })
+      .order("created_at", { ascending: true })
       .limit(100),
   ]);
 
@@ -310,11 +310,14 @@ export default async function AdminWaitlistPage() {
 
           {/* Legacy Members */}
           <div className="mt-8">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-lg">&#127941;</span>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-lg">🏅</span>
               <h2 className="text-xs font-bold uppercase tracking-widest text-amber-400">
-                Legacy Members — {(legacyMembers as any[])?.length ?? 0} / 100
+                Legacy Slots — {(legacyMembers as any[])?.length ?? 0} / 100 claimed
               </h2>
+              <span className="text-xs text-slate-500">
+                {(legacyMembers as any[])?.filter((m: any) => m.legacy_member).length ?? 0} earned (posted)
+              </span>
             </div>
             <div className="bg-slate-800/50 border border-amber-800/30 rounded-xl overflow-hidden">
               {!legacyMembers || (legacyMembers as any[]).length === 0 ? (
@@ -332,14 +335,16 @@ export default async function AdminWaitlistPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0 ml-2">
+                      {m.legacy_member
+                        ? <span className="text-[10px] font-bold text-amber-400 bg-amber-900/30 border border-amber-700/50 px-1.5 py-0.5 rounded-full">EARNED</span>
+                        : <span className="text-[10px] font-semibold text-slate-500 bg-slate-800 border border-slate-700 px-1.5 py-0.5 rounded-full">pending post</span>
+                      }
                       {m.slug && (
                         <a href={`/pro/${m.slug}`} target="_blank" rel="noopener noreferrer"
                           className="text-xs text-orange-400 hover:underline">View</a>
                       )}
                       <span className="text-xs text-slate-600">
-                        {m.legacy_member_granted_at
-                          ? new Date(m.legacy_member_granted_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-                          : "—"}
+                        {new Date(m.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                       </span>
                     </div>
                   </div>

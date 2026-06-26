@@ -28,13 +28,17 @@ function VerificationBadge({ status, profileType }: { status: string; profileTyp
   );
 }
 
-// Legacy Member badge — auto-granted to first 100 real members.
+// Legacy Member badge — earned by first 100 members who signup AND post.
+// Gold shield design — visually distinct from all other badges.
 function LegacyBadge({ legacyMember }: { legacyMember: boolean }) {
   if (!legacyMember) return null;
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-black text-white bg-gradient-to-r from-amber-700 to-yellow-600 border border-amber-500/60 px-3 py-1 rounded-full shadow-sm shadow-amber-900/40">
-      <span className="text-sm leading-none">&#127941;</span>
-      LEGACY MEMBER
+    <span className="inline-flex items-center gap-1.5 font-black text-[#0f172a] bg-gradient-to-r from-amber-400 to-yellow-300 border border-amber-300 px-3 py-1.5 rounded-xl shadow shadow-amber-900/50">
+      <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0" />
+      <span className="flex flex-col leading-tight">
+        <span className="text-[11px] font-black tracking-wide">LEGACY MEMBER</span>
+        <span className="text-[9px] font-bold tracking-widest opacity-70">FIRST 100</span>
+      </span>
     </span>
   );
 }
