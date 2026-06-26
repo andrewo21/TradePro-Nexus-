@@ -19,6 +19,7 @@ import { WashingtonScraper } from "./washington";
 import { VirginiaScraper } from "./virginia";
 import { OregonScraper } from "./oregon";
 import { ColoradoScraper } from "./colorado";
+import { MinnesotaScraper } from "./minnesota";
 import { SouthCarolinaScraper } from "./southcarolina";
 import { NorthCarolinaScraper } from "./northcarolina";
 import { AlabamaScraper } from "./alabama";
@@ -40,6 +41,7 @@ export const STATE_SCRAPERS: Record<string, StateScraperModule> = {
   VA: VirginiaScraper,       // Session 5
   OR: OregonScraper,         // Session 6
   CO: ColoradoScraper,       // Session 6
+  MN: MinnesotaScraper,      // Session 6
   SC: SouthCarolinaScraper,  // Session 5
   NC: NorthCarolinaScraper,  // Session 5
   AL: AlabamaScraper,        // Session 5
@@ -61,6 +63,7 @@ export {
   VirginiaScraper,
   OregonScraper,
   ColoradoScraper,
+  MinnesotaScraper,
   SouthCarolinaScraper,
   NorthCarolinaScraper,
   AlabamaScraper,
