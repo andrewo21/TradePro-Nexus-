@@ -49,6 +49,7 @@ interface FeedPost {
   author_verified: boolean;
   author_availability: string;
   author_legacy_member: boolean;
+  author_avatar_url: string | null;
   is_industry_news: boolean;
   news_source_name: string | null;
   news_source_domain: string | null;
@@ -461,9 +462,14 @@ function PostCard({
             ) : (
               <Link
                 href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`}
-                className="w-9 h-9 rounded-xl bg-orange-100 border border-orange-300 flex items-center justify-center font-black text-orange-600 text-sm flex-shrink-0 hover:border-orange-400 transition-colors"
+                className="w-9 h-9 rounded-xl bg-orange-100 border border-orange-300 flex items-center justify-center font-black text-orange-600 text-sm flex-shrink-0 hover:border-orange-400 transition-colors overflow-hidden"
               >
-                {post.author_type === "company" ? <Building2 className="w-4 h-4" /> : post.author_name.slice(0, 2).toUpperCase()}
+                {post.author_type === "company"
+                  ? <Building2 className="w-4 h-4" />
+                  : post.author_avatar_url
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={post.author_avatar_url} alt="" className="w-full h-full object-cover" />
+                    : post.author_name.slice(0, 2).toUpperCase()}
               </Link>
             )}
             <div>
@@ -1054,7 +1060,7 @@ function FeedPageInner() {
       const profileIds = raw.filter((p: any) => p.author_type === "profile").map((p: any) => p.author_id);
       const companyIds = raw.filter((p: any) => p.author_type === "company").map((p: any) => p.author_id);
       const [profRes, compRes] = await Promise.all([
-        profileIds.length > 0 ? db.from("profiles").select("id, first_name, last_name, slug, trade, location_city, location_state, verification_status, profile_type, availability_status, legacy_member").in("id", profileIds) : { data: [] },
+        profileIds.length > 0 ? db.from("profiles").select("id, first_name, last_name, slug, trade, location_city, location_state, verification_status, profile_type, availability_status, legacy_member, avatar_url").in("id", profileIds) : { data: [] },
         companyIds.length > 0 ? db.from("companies").select("id, name, slug, trade_specialties, location_city, location_state, verification_status, availability_status").in("id", companyIds) : { data: [] },
       ]);
 
@@ -1065,14 +1071,14 @@ function FeedPageInner() {
 
       const mapped: FeedPost[] = raw.map((p: any) => {
         if (p.author_type === "news" || p.is_industry_news) {
-          return { ...p, author_name: p.news_source_name ?? "Industry News", author_slug: "", author_trade: "Industry News", author_location: "", author_verified: false, author_availability: "available", author_legacy_member: false };
+          return { ...p, author_name: p.news_source_name ?? "Industry News", author_slug: "", author_trade: "Industry News", author_location: "", author_verified: false, author_availability: "available", author_legacy_member: false, author_avatar_url: null };
         }
         if (p.author_type === "profile") {
           const prof = pm[p.author_id];
-          return { ...p, author_name: prof ? `${prof.first_name} ${prof.last_name}` : "Unknown", author_slug: prof?.slug ?? "", author_trade: prof?.trade ?? "", author_location: prof ? [prof.location_city, prof.location_state].filter(Boolean).join(", ") : "", author_verified: canBeVerified(prof?.profile_type) && prof?.verification_status === "verified", author_availability: prof?.availability_status ?? "available", author_legacy_member: !!prof?.legacy_member };
+          return { ...p, author_name: prof ? `${prof.first_name} ${prof.last_name}` : "Unknown", author_slug: prof?.slug ?? "", author_trade: prof?.trade ?? "", author_location: prof ? [prof.location_city, prof.location_state].filter(Boolean).join(", ") : "", author_verified: canBeVerified(prof?.profile_type) && prof?.verification_status === "verified", author_availability: prof?.availability_status ?? "available", author_legacy_member: !!prof?.legacy_member, author_avatar_url: prof?.avatar_url ?? null };
         }
         const co = cm[p.author_id];
-        return { ...p, author_name: co?.name ?? "Unknown", author_slug: co?.slug ?? "", author_trade: (co?.trade_specialties ?? [])[0] ?? "", author_location: co ? [co.location_city, co.location_state].filter(Boolean).join(", ") : "", author_verified: co?.verification_status === "verified", author_availability: co?.availability_status ?? "available", author_legacy_member: false };
+        return { ...p, author_name: co?.name ?? "Unknown", author_slug: co?.slug ?? "", author_trade: (co?.trade_specialties ?? [])[0] ?? "", author_location: co ? [co.location_city, co.location_state].filter(Boolean).join(", ") : "", author_verified: co?.verification_status === "verified", author_availability: co?.availability_status ?? "available", author_legacy_member: false, author_avatar_url: null };
       });
 
       // Drop industry news older than 60 days

@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import { ShieldCheck, MapPin, Users, Briefcase, Phone, Mail, Camera, CheckCircle, Building2, FileText, Ruler, Wrench, Shield, Landmark } from "lucide-react";
+import AvatarImage from "@/components/AvatarImage";
+import TradeCardShare from "@/components/TradeCardShare";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { getSupabaseServer } from "@/lib/supabaseServer";
@@ -122,9 +124,12 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
       <ProfileViewTracker profileId={profile.id} />
       <div className="max-w-2xl mx-auto px-4 pt-24 pb-16">
 
-        {isOwner && (
+        {isOwner && user && (
           <OwnerProfileBar
             profileId={profile.id}
+            userId={user.id}
+            initials={`${profile.first_name[0]}${profile.last_name[0]}`}
+            initialAvatarUrl={(profile as any).avatar_url ?? null}
             initialBio={(profile as any).bio ?? ""}
             initialPhone={(profile as any).phone ?? ""}
             initialEmail={(profile as any).email ?? ""}
@@ -138,9 +143,12 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
         {/* Hero Card */}
         <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/60 rounded-2xl p-6 mb-4">
           <div className="flex items-start gap-4">
-            <div className="w-16 h-16 bg-orange-600/20 border-2 border-orange-600/40 rounded-2xl flex items-center justify-center font-black text-orange-400 text-2xl flex-shrink-0">
-              {profile.first_name[0]}{profile.last_name[0]}
-            </div>
+            <AvatarImage
+              avatarUrl={(profile as any).avatar_url}
+              initials={`${profile.first_name[0]}${profile.last_name[0]}`}
+              size="xl"
+              className="border-2 border-orange-600/40"
+            />
 
             <div className="flex-1 min-w-0">
               <div className="flex items-start justify-between flex-wrap gap-2">
@@ -265,9 +273,30 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
             </div>
           )}
 
-          {/* Follow button — shown to non-owners */}
-          <div className="mt-4 pt-4 border-t border-slate-700/50 flex items-center gap-3">
-            <FollowButton followingId={profile.id} followingType="profile" label={`Follow ${profile.first_name}`} />
+          {/* Share + Follow row */}
+          <div className="mt-4 pt-4 border-t border-slate-700/50 space-y-3">
+            {/* Share buttons — always visible */}
+            <TradeCardShare
+              slug={profile.slug}
+              firstName={profile.first_name}
+              lastName={profile.last_name}
+              firmName={firmName}
+              trade={profile.trade ?? undefined}
+              yearsExperience={profile.years_experience ?? undefined}
+              locationCity={profile.location_city ?? undefined}
+              locationState={profile.location_state ?? undefined}
+              availabilityStatus={profile.availability_status ?? undefined}
+              avatarUrl={(profile as any).avatar_url ?? undefined}
+              unionMember={unionMember}
+              unionName={unionName ?? undefined}
+              unionLocalNumber={unionLocalNumber ?? undefined}
+              certifications={(profile as any).other_certifications ?? []}
+              legacyMember={legacyMember}
+              earnedBadgeSlugs={earnedBadgeSlugs}
+            />
+            <div className="flex items-center gap-3">
+              <FollowButton followingId={profile.id} followingType="profile" label={`Follow ${profile.first_name}`} />
+            </div>
           </div>
 
           {profile.bio && (

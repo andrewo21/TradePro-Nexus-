@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { MapPin, Search, Shield, Gift, ShieldCheck, Users } from "lucide-react";
+import AvatarImage from "./AvatarImage";
 import { getSupabase } from "@/lib/supabase";
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 
 interface UserProfile {
   first_name: string;
+  avatar_url?: string | null;
   last_name: string;
   trade: string | null;
   availability_status: string | null;
@@ -33,7 +35,7 @@ export default function FeedLeftSidebar({ userId, authorId }: Props) {
     if (authorId) {
       const db = getSupabase() as any;
       db.from("profiles")
-        .select("first_name, last_name, trade, availability_status, slug")
+        .select("first_name, last_name, trade, availability_status, slug, avatar_url")
         .eq("id", authorId)
         .maybeSingle()
         .then(({ data }: any) => { if (data) setProfile(data); });
@@ -74,9 +76,12 @@ export default function FeedLeftSidebar({ userId, authorId }: Props) {
       {userId && profile && (
         <div className="bg-[#f8fafc] border border-[#e2e8f0] rounded-2xl p-4">
           <div className="flex items-center gap-3 mb-3">
-            <div className="w-11 h-11 rounded-full bg-[#f97316] flex items-center justify-center text-white font-black text-sm flex-shrink-0">
-              {initials}
-            </div>
+            <AvatarImage
+              avatarUrl={profile.avatar_url}
+              initials={initials}
+              size="md"
+              className="w-11 h-11 border border-[#f97316]/30"
+            />
             <div className="min-w-0">
               <p className="font-bold text-[#0f172a] text-sm truncate">
                 {profile.first_name} {profile.last_name}

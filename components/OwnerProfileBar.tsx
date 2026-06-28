@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Pencil, Trash2, ChevronDown, ChevronUp, Save, X, Loader2 } from "lucide-react";
 import { getSupabase } from "@/lib/supabase";
+import AvatarUpload from "./AvatarUpload";
 
 interface Post {
   id: string;
@@ -23,6 +24,9 @@ interface EditFields {
 
 interface Props {
   profileId: string;
+  userId: string;
+  initials: string;
+  initialAvatarUrl?: string | null;
   initialBio: string;
   initialPhone: string;
   initialEmail: string;
@@ -44,6 +48,9 @@ function timeAgo(iso: string) {
 
 export default function OwnerProfileBar({
   profileId,
+  userId,
+  initials,
+  initialAvatarUrl,
   initialBio,
   initialPhone,
   initialEmail,
@@ -53,6 +60,7 @@ export default function OwnerProfileBar({
   initialYears,
 }: Props) {
   const [panel, setPanel] = useState<"none" | "edit" | "posts">("none");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(initialAvatarUrl ?? null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [postsLoaded, setPostsLoaded] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -153,6 +161,25 @@ export default function OwnerProfileBar({
       {panel === "edit" && (
         <div className="border-t border-orange-800/30 px-4 py-4 space-y-3">
           <p className="text-[11px] text-slate-500 uppercase tracking-widest font-bold mb-3">Update your info — changes are live immediately</p>
+
+          {/* Photo upload */}
+          <div className="flex items-center gap-3 pb-3 border-b border-slate-700/40">
+            {avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={avatarUrl} alt={initials} className="w-12 h-12 rounded-full object-cover flex-shrink-0 border-2 border-orange-600/40" />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-orange-600/20 border-2 border-orange-600/40 flex items-center justify-center font-black text-orange-400 text-lg flex-shrink-0">
+                {initials.slice(0, 2).toUpperCase()}
+              </div>
+            )}
+            <AvatarUpload
+              userId={userId}
+              profileId={profileId}
+              currentAvatarUrl={avatarUrl}
+              initials={initials}
+              onUploaded={(url) => setAvatarUrl(url)}
+            />
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>

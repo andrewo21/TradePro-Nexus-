@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { MapPin, UserPlus } from "lucide-react";
+import AvatarImage from "./AvatarImage";
 import { getSupabase } from "@/lib/supabase";
 
 interface Props {
@@ -20,6 +21,7 @@ interface NearbyPro {
   location_city: string | null;
   location_state: string | null;
   availability_status: string | null;
+  avatar_url?: string | null;
 }
 
 export default function FeedRightSidebar({ userId, userState, followedIds }: Props) {
@@ -34,7 +36,7 @@ export default function FeedRightSidebar({ userId, userState, followedIds }: Pro
 
     // Trade Pros Near You — from user's state (or FL if not known)
     db.from("profiles")
-      .select("id, slug, first_name, last_name, trade, location_city, location_state, availability_status")
+      .select("id, slug, first_name, last_name, trade, location_city, location_state, availability_status, avatar_url")
       .eq("location_state", displayState)
       .eq("is_seed_account", false)
       .eq("is_internal", false)
@@ -46,7 +48,7 @@ export default function FeedRightSidebar({ userId, userState, followedIds }: Pro
     // Suggested Connections — only when logged in
     if (userId) {
       db.from("profiles")
-        .select("id, slug, first_name, last_name, trade, location_city, location_state, availability_status")
+        .select("id, slug, first_name, last_name, trade, location_city, location_state, availability_status, avatar_url")
         .eq("is_seed_account", false)
         .eq("is_internal", false)
         .not("slug", "is", null)
@@ -79,8 +81,11 @@ export default function FeedRightSidebar({ userId, userState, followedIds }: Pro
     return (
       <div className="flex items-center gap-2.5 py-2">
         <Link href={`/pro/${pro.slug}`}
-          className="w-9 h-9 rounded-full bg-[#f97316]/10 border border-[#f97316]/20 flex items-center justify-center text-[#f97316] font-black text-xs flex-shrink-0 hover:bg-[#f97316]/20 transition-colors">
-          {initials}
+          className="w-9 h-9 rounded-full bg-[#f97316]/10 border border-[#f97316]/20 flex items-center justify-center text-[#f97316] font-black text-xs flex-shrink-0 hover:bg-[#f97316]/20 transition-colors overflow-hidden">
+          {pro.avatar_url
+            // eslint-disable-next-line @next/next/no-img-element
+            ? <img src={pro.avatar_url} alt={initials} className="w-full h-full object-cover" />
+            : initials}
         </Link>
         <div className="flex-1 min-w-0">
           <Link href={`/pro/${pro.slug}`}

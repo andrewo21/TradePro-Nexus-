@@ -1,5 +1,24 @@
 # TradePro Nexus — Product Roadmap
 
+## ✅ PHASE 16 — COMPLETE (Profile Photo Upload + Trade Card Share Image)
+
+**Feature 1 — Profile Photo Upload:**
+- `avatars` Supabase Storage bucket (public, 5MB limit, jpg/png/webp)
+- `AvatarUpload` component — file picker, canvas circular crop tool with drag-to-reposition and pinch-to-zoom slider, client-side JPEG compression to <500KB at 480x480px, uploads to `avatars/{user_id}.jpg`
+- `AvatarImage` reusable component — shows photo circle if available, initials fallback everywhere
+- Upload button ("Add Your Photo" / "Change Photo") in OwnerProfileBar edit panel with live preview
+- Photo displays on: Trade Card hero, Live Feed post cards, Feed left sidebar profile card, Feed right sidebar Trade Pros Near You + Suggested Connections, Search results (already handled)
+- Avatar URL stored in `profiles.avatar_url`, cache-busted on re-upload
+
+**Feature 2 — Trade Card Share Image Generator:**
+- "Share My Trade Card" button — generates 1080x1080 PNG using HTML5 Canvas (no server processing)
+- "Copy Trade Card Link" button with clipboard copy and confirmation toast
+- Canvas image includes: dark navy background, orange top bar, TradePro Nexus logo, profile photo circle (or initials fallback), name, trade, years exp, city/state, availability green dot, certifications, union badge with local number, Legacy Member and Active Member gold badges, QR code (bottom right via qrserver.com API), tradepronexus.com URL, "Verified by Paper. Not by Algorithm." tagline
+- Downloaded as `tradepro-{slug}.png`
+- No new dependencies — uses native Canvas API + existing QR code service
+
+---
+
 ## ✅ PHASE 15 — COMPLETE (Legacy Member Earned Status System)
 
 **Two conditions required to earn Legacy Member status:**

@@ -204,9 +204,10 @@ Deno.serve(async (req: Request) => {
   // Uses get_next_outreach_batch() RPC which does NOT EXISTS against outreach_log
   // server-side. This is correct at any scale — no client-side filtering,
   // no PostgREST 1K row cap, no over-fetch arithmetic.
+  // p_state = null queries all states — FL first by created_at, then VA, OH, etc.
   const { data: batchRaw, error: batchErr } = await supabase.rpc("get_next_outreach_batch", {
     p_batch_size: batchSize,
-    p_state: "FL",
+    p_state: null,
   });
 
   if (batchErr) {
