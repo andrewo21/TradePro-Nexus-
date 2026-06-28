@@ -574,42 +574,49 @@ function PostCard({
           </div>
         )}
 
-        {/* User post gallery — full natural ratio, click to expand */}
+        {/* User post gallery */}
         {!isNews && post.image_urls?.length > 0 && (
-          <div className={`mt-3 ${post.image_urls.length >= 2 ? "grid grid-cols-2 gap-1.5" : ""}`}>
+          <div className={`mt-3 rounded-xl overflow-hidden ${
+            post.image_urls.length >= 2 ? "grid grid-cols-2 gap-0.5" : ""
+          }`}>
             {post.image_urls.slice(0, 4).map((url, i) => (
-              <div key={i}
-                className={`rounded-lg overflow-hidden bg-[#f1f5f9] cursor-zoom-in ${
-                  post.image_urls.length === 1 ? "" :
-                  post.image_urls.length === 3 && i === 0 ? "col-span-2" : ""
-                }`}
-                onClick={() => !isVideoUrl(url) && setLightboxUrl(url)}
-              >
-                {isVideoUrl(url)
-                  ? <video src={url} controls className="w-full rounded-lg" />
-                  : <img src={url} alt="Work photo" className="w-full h-full object-cover rounded-lg max-h-[600px]" />}
-              </div>
+              isVideoUrl(url) ? (
+                <video key={i} src={url} controls className="w-full block" />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={i}
+                  src={url}
+                  alt="Work photo"
+                  onClick={() => setLightboxUrl(url)}
+                  className={`w-full block bg-[#f1f5f9] ${
+                    post.image_urls.length === 1
+                      ? "max-h-[700px] object-contain cursor-pointer"
+                      : "aspect-square object-cover cursor-pointer"
+                  } ${post.image_urls.length === 3 && i === 0 ? "col-span-2 aspect-video" : ""}`}
+                />
+              )
             ))}
           </div>
         )}
 
-        {/* Lightbox */}
+        {/* Fullscreen lightbox */}
         {lightboxUrl && (
           <div
-            className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black z-50 flex items-center justify-center"
             onClick={() => setLightboxUrl(null)}
           >
             <button
-              className="absolute top-4 right-4 text-white/70 hover:text-white bg-black/40 rounded-full p-2 transition-colors"
+              className="absolute top-5 right-5 text-white/60 hover:text-white transition-colors"
               onClick={() => setLightboxUrl(null)}
             >
-              <X className="w-6 h-6" />
+              <X className="w-8 h-8" />
             </button>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={lightboxUrl}
-              alt="Full size"
-              className="max-w-full max-h-[90vh] rounded-xl object-contain shadow-2xl"
+              alt=""
+              className="max-w-screen max-h-screen w-full h-full object-contain"
               onClick={e => e.stopPropagation()}
             />
           </div>
