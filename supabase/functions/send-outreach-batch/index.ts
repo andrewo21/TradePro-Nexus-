@@ -57,6 +57,9 @@ function buildEmailHtml(opts: {
         We found <strong style="color:#f1f5f9;">${opts.businessName}</strong> in our public ${opts.sourceState} ${trade} licensing directory.
         Trade pros and GCs in your area are already searching TradePro Nexus to find crews like yours.
       </p>
+      <p style="margin:0 0 16px;color:#94a3b8;font-size:15px;line-height:1.6;">
+        TradePro Nexus now lists <strong style="color:#f1f5f9;">710,000 licensed contractors across 10 states</strong> — and is the fastest-growing trade professional network in the country.
+      </p>
       <p style="margin:0 0 24px;color:#94a3b8;font-size:15px;line-height:1.6;">
         Claim your free Digital Trading Card to control how your business appears, add your contact info, and start getting discovered.
       </p>
