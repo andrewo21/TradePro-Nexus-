@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { ShieldCheck, MapPin, Users, Briefcase, Phone, Mail, Camera, CheckCircle, Building2, FileText, Ruler, Wrench, Shield, Landmark } from "lucide-react";
+import { ShieldCheck, MapPin, Users, Briefcase, Phone, Mail, Camera, CheckCircle, Building2, FileText, Ruler, Wrench, Shield, Landmark, Megaphone } from "lucide-react";
 import AvatarImage from "@/components/AvatarImage";
 import TradeCardShare from "@/components/TradeCardShare";
 import Link from "next/link";
@@ -139,6 +139,30 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
             initialYears={(profile as any).years_experience ?? 0}
           />
         )}
+
+        {/* Trade Card sponsor banner -- full width, 90px, below header */}
+        <a
+          href="/advertise"
+          className="flex items-center gap-4 bg-slate-800/60 border border-slate-700/50 rounded-xl px-5 py-3 mb-4 hover:border-orange-500/50 transition-colors group"
+          style={{ minHeight: "90px" }}
+          aria-label="Advertise on TradePro Nexus"
+        >
+          <div className="w-10 h-10 bg-orange-600/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Megaphone className="w-5 h-5 text-orange-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-0.5">Sponsored</p>
+            <p className="text-white font-black text-sm group-hover:text-orange-400 transition-colors">
+              Reach 738,756 Licensed Contractors
+            </p>
+            <p className="text-slate-400 text-xs">
+              Founding sponsor slots available. Reserve your placement today.
+            </p>
+          </div>
+          <span className="flex-shrink-0 px-4 py-2 bg-orange-600 group-hover:bg-orange-500 text-white text-xs font-bold rounded-xl transition-colors whitespace-nowrap hidden sm:inline-flex">
+            Reserve a Slot
+          </span>
+        </a>
 
         {/* Hero Card */}
         <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border border-slate-700/60 rounded-2xl p-6 mb-4">

@@ -15,6 +15,7 @@ import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
 import { canBeVerified } from "@/lib/constants";
 import FeedAdCard from "@/components/FeedAdCard";
+import DesktopAdRail from "@/components/DesktopAdRail";
 import BadgeCelebration from "@/components/BadgeCelebration";
 import FeedLeftSidebar from "@/components/FeedLeftSidebar";
 import FeedRightSidebar from "@/components/FeedRightSidebar";
@@ -1334,6 +1335,7 @@ function FeedPageInner() {
   return (
     <div className="min-h-screen bg-[#f1f5f9]">
       <Navbar />
+      <DesktopAdRail side="right" />
       {celebrationBadges.length > 0 && (
         <BadgeCelebration badges={celebrationBadges} onClose={() => setCelebrationBadges([])} />
       )}

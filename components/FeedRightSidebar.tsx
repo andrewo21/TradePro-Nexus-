@@ -162,22 +162,23 @@ export default function FeedRightSidebar({ userId, userState, followedIds }: Pro
         </div>
       )}
 
-      {/* TradePro Tech cross-promo */}
-      <div className="bg-[#0f172a] rounded-2xl p-4 text-center">
-        <p className="text-[10px] font-bold text-[#475569] uppercase tracking-widest mb-2">Also from TradePro</p>
-        <p className="text-white font-black text-sm mb-1">Need a construction resume?</p>
-        <p className="text-[#94a3b8] text-xs leading-relaxed mb-3">
-          Build a professional trade resume in minutes with TradePro Tech. Free forever.
+      {/* Sidebar sponsor slot */}
+      <a
+        href="/advertise"
+        className="block bg-[#0f172a] border border-slate-700/50 rounded-2xl p-4 text-center hover:border-orange-500/50 transition-colors group"
+        aria-label="Advertise on TradePro Nexus"
+      >
+        <p className="text-[10px] font-bold text-[#475569] uppercase tracking-widest mb-2">Sponsored</p>
+        <p className="text-white font-black text-sm mb-1 group-hover:text-orange-400 transition-colors">
+          Reach 738,756 Licensed Contractors
         </p>
-        <a
-          href="https://www.tradeprotech.ai"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="block w-full py-2.5 bg-[#f97316] hover:bg-[#ea6c00] text-white text-xs font-bold rounded-xl transition-colors"
-        >
-          Build My Resume Free →
-        </a>
-      </div>
+        <p className="text-[#94a3b8] text-xs leading-relaxed mb-3">
+          Founding sponsor slots available. Reserve your placement today.
+        </p>
+        <span className="block w-full py-2.5 bg-[#f97316] group-hover:bg-[#ea6c00] text-white text-xs font-bold rounded-xl transition-colors">
+          Reserve a Slot
+        </span>
+      </a>
 
     </div>
   );

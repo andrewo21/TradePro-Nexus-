@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import {
   Briefcase, MapPin, Building2,
-  CheckCircle, Bell, Shield, Filter, Calendar, X
+  CheckCircle, Bell, Shield, Filter, Calendar, X, Megaphone
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
@@ -174,6 +174,29 @@ export default function WorkPage() {
     <div className="min-h-screen bg-[#0f172a] text-slate-100">
       <Navbar />
       <div className="max-w-2xl mx-auto px-4 pt-24 pb-20">
+
+        {/* Find Crews sponsor zone -- GCs here are highest-value audience on platform */}
+        <a
+          href="/advertise"
+          className="flex items-center gap-4 bg-orange-950/30 border border-orange-800/50 rounded-2xl px-5 py-4 mb-8 hover:border-orange-500/70 transition-colors group"
+          aria-label="Advertise on TradePro Nexus"
+        >
+          <div className="w-12 h-12 bg-orange-600/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Megaphone className="w-6 h-6 text-orange-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-orange-700 mb-0.5">Sponsored</p>
+            <p className="text-white font-black text-base group-hover:text-orange-400 transition-colors">
+              Reach 738,756 Licensed Contractors
+            </p>
+            <p className="text-slate-400 text-sm">
+              Founding sponsor slots available. Reserve your placement today.
+            </p>
+          </div>
+          <span className="flex-shrink-0 px-5 py-2.5 bg-orange-600 group-hover:bg-orange-500 text-white text-sm font-bold rounded-xl transition-colors whitespace-nowrap hidden sm:inline-flex">
+            Reserve a Slot
+          </span>
+        </a>
 
         {/* ════════════════════ SECTION A — General Work Opportunities ════════════════════ */}
         <div id="general">

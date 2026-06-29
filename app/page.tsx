@@ -14,6 +14,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
+import DesktopAdRail from "@/components/DesktopAdRail";
 
 // ── Inline SVG logo ───────────────────────────────────────────────────────────
 
@@ -72,6 +73,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen">
+      <DesktopAdRail side="right" />
 
       {/* ── NAVBAR ──────────────────────────────────────────────────────────── */}
       <header className="bg-white border-b border-[#e2e8f0] sticky top-0 z-50">
