@@ -67,10 +67,16 @@ function buildEmailHtml(opts: {
           <a href="${opts.profileUrl}" style="display:inline-block;padding:14px 28px;color:#ffffff;font-weight:700;font-size:15px;text-decoration:none;border-radius:12px;">View My Profile</a>
         </td></tr>
       </table>
-      <div style="background:#0f172a;border-radius:10px;padding:14px 16px;margin-bottom:28px;">
+      <div style="background:#0f172a;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
         <p style="margin:0;color:#64748b;font-size:12px;line-height:1.5;">
           Verification is coming soon. When it launches, verified businesses get a badge that signals to GCs that your COI, bonding, and license have been reviewed. You will be notified when verification opens.
         </p>
+      </div>
+      <div style="background:#1e3a2f;border:1px solid #166534;border-radius:10px;padding:14px 16px;margin-bottom:28px;">
+        <p style="margin:0 0 6px;color:#4ade80;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Add to your home screen</p>
+        <p style="margin:0 0 4px;color:#94a3b8;font-size:12px;line-height:1.5;">Get a TradePro Nexus icon on your phone. No app store needed.</p>
+        <p style="margin:0 0 2px;color:#64748b;font-size:12px;line-height:1.5;"><strong style="color:#94a3b8;">iPhone:</strong> Tap the share icon, then tap Add to Home Screen.</p>
+        <p style="margin:0;color:#64748b;font-size:12px;line-height:1.5;"><strong style="color:#94a3b8;">Android:</strong> Tap the menu icon, then tap Install App or Add to Home Screen.</p>
       </div>
     </td></tr>
     <tr><td style="padding:16px 32px 28px;border-top:1px solid #334155;text-align:center;">

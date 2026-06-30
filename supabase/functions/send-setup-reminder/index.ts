@@ -52,7 +52,13 @@ function buildEmail2Html(opts: {
           </a>
         </td></tr>
       </table>
-      <p style="margin:0;color:#64748b;font-size:12px;text-align:center;">No password needed. Just click the button above.</p>
+      <p style="margin:0 0 20px;color:#64748b;font-size:12px;text-align:center;">No password needed. Just click the button above.</p>
+      <div style="background:#1e3a2f;border:1px solid #166534;border-radius:10px;padding:14px 16px;">
+        <p style="margin:0 0 6px;color:#4ade80;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Add to your home screen</p>
+        <p style="margin:0 0 4px;color:#94a3b8;font-size:12px;line-height:1.5;">Get a TradePro Nexus icon on your phone. No app store needed.</p>
+        <p style="margin:0 0 2px;color:#64748b;font-size:12px;line-height:1.5;"><strong style="color:#94a3b8;">iPhone:</strong> Tap the share icon, then tap Add to Home Screen.</p>
+        <p style="margin:0;color:#64748b;font-size:12px;line-height:1.5;"><strong style="color:#94a3b8;">Android:</strong> Tap the menu icon, then tap Install App or Add to Home Screen.</p>
+      </div>
     </td></tr>
     <tr><td style="padding:16px 32px;border-top:1px solid #334155;text-align:center;">
       <p style="margin:0 0 4px;color:#475569;font-size:11px;">TradePro Technologies LLC | TradePro Nexus</p>
