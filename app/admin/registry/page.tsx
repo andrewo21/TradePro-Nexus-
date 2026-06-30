@@ -628,8 +628,8 @@ export default function RegistryAdminPage() {
               </div>
               <span className="text-xs text-slate-400">
                 {autoPromoteTotals.pending > 0
-                  ? `Running every 5 min · 1,000/batch · ${autoPromoteTotals.pending.toLocaleString()} pending`
-                  : "All pending records processed — cron stopped"}
+                  ? `pg_cron every 5 min · 1,000/batch · ${autoPromoteTotals.pending.toLocaleString()} pending`
+                  : "All pending records promoted"}
               </span>
             </div>
             <div className="w-full bg-slate-900 rounded-full h-2 overflow-hidden">
