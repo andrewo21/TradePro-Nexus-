@@ -14,7 +14,7 @@ export async function GET() {
       db.from("companies").select("*", { count: "exact", head: true }),
       db.from("waitlist").select("*", { count: "exact", head: true }),
       db.from("profiles").select("*", { count: "exact", head: true }).eq("verification_status", "verified").neq("profile_type", "tradepro"),
-      db.from("unclaimed_profiles").select("*", { count: "exact", head: true }).eq("visible", true),
+      db.from("unclaimed_profiles").select("*", { count: "exact", head: true }).eq("visible", true).eq("is_core_state", true),
       db.from("profiles").select("*", { count: "exact", head: true }).eq("legacy_member_eligible", true).eq("is_seed_account", false),
     ]);
 
