@@ -24,66 +24,40 @@ function buildEmailHtml(opts: {
   removeUrl: string;
   physicalAddress: string;
 }): string {
-  const trade = opts.licenseType?.trim() || "trade professional";
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#0f172a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#0f172a;min-height:100vh;">
+<body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;">
 <tr><td align="center" style="padding:40px 16px;">
-<table width="100%" style="max-width:520px;">
-  <tr><td align="center" style="padding-bottom:28px;">
-    <table cellpadding="0" cellspacing="0"><tr>
-      <td style="background:#1e293b;border-radius:10px;padding:8px;text-align:center;vertical-align:middle;">
-        <svg width="32" height="32" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect width="52" height="52" rx="10" fill="#0f172a"/>
-          <path d="M12 38 L26 14 L40 38" stroke="#f1f5f9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-          <path d="M17 30 L35 30" stroke="#f1f5f9" stroke-width="3" stroke-linecap="round" fill="none"/>
-          <circle cx="26" cy="38" r="3.5" fill="#f97316"/>
-          <path d="M22 14 L30 14" stroke="#f97316" stroke-width="3" stroke-linecap="round"/>
-        </svg>
-      </td>
-      <td style="padding-left:10px;vertical-align:middle;">
-        <span style="font-size:18px;font-weight:600;color:#f1f5f9;">TradePro</span>
-        <span style="font-size:18px;font-weight:600;color:#f97316;"> Nexus</span>
-      </td>
-    </tr></table>
+<table width="100%" style="max-width:560px;">
+  <tr><td style="padding-bottom:24px;">
+    <span style="font-size:18px;font-weight:700;color:#0f172a;">TradePro</span><span style="font-size:18px;font-weight:700;color:#f97316;">Nexus</span>
   </td></tr>
-  <tr><td style="background:#1e293b;border-radius:16px;border:1px solid #334155;overflow:hidden;">
-    <tr><td style="background:#f97316;height:4px;"></td></tr>
-    <tr><td style="padding:32px 32px 0;">
-      <h1 style="margin:0 0 8px;color:#f1f5f9;font-size:22px;font-weight:800;letter-spacing:-0.01em;">Your business is listed on TradePro Nexus</h1>
-      <p style="margin:0 0 16px;color:#94a3b8;font-size:15px;line-height:1.6;">
-        We found <strong style="color:#f1f5f9;">${opts.businessName}</strong> in our public ${opts.sourceState} ${trade} licensing directory.
-        Trade pros and GCs in your area are already searching TradePro Nexus to find crews like yours.
-      </p>
-      <p style="margin:0 0 16px;color:#94a3b8;font-size:15px;line-height:1.6;">
-        TradePro Nexus now lists <strong style="color:#f1f5f9;">706,044 licensed contractors across 13 states</strong> — and is the fastest-growing trade professional network in the country.
-      </p>
-      <p style="margin:0 0 24px;color:#94a3b8;font-size:15px;line-height:1.6;">
-        Claim your free Digital Trading Card to control how your business appears, add your contact info, and start getting discovered.
-      </p>
-      <table cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-        <tr><td style="background:#f97316;border-radius:12px;">
-          <a href="${opts.claimUrl}" style="display:inline-block;padding:14px 28px;color:#ffffff;font-weight:700;font-size:15px;text-decoration:none;border-radius:12px;">Claim Your Free Trade Card</a>
-        </td></tr>
-      </table>
-      <div style="background:#0f172a;border-radius:10px;padding:14px 16px;margin-bottom:28px;">
-        <p style="margin:0;color:#64748b;font-size:12px;line-height:1.5;">
-          This listing was created from public state licensing records. We do not display it as "verified" until you claim it.
-        </p>
-      </div>
-    </td></tr>
-    <tr><td style="padding:16px 32px 28px;border-top:1px solid #334155;text-align:center;">
-      <p style="margin:0 0 8px;color:#475569;font-size:12px;">TradePro Nexus &middot; A TradePro Technologies LLC product</p>
-      <p style="margin:0 0 8px;color:#475569;font-size:11px;">This email is a commercial advertisement sent by TradePro Technologies.</p>
-      <p style="margin:0 0 8px;color:#475569;font-size:11px;">${opts.physicalAddress}</p>
-      <p style="margin:0;color:#475569;font-size:11px;">
-        <a href="${opts.unsubscribeUrl}" style="color:#64748b;">Unsubscribe</a>
-        &nbsp;&middot;&nbsp;
-        <a href="${opts.removeUrl}" style="color:#64748b;">Remove My Listing</a>
-      </p>
-    </td></tr>
+  <tr><td style="padding-bottom:20px;color:#1e293b;font-size:15px;line-height:1.7;">
+    <p style="margin:0 0 16px;">Hi,</p>
+    <p style="margin:0 0 16px;">My name is Andrew O&rsquo;Neill. I spent 30 years in commercial construction before building TradePro Nexus &mdash; a free directory for licensed trade professionals.</p>
+    <p style="margin:0 0 16px;">Your license is already listed in our directory because it&rsquo;s public record. I wanted to make sure you knew it was there and give you the chance to add your photo, crew size, certifications, and availability so GCs searching your area can find you.</p>
+    <p style="margin:0 0 24px;">It takes about 2 minutes and it&rsquo;s completely free. No credit card, no subscription, no catch.</p>
+    <table cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+      <tr><td style="background:#f97316;border-radius:10px;">
+        <a href="${opts.claimUrl}" style="display:inline-block;padding:13px 28px;color:#ffffff;font-weight:700;font-size:15px;text-decoration:none;border-radius:10px;">View your free listing &rarr;</a>
+      </td></tr>
+    </table>
+    <p style="margin:0 0 4px;color:#1e293b;font-size:15px;">Andrew O&rsquo;Neill</p>
+    <p style="margin:0 0 2px;color:#64748b;font-size:13px;">Founder, TradePro Nexus</p>
+    <p style="margin:0 0 2px;color:#64748b;font-size:13px;">30-Year Construction Veteran</p>
+    <p style="margin:0 0 2px;color:#64748b;font-size:13px;">tradepronexus.com</p>
+    <p style="margin:0;color:#64748b;font-size:13px;">(561) 247-1381</p>
+  </td></tr>
+  <tr><td style="border-top:1px solid #e2e8f0;padding-top:20px;text-align:center;">
+    <p style="margin:0 0 6px;color:#94a3b8;font-size:11px;">TradePro Technologies LLC &middot; ${opts.physicalAddress}</p>
+    <p style="margin:0 0 6px;color:#94a3b8;font-size:11px;">This email is a commercial advertisement. Your listing was sourced from public ${opts.sourceState} state licensing records.</p>
+    <p style="margin:0;color:#94a3b8;font-size:11px;">
+      <a href="${opts.unsubscribeUrl}" style="color:#94a3b8;text-decoration:underline;">Unsubscribe</a>
+      &nbsp;&middot;&nbsp;
+      <a href="${opts.removeUrl}" style="color:#94a3b8;text-decoration:underline;">Remove My Listing</a>
+    </p>
   </td></tr>
 </table>
 </td></tr>
@@ -159,6 +133,7 @@ Deno.serve(async (req: Request) => {
       "daily_emails_sent",
       "daily_emails_date",
       "outreach_daily_cap",
+      "outreach_state_filter",
     ]);
 
   const sm: Record<string, string> = {};
@@ -208,9 +183,12 @@ Deno.serve(async (req: Request) => {
   // server-side. This is correct at any scale — no client-side filtering,
   // no PostgREST 1K row cap, no over-fetch arithmetic.
   // p_state = null queries all states — FL first by created_at, then VA, OH, etc.
+  // outreach_state_filter limits sends to one state (e.g. "FL"). Null = all states.
+  const stateFilter = sm["outreach_state_filter"] || null;
+
   const { data: batchRaw, error: batchErr } = await supabase.rpc("get_next_outreach_batch", {
     p_batch_size: batchSize,
-    p_state: null,
+    p_state: stateFilter,
   });
 
   if (batchErr) {
@@ -246,7 +224,7 @@ Deno.serve(async (req: Request) => {
       physicalAddress,
     });
 
-    const subject = `${profile.business_name} — claim your free TradePro Nexus listing`;
+    const subject = `Your contractor listing on TradePro Nexus`;
     const toEmail = testMode ? testEmail : profile.email;
 
     const result = toEmail
