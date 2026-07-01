@@ -42,17 +42,28 @@ async function verifySignature(req: NextRequest, rawBody: string): Promise<boole
   const signingKey = process.env.SENDGRID_WEBHOOK_KEY;
   if (!signingKey) return true; // skip in dev if key not configured
 
-  const signature  = req.headers.get("x-twilio-email-event-webhook-signature") ?? "";
-  const timestamp  = req.headers.get("x-twilio-email-event-webhook-timestamp") ?? "";
+  const signature = req.headers.get("x-twilio-email-event-webhook-signature") ?? "";
+  const timestamp = req.headers.get("x-twilio-email-event-webhook-timestamp") ?? "";
   if (!signature || !timestamp) return false;
 
   try {
     const { createVerify } = await import("crypto");
+
+    // Strip PEM headers if the stored key already includes them
+    const rawKey = signingKey
+      .replace(/-----BEGIN PUBLIC KEY-----/g, "")
+      .replace(/-----END PUBLIC KEY-----/g, "")
+      .replace(/\s+/g, "");
+    const pem = `-----BEGIN PUBLIC KEY-----\n${rawKey}\n-----END PUBLIC KEY-----`;
+
     const payload = timestamp + rawBody;
     const verify  = createVerify("SHA256");
     verify.update(payload);
+
+    // SendGrid signs with ECDSA P-256; signature arrives in IEEE P1363 encoding
+    // (raw r+s), not DER. Node requires dsaEncoding to be set explicitly.
     return verify.verify(
-      `-----BEGIN PUBLIC KEY-----\n${signingKey}\n-----END PUBLIC KEY-----`,
+      { key: pem, dsaEncoding: "ieee-p1363" } as Parameters<typeof verify.verify>[0],
       signature,
       "base64"
     );
