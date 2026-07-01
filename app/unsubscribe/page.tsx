@@ -23,6 +23,7 @@ function UnsubscribeContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [alreadyRemoved, setAlreadyRemoved] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -34,7 +35,8 @@ function UnsubscribeContent() {
     fetch(`/api/registry/unsubscribe?token=${encodeURIComponent(token)}`)
       .then(res => res.json())
       .then(data => {
-        if (data.error) setError(data.error);
+        if (data.alreadyRemoved) setAlreadyRemoved(true);
+        else if (data.error) setError(data.error);
         else setLookup(data);
       })
       .catch(() => setError("Something went wrong looking up this listing."))
@@ -51,6 +53,7 @@ function UnsubscribeContent() {
       });
       const data = await res.json();
       if (data.error) setError(data.error);
+      else if (data.alreadyRemoved) setAlreadyRemoved(true);
       else setDone(true);
     } catch {
       setError("Something went wrong. Please try again.");
@@ -69,6 +72,12 @@ function UnsubscribeContent() {
           {loading ? (
             <div className="flex items-center gap-2 text-slate-400 py-8 justify-center">
               <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+            </div>
+          ) : alreadyRemoved ? (
+            <div className="text-center py-6">
+              <CheckCircle className="w-8 h-8 text-green-400 mx-auto mb-3" />
+              <h1 className="text-lg font-black text-white mb-2">You&apos;re already unsubscribed</h1>
+              <p className="text-slate-400 text-sm">This listing has been removed from TradePro Nexus. You won&apos;t receive any further emails from us.</p>
             </div>
           ) : error ? (
             <div className="text-center py-6">

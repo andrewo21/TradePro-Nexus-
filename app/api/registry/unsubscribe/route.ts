@@ -45,7 +45,10 @@ export async function GET(request: NextRequest) {
     .single();
 
   if (!profile) {
-    return NextResponse.json({ error: "Invalid or expired link." }, { status: 404 });
+    // Profile was already deleted (e.g. prior "Remove My Listing" click) or token predates
+    // persistence. Either way the contact will receive no further emails — treat as success
+    // so CAN-SPAM unsubscribe requests are never shown as errors.
+    return NextResponse.json({ alreadyRemoved: true });
   }
 
   return NextResponse.json({
@@ -72,7 +75,8 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (!profile) {
-    return NextResponse.json({ error: "Invalid or expired link." }, { status: 404 });
+    // Profile already removed — no further emails will be sent. Return success.
+    return NextResponse.json({ ok: true, alreadyRemoved: true });
   }
 
   if (action === "unsubscribe") {
