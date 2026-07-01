@@ -463,7 +463,7 @@ function PostCard({
               </div>
             ) : (
               <Link
-                href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`}
+                href={post.author_slug ? (post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`) : "/feed"}
                 className="w-9 h-9 rounded-xl bg-orange-100 border border-orange-300 flex items-center justify-center font-black text-orange-600 text-sm flex-shrink-0 hover:border-orange-400 transition-colors overflow-hidden"
               >
                 {post.author_type === "company"
@@ -479,7 +479,7 @@ function PostCard({
                 {isNews ? (
                   <span className="font-semibold text-[#0f172a] text-sm">{post.news_source_name}</span>
                 ) : (
-                  <Link href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`} className="font-bold text-[#0f172a] text-sm hover:text-orange-600 transition-colors">
+                  <Link href={post.author_slug ? (post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`) : "/feed"} className="font-bold text-[#0f172a] text-sm hover:text-orange-600 transition-colors">
                     {post.author_name}
                   </Link>
                 )}
@@ -683,12 +683,12 @@ function PostCard({
             className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors">
             <ExternalLink className="w-3.5 h-3.5" /> Read Article
           </a>
-        ) : (
+        ) : post.author_slug ? (
           <Link href={post.author_type === "company" ? `/company/${post.author_slug}` : `/pro/${post.author_slug}`}
             className="flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-orange-600 transition-colors">
             View {post.author_type === "company" ? "Company" : "Trade Card"} <ArrowRight className="w-3.5 h-3.5" />
           </Link>
-        )}
+        ) : null}
       </div>
 
       {/* Comments section — lazy loaded on first open */}

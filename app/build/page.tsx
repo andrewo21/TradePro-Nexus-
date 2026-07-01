@@ -205,10 +205,15 @@ function BuildPageInner() {
   const [magicError, setMagicError] = useState<string | null>(null);
   const [magicDone, setMagicDone] = useState<{ slug: string; profileUrl: string; businessName: string } | null>(null);
   const [magicCopied, setMagicCopied] = useState(false);
+  const [claimTokenStatus, setClaimTokenStatus] = useState<"loading" | "ok" | "claimed" | "invalid">("loading");
 
-  // Gate: check auth before showing the form. 2-second hard timeout so
-  // a stalled Supabase call never leaves the page in a spinner forever.
+  // Gate: check auth before showing the form.
+  // If a claim token is present the user is arriving from an outreach email and is
+  // almost certainly NOT logged in — skip the spinner so they see the claim form
+  // immediately. Auth resolves in parallel and redirects if they ARE logged in.
   useEffect(() => {
+    // Show claim form immediately for claim links; don't block on auth
+    if (claimToken) setAuthChecking(false);
     const timeout = setTimeout(() => setAuthChecking(false), 2000);
 
     getSupabase()?.auth.getUser().then(async ({ data: { user } }) => {
@@ -244,10 +249,22 @@ function BuildPageInner() {
   useEffect(() => {
     if (!claimToken) return;
     fetch(`/api/registry/claim?token=${encodeURIComponent(claimToken)}`)
-      .then(r => r.ok ? r.json() : null)
+      .then(async r => {
+        const data = await r.json();
+        if (r.status === 410 || data?.error === "Already claimed") {
+          setClaimTokenStatus("claimed");
+          return null;
+        }
+        if (!r.ok || data?.error) {
+          setClaimTokenStatus("invalid");
+          return null;
+        }
+        return data;
+      })
       .then((data) => {
-        if (!data || data.error) return;
+        if (!data) return;
         setClaimData(data);
+        setClaimTokenStatus("ok");
         if (isAuthed) {
           setForm(prev => ({
             ...prev,
@@ -260,7 +277,7 @@ function BuildPageInner() {
           }));
         }
       })
-      .catch(() => {});
+      .catch(() => setClaimTokenStatus("ok")); // network error: let user try anyway
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [claimToken, isAuthed]);
 
@@ -601,6 +618,27 @@ function BuildPageInner() {
               <p className="text-slate-500 text-sm">
                 Check your email — we sent your login link so you can edit your profile anytime.
               </p>
+            </motion.div>
+          </div>
+        );
+      }
+
+      // Magic claim form — already claimed
+      if (claimTokenStatus === "claimed") {
+        return (
+          <div className="min-h-screen bg-[#0f172a] text-slate-100 flex items-center justify-center px-4">
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="max-w-md w-full text-center">
+              <div className="text-center mb-6">
+                <span className="text-white font-black text-lg">TradePro <span className="text-orange-500">Nexus</span></span>
+              </div>
+              <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-8">
+                <CheckCircle className="w-12 h-12 text-green-400 mx-auto mb-4" />
+                <h1 className="text-xl font-black text-white mb-2">This listing is already claimed</h1>
+                <p className="text-slate-400 text-sm mb-6">Someone already set up a profile for <span className="text-white font-semibold">{claimBusiness ?? "this business"}</span>. If that was you, sign in to manage it.</p>
+                <Link href="/login" className="block w-full py-3 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-sm text-center transition-colors">
+                  Sign In to My Account
+                </Link>
+              </div>
             </motion.div>
           </div>
         );
