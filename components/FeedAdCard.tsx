@@ -20,7 +20,7 @@ export default function FeedAdCard() {
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="text-base font-black text-[#0f172a] mb-0.5 group-hover:text-orange-600 transition-colors">
-            Reach 706,044 Licensed Contractors
+            Reach 796,365 Licensed Contractors
           </h3>
           <p className="text-[#64748b] text-sm">
             Founding sponsor slots available. Reserve your placement today.
