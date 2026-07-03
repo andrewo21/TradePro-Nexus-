@@ -24,7 +24,7 @@ export default function DesktopAdRail({ side }: RailProps) {
         </div>
         <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1">Sponsored</p>
         <h3 className="text-sm font-black text-white mb-1.5 leading-snug group-hover:text-orange-400 transition-colors">
-          Reach 796,365 Licensed Contractors
+          Reach 828,487 Licensed Contractors
         </h3>
         <p className="text-xs text-slate-500 mb-4 leading-snug">
           Founding sponsor slots available.

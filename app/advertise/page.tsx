@@ -18,7 +18,7 @@ const TRADES = [
 const AUDIENCE_STATS = [
   {
     icon: Users,
-    value: "796,365",
+    value: "828,487",
     label: "Licensed Contractors",
     sub: "Verified from state licensing boards",
     color: "text-orange-400",
@@ -27,9 +27,9 @@ const AUDIENCE_STATS = [
   },
   {
     icon: MapPin,
-    value: "15 States",
+    value: "16 States",
     label: "and Growing",
-    sub: "FL, CA, TX, VA, WA, MN, OR, NV, OH, CO, CT, IL, NJ, NY and more",
+    sub: "FL, CA, TX, VA, WA, MN, OR, NV, OH, CO, CT, IL, NJ, NY, NC, SC and more",
     color: "text-blue-400",
     bg: "bg-blue-600/10",
     border: "border-blue-600/20",
@@ -185,7 +185,7 @@ export default function AdvertisePage() {
           </p>
           <h1 className="text-4xl md:text-5xl font-black text-white leading-tight mb-5">
             Put Your Brand in Front of<br className="hidden sm:block" />
-            <span className="text-orange-400"> 796,365 Licensed Contractors.</span>
+            <span className="text-orange-400"> 828,487 Licensed Contractors.</span>
           </h1>
           <p className="text-slate-300 text-xl leading-relaxed max-w-2xl">
             TradePro Nexus is the only verified marketplace built exclusively

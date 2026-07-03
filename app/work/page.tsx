@@ -187,7 +187,7 @@ export default function WorkPage() {
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-widest text-orange-700 mb-0.5">Sponsored</p>
             <p className="text-white font-black text-base group-hover:text-orange-400 transition-colors">
-              Reach 796,365 Licensed Contractors
+              Reach 828,487 Licensed Contractors
             </p>
             <p className="text-slate-400 text-sm">
               Founding sponsor slots available. Reserve your placement today.

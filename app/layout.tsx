@@ -103,6 +103,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {" "}·{" "}
             <Link href="/terms-of-use" className="hover:text-slate-400 transition-colors underline">Terms of Use</Link>
             {" "}·{" "}
+            <Link href="/resources" className="hover:text-slate-400 transition-colors underline">Resources</Link>
+            {" "}·{" "}
             <Link href="/advertise" className="hover:text-slate-400 transition-colors underline">Advertise With Us</Link>
           </p>
         </div>

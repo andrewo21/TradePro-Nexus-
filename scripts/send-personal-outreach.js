@@ -54,8 +54,8 @@ function buildHtml(fname) {
 
   <p style="margin:0 0 20px;font-size:16px;line-height:1.7;color:#1a1a1a;">
     I spent the last few months building <strong>TradePro Nexus</strong>, a free verified marketplace
-    for construction trade professionals. 738,756 licensed contractors already in the directory
-    across 13 states.
+    for construction trade professionals. 828,487 licensed contractors already in the directory
+    across 16 states.
   </p>
 
   <p style="margin:0 0 32px;font-size:16px;line-height:1.7;color:#1a1a1a;">
@@ -82,7 +82,7 @@ function buildText(fname) {
 
 We crossed paths at some point along the way in construction. I wanted to reach out personally.
 
-I spent the last few months building TradePro Nexus, a free verified marketplace for construction trade professionals. 738,756 licensed contractors already in the directory across 13 states.
+I spent the last few months building TradePro Nexus, a free verified marketplace for construction trade professionals. 828,487 licensed contractors already in the directory across 16 states.
 
 I would love for you to be one of the first to join. Sign up free at tradepronexus.com.
 

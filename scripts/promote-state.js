@@ -159,6 +159,7 @@ async function promoteState(stateCode) {
           quality_score:  record.quality_score,
           license_status: record.license_status,
           visible:        true,
+          is_core_state:  true,
         });
 
         if (insertStatus === 201 || insertStatus === 200) {

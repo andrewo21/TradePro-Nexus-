@@ -170,7 +170,7 @@ export default function FeedRightSidebar({ userId, userState, followedIds }: Pro
       >
         <p className="text-[10px] font-bold text-[#475569] uppercase tracking-widest mb-2">Sponsored</p>
         <p className="text-white font-black text-sm mb-1 group-hover:text-orange-400 transition-colors">
-          Reach 796,365 Licensed Contractors
+          Reach 828,487 Licensed Contractors
         </p>
         <p className="text-[#94a3b8] text-xs leading-relaxed mb-3">
           Founding sponsor slots available. Reserve your placement today.
