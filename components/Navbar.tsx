@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
-import { Menu, X, Search, Rss, ChevronDown } from "lucide-react";
+import { Menu, X, Search, Rss, ChevronDown, BookOpen } from "lucide-react";
 import Image from "next/image";
 import { getSupabase } from "@/lib/supabase";
 import { AVAILABILITY_CONFIG } from "@/lib/constants";
@@ -107,6 +107,9 @@ export default function Navbar() {
           <Link href="/work" className="flex items-center gap-1.5 text-slate-400 hover:text-orange-400 transition-colors">
             Work &amp; Union Opportunities
           </Link>
+          <Link href="/resources" className="flex items-center gap-1.5 text-slate-400 hover:text-orange-400 transition-colors">
+            <BookOpen className="w-4 h-4" /> Resources
+          </Link>
           <a
             href="https://www.tradeprotech.ai"
             target="_blank"
@@ -191,6 +194,9 @@ export default function Navbar() {
           </Link>
           <Link href="/work" onClick={() => setOpen(false)} className="flex items-center gap-2 text-slate-300 hover:text-orange-400 py-2 transition-colors">
             Work &amp; Union Opportunities
+          </Link>
+          <Link href="/resources" onClick={() => setOpen(false)} className="flex items-center gap-2 text-slate-300 hover:text-orange-400 py-2 transition-colors">
+            <BookOpen className="w-4 h-4" /> Resources
           </Link>
 
           {user && availability && availConfig && (
