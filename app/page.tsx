@@ -106,6 +106,12 @@ export default function LandingPage() {
             >
               Work Opportunities
             </Link>
+            <Link
+              href="/resources"
+              className="text-[#64748b] hover:text-[#0f172a] text-sm font-semibold transition-colors"
+            >
+              Resources
+            </Link>
           </nav>
 
           {/* Desktop buttons */}
@@ -165,6 +171,13 @@ export default function LandingPage() {
               onClick={() => setMobileOpen(false)}
             >
               Work Opportunities
+            </Link>
+            <Link
+              href="/resources"
+              className="block text-[#64748b] hover:text-[#0f172a] text-sm font-semibold py-1"
+              onClick={() => setMobileOpen(false)}
+            >
+              Resources
             </Link>
             <div className="flex flex-col gap-2 pt-2">
               <Link
