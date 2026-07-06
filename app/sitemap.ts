@@ -15,6 +15,7 @@ const STATIC_PATHS = [
   "/build",
   "/verify",
   "/post-job",
+  "/delete-account",
   "/resources",
   "/resources/how-to-find-a-licensed-contractor-in-florida",
   "/resources/how-to-find-a-licensed-contractor-in-north-carolina",
