@@ -1,5 +1,45 @@
 # TradePro Nexus — Product Roadmap
 
+## 🔄 PWA APP STORE PREP, IN PROGRESS (PWABuilder Audit Fixes)
+
+PWABuilder audit at pwabuilder.com was showing 34 out of 45. Target is 40 or
+higher before app store package generation.
+
+**Fix 1, manifest.json, deployed:**
+- `id` set to the full URL, `https://www.tradepronexus.com`
+- `orientation` simplified to `"portrait"`, `lang` simplified to `"en"`
+- `theme_color` corrected to `#f97316` (was `#ea580c`)
+- `description` updated to include the live contractor count and state total
+- `scope` confirmed as `"/"`, `dir` confirmed as `"ltr"`
+- Two new screenshots generated at the exact requested sizes, cropped from
+  the existing marketing screenshots via sharp: `screenshot-narrow-540x720.png`
+  and `screenshot-wide-1024x593.png`, replacing the old 1290x2796/1920x1080
+  entries in the manifest
+
+**Fix 2, service worker, deployed:**
+- Precaches more key pages at install (home, feed, build, search, work,
+  resources, manifest, core icons), not just a single offline fallback
+- Fetch handler now uses network first for page navigations, caching each
+  visited page individually so a reload while offline serves that exact
+  page instead of always falling back to the homepage, and cache first for
+  static assets (icons, screenshots, `_next/static`, images, fonts)
+- Install and activate handlers unchanged in structure, cache name bumped
+  to v2 so the old v1 cache is purged from existing installs on update
+- Push and notificationclick handlers unchanged, already implemented
+
+Both fixes deployed together in one Vercel production deployment and
+verified directly against the live site (manifest fields, service worker
+contents, and both new screenshot files all confirmed serving correctly
+from tradepronexus.com).
+
+**Not yet done:** re-running the actual pwabuilder.com audit and confirming
+the new score. This requires executing PWABuilder's client-side, JS-driven
+audit in a real browser, which is outside what could be done in this
+session. Pending the score being run and reported back before this item
+can be marked complete.
+
+---
+
 ## ✅ PHASE 16 — COMPLETE (Profile Photo Upload + Trade Card Share Image)
 
 **Feature 1 — Profile Photo Upload:**
