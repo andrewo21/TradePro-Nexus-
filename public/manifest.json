@@ -1,16 +1,16 @@
 {
-  "id": "/",
+  "id": "https://www.tradepronexus.com",
   "name": "TradePro Nexus",
   "short_name": "TradePro",
-  "description": "The verified marketplace for construction trade professionals. Build your Digital Trade Card and get found by GCs.",
+  "description": "The verified marketplace for construction trade professionals. 828,487 licensed contractors across 16 states.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone"],
   "background_color": "#0f172a",
-  "theme_color": "#ea580c",
-  "orientation": "portrait-primary",
-  "lang": "en-US",
+  "theme_color": "#f97316",
+  "orientation": "portrait",
+  "lang": "en",
   "dir": "ltr",
   "icons": [
     {
@@ -99,15 +99,15 @@
   ],
   "screenshots": [
     {
-      "src": "/screenshot-iphone-1290x2796.png",
-      "sizes": "1290x2796",
+      "src": "/screenshot-narrow-540x720.png",
+      "sizes": "540x720",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "TradePro Nexus Live Feed on iPhone"
+      "label": "TradePro Nexus Live Feed on mobile"
     },
     {
-      "src": "/screenshot-desktop-1920x1080.png",
-      "sizes": "1920x1080",
+      "src": "/screenshot-wide-1024x593.png",
+      "sizes": "1024x593",
       "type": "image/png",
       "form_factor": "wide",
       "label": "TradePro Nexus three-column feed on desktop"

@@ -1,34 +1,84 @@
 // TradePro Nexus Service Worker
-// Handles push notifications and basic offline caching
+// Handles offline caching, install/activate lifecycle, and push notifications
 
-const CACHE_NAME = "tradepro-nexus-v1";
+const CACHE_NAME = "tradepro-nexus-v2";
 const OFFLINE_URL = "/";
 
-// Install — cache offline shell
+// Key pages and assets precached at install so the app has something to
+// serve immediately the first time it is opened with no network connection.
+const PRECACHE_URLS = [
+  "/",
+  "/feed",
+  "/build",
+  "/search",
+  "/work",
+  "/resources",
+  "/manifest.json",
+  "/icon-192.png",
+  "/icon-512.png",
+];
+
+// Install: cache the offline shell
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) =>
-      cache.addAll([OFFLINE_URL, "/feed", "/build"])
-    ).then(() => self.skipWaiting())
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => cache.addAll(PRECACHE_URLS))
+      .then(() => self.skipWaiting())
   );
 });
 
-// Activate — clean old caches
+// Activate: clean out old cache versions
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
-// Fetch — network first, fall back to cache for navigation
+// Fetch: network first for page navigations, so users always get the
+// freshest content when online, falling back to the cached copy of that
+// exact page (or the offline shell) when there is no connection. Cache
+// first for static assets, since those are safe to serve straight from
+// cache and only need a network round trip the first time.
 self.addEventListener("fetch", (event) => {
-  if (event.request.mode === "navigate") {
+  const { request } = event;
+  if (request.method !== "GET") return;
+
+  const url = new URL(request.url);
+  if (url.origin !== self.location.origin) return;
+
+  const isStaticAsset =
+    url.pathname.startsWith("/_next/static/") ||
+    url.pathname.startsWith("/icon-") ||
+    url.pathname.startsWith("/screenshot-") ||
+    /\.(?:png|jpg|jpeg|svg|webp|ico|woff2?)$/.test(url.pathname);
+
+  if (request.mode === "navigate") {
     event.respondWith(
-      fetch(event.request).catch(() =>
-        caches.match(OFFLINE_URL)
-      )
+      fetch(request)
+        .then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          return response;
+        })
+        .catch(() => caches.match(request).then((cached) => cached ?? caches.match(OFFLINE_URL)))
+    );
+    return;
+  }
+
+  if (isStaticAsset) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        if (cached) return cached;
+        return fetch(request).then((response) => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          return response;
+        });
+      })
     );
   }
 });
@@ -58,7 +108,7 @@ self.addEventListener("push", (event) => {
   );
 });
 
-// Notification click — open the relevant URL
+// Notification click: open the relevant URL
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const targetUrl = event.notification.data?.url ?? "/";
