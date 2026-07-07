@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import WaitlistMobileBar from "@/components/WaitlistMobileBar";
 import PushNotificationProvider from "@/components/PushNotificationProvider";
 import SiteTracker from "@/components/SiteTracker";
 import { Suspense } from "react";
@@ -70,22 +69,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         {children}
 
-        {/* Global waitlist CTA strip — every page */}
+        {/* Global footer strip — every page */}
         <div className="border-t border-slate-800 bg-slate-900/60 px-4 py-6 text-center">
-          <p className="text-slate-300 text-sm font-semibold mb-1">
-            TradePro Nexus is launching soon.
-          </p>
-          <p className="text-slate-500 text-xs mb-3">
-            Join the waitlist for early access and your verified spot.
-          </p>
-          <Link
-            href="/#waitlist"
-            className="btn-glow inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-xl text-sm"
-          >
-            Get Early Access — Free
-          </Link>
           {/* Cross-property link — subtle, one direction only */}
-          <p className="mt-4 text-xs text-slate-600">
+          <p className="text-xs text-slate-600">
             Need a construction résumé?{" "}
             <a
               href="https://www.tradeprotech.ai"
@@ -108,11 +95,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/advertise" className="hover:text-slate-400 transition-colors underline">Advertise With Us</Link>
           </p>
         </div>
-
-        {/* Mobile floating waitlist bar */}
-        <Suspense fallback={null}>
-          <WaitlistMobileBar />
-        </Suspense>
 
         {/* Push notification service worker registration */}
         <PushNotificationProvider />
