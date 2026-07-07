@@ -38,51 +38,71 @@ function normalizeMessageId(raw: string): string {
   return raw ? raw.split(".")[0] : raw;
 }
 
-async function verifySignature(req: NextRequest, rawBody: string): Promise<boolean> {
+function diagLog(msg: string) {
+  console.error(`[sendgrid-webhook][diag] ${msg}`);
+}
+
+async function verifySignature(req: NextRequest, rawBody: Buffer): Promise<boolean> {
   const signingKey = process.env.SENDGRID_WEBHOOK_KEY;
-  if (!signingKey) return true; // skip in dev if key not configured
+  if (!signingKey) {
+    diagLog("SENDGRID_WEBHOOK_KEY not set — skipping verification (dev mode)");
+    return true;
+  }
 
   const signature = req.headers.get("x-twilio-email-event-webhook-signature") ?? "";
   const timestamp = req.headers.get("x-twilio-email-event-webhook-timestamp") ?? "";
-  if (!signature || !timestamp) return false;
+  if (!signature || !timestamp) {
+    diagLog(`missing header(s) — signature present=${!!signature} timestamp present=${!!timestamp}`);
+    return false;
+  }
 
   try {
     const { createVerify } = await import("crypto");
 
-    // Strip PEM headers if the stored key already includes them
+    // Strip PEM headers/whitespace if the stored key already includes them,
+    // then re-wrap so it parses regardless of how the value was pasted in.
     const rawKey = signingKey
       .replace(/-----BEGIN PUBLIC KEY-----/g, "")
       .replace(/-----END PUBLIC KEY-----/g, "")
       .replace(/\s+/g, "");
     const pem = `-----BEGIN PUBLIC KEY-----\n${rawKey}\n-----END PUBLIC KEY-----`;
 
-    const payload = timestamp + rawBody;
+    // Sign over the raw bytes exactly as SendGrid sent them — string
+    // concatenation risks an encoding mismatch, Buffer concatenation does not.
+    const payload = Buffer.concat([Buffer.from(timestamp, "utf8"), rawBody]);
     const verify  = createVerify("SHA256");
     verify.update(payload);
 
     // SendGrid signs with ECDSA P-256; signature arrives in IEEE P1363 encoding
     // (raw r+s), not DER. Node requires dsaEncoding to be set explicitly.
-    return verify.verify(
+    const result = verify.verify(
       { key: pem, dsaEncoding: "ieee-p1363" } as Parameters<typeof verify.verify>[0],
       signature,
       "base64"
     );
-  } catch {
+    if (!result) {
+      diagLog(
+        `verify() returned false — keyLen=${rawKey.length} sigLen=${signature.length} ts=${timestamp} bodyLen=${rawBody.length} keyPrefix=${rawKey.slice(0, 12)}`
+      );
+    }
+    return result;
+  } catch (err) {
+    diagLog(`verify() threw — ${err instanceof Error ? err.message : String(err)}`);
     return false;
   }
 }
 
 export async function POST(req: NextRequest) {
-  const rawBody = await req.text();
+  const rawBodyBuf = Buffer.from(await req.arrayBuffer());
 
-  const valid = await verifySignature(req, rawBody);
+  const valid = await verifySignature(req, rawBodyBuf);
   if (!valid) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
   let events: Record<string, unknown>[];
   try {
-    events = JSON.parse(rawBody);
+    events = JSON.parse(rawBodyBuf.toString("utf8"));
     if (!Array.isArray(events)) events = [events];
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
