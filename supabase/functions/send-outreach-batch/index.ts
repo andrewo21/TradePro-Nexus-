@@ -182,8 +182,11 @@ Deno.serve(async (req: Request) => {
   // Uses get_next_outreach_batch() RPC which does NOT EXISTS against outreach_log
   // server-side. This is correct at any scale — no client-side filtering,
   // no PostgREST 1K row cap, no over-fetch arithmetic.
-  // p_state = null queries all states — FL first by created_at, then VA, OH, etc.
-  // outreach_state_filter limits sends to one state (e.g. "FL"). Null = all states.
+  // p_state = null shares the batch evenly across every state with eligible rows
+  // (no fixed priority order). outreach_state_filter restricts sends to one state
+  // at a time (e.g. "NC") — that's how state priority/sequencing is actually
+  // controlled operationally. OH is hard-excluded inside the RPC itself and
+  // cannot be sent to regardless of this filter.
   const stateFilter = sm["outreach_state_filter"] || null;
 
   const { data: batchRaw, error: batchErr } = await supabase.rpc("get_next_outreach_batch", {
