@@ -145,6 +145,7 @@ function SignupPageInner() {
           full_name: name,
           role: isGC ? "gc" : "tradepro",
           profile_type: accountType,
+          ref: refParam,
         }),
       });
       const data = await res.json();
@@ -163,12 +164,15 @@ function SignupPageInner() {
       }
 
       trackEvent("signup", { account_type: accountType, claimed_match: !!selectedMatch });
-      // Credit the referrer if this signup came through a referral link
-      if (refParam) {
+      // Credit the referrer if this signup came through a referral link. Use the
+      // server-resolved id so a raffle referral_code (?ref=CODE) also credits
+      // the existing verification-discount referral system, not just a raw user id.
+      const creditReferrerId = data.resolvedReferrerId ?? refParam;
+      if (creditReferrerId) {
         fetch("/api/referral/credit", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ referrer_id: refParam }),
+          body: JSON.stringify({ referrer_id: creditReferrerId }),
         }).catch(() => {});
       }
 

@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
   const fullName = (body.full_name ?? "").trim();
   const role = body.role === "gc" ? "gc" : "tradepro";
   const profileType = (body.profile_type ?? "tradepro").toString();
+  const ref = (body.ref ?? "").toString().trim();
 
   if (!email || !email.includes("@")) {
     return NextResponse.json({ error: "A valid email address is required." }, { status: 400 });
@@ -52,6 +53,36 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Could not create account. Please try again." }, { status: 500 });
   }
 
+  // Resolve the ?ref= value: a 6-char referral_code (raffle links) resolves to
+  // the referrer's user id via profiles; anything else (legacy raw user-id
+  // links) passes through unchanged so the existing discount-referral system
+  // keeps working. Recording into referral_entries is best-effort — it must
+  // never block account creation.
+  let resolvedReferrerId: string | null = null;
+  if (ref && ref !== newUser.user.id) {
+    if (/^[A-Z0-9]{6}$/.test(ref)) {
+      const { data: referrer } = await db
+        .from("profiles")
+        .select("user_id")
+        .eq("referral_code", ref)
+        .maybeSingle();
+      resolvedReferrerId = referrer?.user_id ?? null;
+    } else {
+      resolvedReferrerId = ref;
+    }
+
+    if (resolvedReferrerId && resolvedReferrerId !== newUser.user.id) {
+      try {
+        await db.from("referral_entries").insert({
+          referrer_id: resolvedReferrerId,
+          referred_id: newUser.user.id,
+        });
+      } catch {
+        // Duplicate or invalid referrer — non-fatal
+      }
+    }
+  }
+
   const welcomeResult = await sendWelcomeEmail({
     to: email,
     subject: "Welcome to TradePro Nexus",
@@ -66,5 +97,5 @@ export async function POST(req: NextRequest) {
     // logged for follow-up, not a reason to fail account creation.
   }
 
-  return NextResponse.json({ ok: true, userId: newUser.user.id });
+  return NextResponse.json({ ok: true, userId: newUser.user.id, resolvedReferrerId });
 }

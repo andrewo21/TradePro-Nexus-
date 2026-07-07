@@ -7,6 +7,7 @@ import { GC_TIERS, FOUNDER_LIMIT, type GCTier } from "@/lib/stripe-config";
 import ProfileCompletion from "@/components/ProfileCompletion";
 import BadgeDisplay from "@/components/BadgeDisplay";
 import ReferralDashboard from "@/components/ReferralDashboard";
+import RaffleStatus from "@/components/RaffleStatus";
 import { BADGES } from "@/lib/badge-definitions";
 import AvailabilityToggle from "@/components/AvailabilityToggle";
 import JobPreferences from "@/components/JobPreferences";
@@ -361,6 +362,9 @@ export default async function AccountPage() {
             </div>
           </div>
         )}
+
+        {/* Raffle Status — Milwaukee M18 giveaway */}
+        <RaffleStatus />
 
         {/* Referral Dashboard — shown to all logged-in users */}
         <ReferralDashboard

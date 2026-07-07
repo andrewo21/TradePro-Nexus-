@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import RaffleHomeBanner from "@/components/RaffleHomeBanner";
 import {
   HardHat,
   Search,
@@ -274,6 +275,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ── RAFFLE PROMO BANNER — gated by RAFFLE_ACTIVE ─────────────────────── */}
+      <RaffleHomeBanner />
 
       {/* ── ORANGE TAGLINE STRIP ─────────────────────────────────────────────── */}
       <div className="bg-[#f97316] py-4 px-4 text-center">

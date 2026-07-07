@@ -19,6 +19,7 @@ import DesktopAdRail from "@/components/DesktopAdRail";
 import BadgeCelebration from "@/components/BadgeCelebration";
 import FeedLeftSidebar from "@/components/FeedLeftSidebar";
 import FeedRightSidebar from "@/components/FeedRightSidebar";
+import RaffleFeedBanner from "@/components/RaffleFeedBanner";
 import type { Badge } from "@/lib/badge-definitions";
 import { trackEvent } from "@/lib/analytics";
 
@@ -1367,6 +1368,8 @@ function FeedPageInner() {
             </Link>
           )}
         </div>
+
+        <RaffleFeedBanner loggedIn={!!currentUser} />
 
         {/* Search */}
         <div className="relative mb-4">
