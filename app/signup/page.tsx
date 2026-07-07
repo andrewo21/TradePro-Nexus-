@@ -77,7 +77,6 @@ function SignupPageInner() {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [checkEmail, setCheckEmail] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   // Magic match — searches unclaimed_profiles as the user types their name
@@ -134,22 +133,38 @@ function SignupPageInner() {
     try {
       const supabase = getSupabase();
       const redirect = buildRedirect();
-      const { data, error: authError } = await supabase!.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: name,
-            role: isGC ? "gc" : "tradepro",
-            profile_type: accountType,
-          },
-          emailRedirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(redirect)}`,
-        },
+
+      // Account creation goes through the admin API server-side (auto-confirmed,
+      // no email-verification dependency) rather than the client signUp() call.
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          full_name: name,
+          role: isGC ? "gc" : "tradepro",
+          profile_type: accountType,
+        }),
       });
-      if (authError) throw authError;
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setError(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+
+      // Account creation succeeded and is already confirmed. Establish a real
+      // session before treating this as a success — never redirect on a false one.
+      const { data: signInData, error: signInError } = await supabase!.auth.signInWithPassword({ email, password });
+      if (signInError || !signInData.session) {
+        setError("Your account was created, but automatic sign-in failed. Please sign in.");
+        router.push(`/login?email=${encodeURIComponent(email)}`);
+        return;
+      }
+
       trackEvent("signup", { account_type: accountType, claimed_match: !!selectedMatch });
       // Credit the referrer if this signup came through a referral link
-      if (data.session && refParam) {
+      if (refParam) {
         fetch("/api/referral/credit", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -157,35 +172,13 @@ function SignupPageInner() {
         }).catch(() => {});
       }
 
-      if (data.session) {
-        router.push(redirect);
-        router.refresh();
-      } else {
-        setCheckEmail(true);
-      }
+      router.push(redirect);
+      router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setLoading(false);
     }
-  }
-
-  if (checkEmail) {
-    return (
-      <div className="min-h-screen bg-[#0f172a] text-slate-100">
-        <Navbar />
-        <div className="flex items-center justify-center min-h-screen px-4">
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-md w-full text-center">
-            <div className="w-16 h-16 bg-orange-600/20 border border-orange-600/40 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle className="w-8 h-8 text-orange-400" />
-            </div>
-            <h2 className="text-2xl font-black text-white mb-2">Check Your Email</h2>
-            <p className="text-slate-400 mb-2">Confirmation link sent to <span className="text-white font-semibold">{email}</span>.</p>
-            <p className="text-slate-500 text-sm">Check your spam folder if you don&apos;t see it.</p>
-          </motion.div>
-        </div>
-      </div>
-    );
   }
 
   return (
