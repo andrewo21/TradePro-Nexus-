@@ -318,6 +318,36 @@ function BuildPageInner() {
     }
   }
 
+  async function handleAuthedClaim() {
+    if (!claimToken) return;
+    setMagicSubmitting(true);
+    setMagicError(null);
+    try {
+      const res = await fetch("/api/registry/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: claimToken }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setMagicError(data.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      const bizName = claimData?.business_name ?? claimBusiness ?? "Your Business";
+      setMagicDone({ slug: data.slug, profileUrl: data.profileUrl, businessName: bizName });
+      trackEvent("claim_profile", {
+        business_name: bizName,
+        trade_type:    claimData?.license_type ?? "",
+        state:         claimData?.state ?? "",
+        source:        "authenticated_claim",
+      });
+    } catch {
+      setMagicError("Network error. Please try again.");
+    } finally {
+      setMagicSubmitting(false);
+    }
+  }
+
   function copyMagicLink() {
     if (!magicDone) return;
     navigator.clipboard.writeText(magicDone.profileUrl).then(() => {
@@ -572,9 +602,10 @@ function BuildPageInner() {
     );
   }
 
-  if (!isAuthed) {
-    // ── Magic Claim Flow — 2 clicks, no password ───────────────────────────
-    if (claimToken && (claimData || claimBusiness)) {
+  // ── Magic Claim Flow — 1 page, 1 button, no wizard ────────────────────────
+  // Shown for any claim link regardless of auth state, so an already-signed-in
+  // user never falls through to the multi-step builder just to claim a listing.
+  if (claimToken && (claimData || claimBusiness)) {
       const biz = claimData?.business_name ?? claimBusiness ?? "Your Business";
 
       // Confirmation screen after claiming
@@ -616,7 +647,9 @@ function BuildPageInner() {
                 </button>
               </div>
               <p className="text-slate-500 text-sm">
-                Check your email — we sent your login link so you can edit your profile anytime.
+                {isAuthed
+                  ? "Check your email — we sent a confirmation you can keep for your records."
+                  : "Check your email — we sent your login link so you can edit your profile anytime."}
               </p>
             </motion.div>
           </div>
@@ -687,45 +720,69 @@ function BuildPageInner() {
                   )}
                 </div>
 
-                {/* Email + submit */}
-                <form onSubmit={handleMagicClaim} className="space-y-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">
-                      Enter your email to claim this profile
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      value={magicEmail}
-                      onChange={e => setMagicEmail(e.target.value)}
-                      placeholder="you@company.com"
-                      autoComplete="email"
-                      className="w-full bg-slate-900 border border-slate-600 focus:border-orange-500 rounded-xl px-4 py-3 text-white text-base placeholder-slate-500 focus:outline-none transition-colors"
-                    />
+                {isAuthed ? (
+                  /* Already signed in — one button, no form fields */
+                  <div className="space-y-3">
+                    {magicError && (
+                      <div className="bg-red-950/40 border border-red-800/50 text-red-400 text-sm rounded-xl px-4 py-3">
+                        {magicError}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleAuthedClaim}
+                      disabled={magicSubmitting}
+                      className="w-full flex items-center justify-center gap-2 py-3.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-black rounded-xl text-base transition-colors"
+                    >
+                      {magicSubmitting
+                        ? <><Loader2 className="w-5 h-5 animate-spin" /> Verifying your account...</>
+                        : <><CheckCircle className="w-5 h-5" /> Verify Account</>
+                      }
+                    </button>
                   </div>
+                ) : (
+                  <>
+                    {/* Email + submit */}
+                    <form onSubmit={handleMagicClaim} className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">
+                          Enter your email to claim this profile
+                        </label>
+                        <input
+                          type="email"
+                          required
+                          value={magicEmail}
+                          onChange={e => setMagicEmail(e.target.value)}
+                          placeholder="you@company.com"
+                          autoComplete="email"
+                          className="w-full bg-slate-900 border border-slate-600 focus:border-orange-500 rounded-xl px-4 py-3 text-white text-base placeholder-slate-500 focus:outline-none transition-colors"
+                        />
+                      </div>
 
-                  {magicError && (
-                    <div className="bg-red-950/40 border border-red-800/50 text-red-400 text-sm rounded-xl px-4 py-3">
-                      {magicError}
-                    </div>
-                  )}
+                      {magicError && (
+                        <div className="bg-red-950/40 border border-red-800/50 text-red-400 text-sm rounded-xl px-4 py-3">
+                          {magicError}
+                        </div>
+                      )}
 
-                  <button
-                    type="submit"
-                    disabled={magicSubmitting || !magicEmail.trim()}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-black rounded-xl text-base transition-colors"
-                  >
-                    {magicSubmitting
-                      ? <><Loader2 className="w-5 h-5 animate-spin" /> Setting up your profile...</>
-                      : <><CheckCircle className="w-5 h-5" /> Yes, this is my business</>
-                    }
-                  </button>
-                </form>
+                      <button
+                        type="submit"
+                        disabled={magicSubmitting || !magicEmail.trim()}
+                        className="w-full flex items-center justify-center gap-2 py-3.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-black rounded-xl text-base transition-colors"
+                      >
+                        {magicSubmitting
+                          ? <><Loader2 className="w-5 h-5 animate-spin" /> Setting up your profile...</>
+                          : <><CheckCircle className="w-5 h-5" /> Yes, this is my business</>
+                        }
+                      </button>
+                    </form>
 
-                <p className="text-center text-xs text-slate-500 mt-4">
-                  No password needed. We'll email you a login link.{" "}
-                  <Link href="/terms-of-use" className="text-slate-400 hover:text-slate-300 underline">Terms apply.</Link>
-                </p>
+                    <p className="text-center text-xs text-slate-500 mt-4">
+                      No password needed. We'll email you a login link.{" "}
+                      <Link href="/terms-of-use" className="text-slate-400 hover:text-slate-300 underline">Terms apply.</Link>
+                    </p>
+                  </>
+                )}
               </div>
             </div>
 
@@ -740,6 +797,7 @@ function BuildPageInner() {
       );
     }
 
+  if (!isAuthed) {
     // ── Standard auth gate (no claim token) ───────────────────────────────
     return (
       <div className="min-h-screen bg-[#0f172a] text-slate-100">

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabaseServer";
+import { sendWelcomeEmail, extractGreetingName } from "@/lib/email/welcomeEmail";
+import { mapLicenseTypeToTrade, generateUniqueSlug } from "@/lib/registry/claimProfile";
+
+const SITE_URL = "https://www.tradepronexus.com";
 
 type UnclaimedProfile = {
   id: string;
@@ -67,9 +71,9 @@ export async function POST(req: NextRequest) {
   const admin = getSupabaseAdmin();
   const { data: profile } = await (admin as any)
     .from("unclaimed_profiles")
-    .select("id, claimed, email")
+    .select("id, business_name, license_type, license_number, city, state, source_state, phone, claimed, email")
     .eq("claim_token", token)
-    .maybeSingle() as { data: Pick<UnclaimedProfile, "id" | "claimed" | "email"> | null };
+    .maybeSingle() as { data: UnclaimedProfile | null };
 
   if (!profile) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
@@ -92,22 +96,59 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: (updateError as { message: string }).message }, { status: 500 });
   }
 
-  // Await the welcome email — must not be fire-and-forget because Vercel
-  // terminates the execution context the moment the response is sent.
-  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").replace(/\/$/, "");
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-  try {
-    await fetch(`${supabaseUrl}/functions/v1/send-claim-welcome`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${serviceKey}`,
-      },
-      body: JSON.stringify({ unclaimed_profile_id: profile.id }),
+  const businessName  = profile.business_name ?? "Trade Pro";
+  const trade         = mapLicenseTypeToTrade(profile.license_type);
+  const stateAbbr     = profile.state || profile.source_state || "FL";
+
+  // Reuse an existing profile row if this user already has one (e.g. re-claiming
+  // after a partial signup); otherwise create it now so the account is fully
+  // live — no separate builder wizard required.
+  const { data: existingProfile } = await (admin as any)
+    .from("profiles")
+    .select("slug")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  let slug: string = existingProfile?.slug;
+  if (!slug) {
+    slug = await generateUniqueSlug(admin, businessName);
+    const nameParts = businessName.split(/\s+/);
+    const { error: profileErr } = await (admin as any).from("profiles").insert({
+      user_id:            user.id,
+      slug,
+      first_name:         nameParts[0] ?? "Trade",
+      last_name:          nameParts.slice(1).join(" ") || "Pro",
+      firm_name:          businessName,
+      trade,
+      profile_type:       "tradepro",
+      location_city:      profile.city || null,
+      location_state:     stateAbbr,
+      license_number:     profile.license_number ?? null,
+      phone:              profile.phone ?? null,
+      availability_status: "available",
+      is_internal:        false,
+      is_seed_account:    false,
     });
-  } catch {
-    // Email failure should not block the claim success response
+    if (profileErr) {
+      return NextResponse.json({ error: "Could not create profile. Please try again." }, { status: 500 });
+    }
   }
 
-  return NextResponse.json({ ok: true });
+  const profileUrl = `${SITE_URL}/pro/${slug}`;
+
+  // Await the welcome email — must not be fire-and-forget because Vercel
+  // terminates the execution context the moment the response is sent.
+  const welcomeResult = await sendWelcomeEmail({
+    to: user.email!,
+    subject: `Your TradePro Nexus profile is live, ${businessName}`,
+    greetingName: extractGreetingName(businessName),
+    introLine: "You just claimed your free listing and I want to personally welcome you.",
+    ctaUrl: profileUrl,
+    ctaLabel: "View Your Trade Card",
+  });
+  if (!welcomeResult.ok) {
+    console.error("[registry/claim] welcome email failed:", welcomeResult.error);
+  }
+
+  return NextResponse.json({ ok: true, slug, profileUrl });
 }
