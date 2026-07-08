@@ -57,12 +57,6 @@ async function verifySignature(req: NextRequest, rawBody: Buffer): Promise<boole
   }
 
   try {
-    // Use the modern one-shot crypto.verify() rather than the legacy
-    // createVerify().update().verify() streaming API. The legacy Verify
-    // class does not reliably honor the `dsaEncoding` option for ECDSA
-    // keys — it was throwing "Malformed signature" even with dsaEncoding
-    // set, because it was still attempting to parse the raw IEEE P1363
-    // (r+s) signature as DER. The one-shot function respects it correctly.
     const { verify: cryptoVerify } = await import("crypto");
 
     // Strip PEM headers/whitespace if the stored key already includes them,
@@ -78,12 +72,13 @@ async function verifySignature(req: NextRequest, rawBody: Buffer): Promise<boole
     const payload = Buffer.concat([Buffer.from(timestamp, "utf8"), rawBody]);
     const sigBuf  = Buffer.from(signature, "base64");
 
-    const result = cryptoVerify(
-      "sha256",
-      payload,
-      { key: pem, dsaEncoding: "ieee-p1363" },
-      sigBuf
-    );
+    // SendGrid's actual signature is standard DER-encoded ECDSA (variable
+    // length, ~70-72 bytes for P-256 -> ~96 base64 chars observed in
+    // production), matching Node's default. A prior fix incorrectly assumed
+    // raw IEEE P1363 (fixed 64 bytes -> always exactly 88 base64 chars) and
+    // set dsaEncoding: 'ieee-p1363', which broke every verification since.
+    // No dsaEncoding override needed here — DER is the default.
+    const result = cryptoVerify("sha256", payload, pem, sigBuf);
     if (!result) {
       diagLog(
         `verify() returned false — keyLen=${rawKey.length} sigLen=${signature.length} ts=${timestamp} bodyLen=${rawBody.length} keyPrefix=${rawKey.slice(0, 12)}`
