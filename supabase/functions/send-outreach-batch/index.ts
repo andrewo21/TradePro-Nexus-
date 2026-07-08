@@ -9,15 +9,32 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 //
 // SAFETY: the FIRST thing this function does is check admin_settings.outreach_enabled.
 // If it is not exactly "true", the function no-ops and sends nothing.
+//
+// ── Fully automatic state queue ──────────────────────────────────────────────
+// admin_settings.outreach_queue_json is an ordered list of phases, e.g.
+//   [{"state":"NC","mode":"new"},{"state":"NJ","mode":"new"},
+//    {"state":"FL","mode":"resend"},
+//    {"state":"VA","mode":"new","requires_flag":"outreach_va_bounce_confirmed"}]
+// admin_settings.outreach_queue_index tracks which phase is currently active.
+// When a phase's candidate pool hits zero, the index auto-advances to the next
+// phase in the SAME run (no manual outreach_state_filter flipping needed).
+// A phase with requires_flag only proceeds once that admin_settings key is
+// exactly "true" -- e.g. VA stays paused until a human confirms the SendGrid
+// bounce rate directly and flips outreach_va_bounce_confirmed themselves.
+// mode "resend" targets FL records that already got Email 1 (via
+// get_fl_resend_batch), announcing the fixed one-tap claim flow -- distinct
+// from mode "new", which can only ever select records with zero outreach_log
+// history (via get_next_outreach_batch). OH is hard-excluded inside
+// get_next_outreach_batch itself and can never appear in any phase.
 
 const SITE_URL          = "https://www.tradepronexus.com";
 const SENDGRID_API_KEY  = Deno.env.get("SENDGRID_API_KEY_NEXUS") ?? "";
 const FROM_EMAIL        = "outreach@mail.tradepronexus.com";
 const FROM_NAME         = "TradePro Nexus";
 
+type QueuePhase = { state: string; mode: "new" | "resend"; requires_flag?: string };
+
 function buildEmailHtml(opts: {
-  businessName: string;
-  licenseType: string | null;
   sourceState: string;
   claimUrl: string;
   unsubscribeUrl: string;
@@ -42,6 +59,56 @@ function buildEmailHtml(opts: {
     <table cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
       <tr><td style="background:#f97316;border-radius:10px;">
         <a href="${opts.claimUrl}" style="display:inline-block;padding:13px 28px;color:#ffffff;font-weight:700;font-size:15px;text-decoration:none;border-radius:10px;">View your free listing &rarr;</a>
+      </td></tr>
+    </table>
+    <p style="margin:0 0 4px;color:#1e293b;font-size:15px;">Andrew O&rsquo;Neill</p>
+    <p style="margin:0 0 2px;color:#64748b;font-size:13px;">Founder, TradePro Nexus</p>
+    <p style="margin:0 0 2px;color:#64748b;font-size:13px;">30-Year Construction Veteran</p>
+    <p style="margin:0 0 2px;color:#64748b;font-size:13px;">tradepronexus.com</p>
+    <p style="margin:0;color:#64748b;font-size:13px;">(561) 247-1381</p>
+  </td></tr>
+  <tr><td style="border-top:1px solid #e2e8f0;padding-top:20px;text-align:center;">
+    <p style="margin:0 0 6px;color:#94a3b8;font-size:11px;">TradePro Technologies LLC &middot; ${opts.physicalAddress}</p>
+    <p style="margin:0 0 6px;color:#94a3b8;font-size:11px;">This email is a commercial advertisement. Your listing was sourced from public ${opts.sourceState} state licensing records.</p>
+    <p style="margin:0;color:#94a3b8;font-size:11px;">
+      <a href="${opts.unsubscribeUrl}" style="color:#94a3b8;text-decoration:underline;">Unsubscribe</a>
+      &nbsp;&middot;&nbsp;
+      <a href="${opts.removeUrl}" style="color:#94a3b8;text-decoration:underline;">Remove My Listing</a>
+    </p>
+  </td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
+// FL re-send: they may have seen an outreach email from us before -- this one
+// leads with what changed (claiming used to be broken, now it's one tap).
+function buildResendEmailHtml(opts: {
+  sourceState: string;
+  claimUrl: string;
+  unsubscribeUrl: string;
+  removeUrl: string;
+  physicalAddress: string;
+}): string {
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;">
+<tr><td align="center" style="padding:40px 16px;">
+<table width="100%" style="max-width:560px;">
+  <tr><td style="padding-bottom:24px;">
+    <span style="font-size:18px;font-weight:700;color:#0f172a;">TradePro</span><span style="font-size:18px;font-weight:700;color:#f97316;">Nexus</span>
+  </td></tr>
+  <tr><td style="padding-bottom:20px;color:#1e293b;font-size:15px;line-height:1.7;">
+    <p style="margin:0 0 16px;">Hi,</p>
+    <p style="margin:0 0 16px;">You may have gotten an email from me a while back about your listing on TradePro Nexus. If claiming it gave you trouble, that was a real bug on our end, not you.</p>
+    <p style="margin:0 0 16px;"><strong>It's fixed now.</strong> Claiming your listing is one tap &mdash; no forms, no typing your email, nothing to fill out. Just confirm it's you.</p>
+    <table cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
+      <tr><td style="background:#f97316;border-radius:10px;">
+        <a href="${opts.claimUrl}" style="display:inline-block;padding:13px 28px;color:#ffffff;font-weight:700;font-size:15px;text-decoration:none;border-radius:10px;">Claim my free listing &rarr;</a>
       </td></tr>
     </table>
     <p style="margin:0 0 4px;color:#1e293b;font-size:15px;">Andrew O&rsquo;Neill</p>
@@ -105,6 +172,34 @@ function getRampInfo(startDateStr: string | undefined, todayUtc: string, capFrom
   return { dailyCap: capFromSettings, rampDay: daysElapsed + 1 };
 }
 
+// Walks the queue starting at startIndex, advancing past any phase whose
+// candidate pool is empty, and stopping (without advancing) at a phase whose
+// requires_flag isn't set to "true" yet.
+async function resolveBatch(
+  supabase: any,
+  queue: QueuePhase[],
+  startIndex: number,
+  batchSize: number,
+  settingsMap: Record<string, string>
+): Promise<{ batch: any[]; phase: QueuePhase | null; index: number; gated: boolean; queueComplete: boolean }> {
+  let index = startIndex;
+  while (index < queue.length) {
+    const phase = queue[index];
+    if (phase.requires_flag && settingsMap[phase.requires_flag] !== "true") {
+      return { batch: [], phase, index, gated: true, queueComplete: false };
+    }
+    const { data } = phase.mode === "resend"
+      ? await supabase.rpc("get_fl_resend_batch", { p_batch_size: batchSize })
+      : await supabase.rpc("get_next_outreach_batch", { p_batch_size: batchSize, p_state: phase.state });
+    const batch = data ?? [];
+    if (batch.length > 0) {
+      return { batch, phase, index, gated: false, queueComplete: false };
+    }
+    index++; // phase exhausted -- try the next one immediately
+  }
+  return { batch: [], phase: null, index, gated: false, queueComplete: true };
+}
+
 Deno.serve(async (req: Request) => {
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -133,7 +228,9 @@ Deno.serve(async (req: Request) => {
       "daily_emails_sent",
       "daily_emails_date",
       "outreach_daily_cap",
-      "outreach_state_filter",
+      "outreach_queue_json",
+      "outreach_queue_index",
+      "outreach_va_bounce_confirmed",
     ]);
 
   const sm: Record<string, string> = {};
@@ -178,30 +275,36 @@ Deno.serve(async (req: Request) => {
     batchSize = Math.min(batchSize, remaining);
   }
 
-  // ── Select eligible, not-yet-contacted profiles via DB anti-join ────────────
-  // Uses get_next_outreach_batch() RPC which does NOT EXISTS against outreach_log
-  // server-side. This is correct at any scale — no client-side filtering,
-  // no PostgREST 1K row cap, no over-fetch arithmetic.
-  // p_state = null shares the batch evenly across every state with eligible rows
-  // (no fixed priority order). outreach_state_filter restricts sends to one state
-  // at a time (e.g. "NC") — that's how state priority/sequencing is actually
-  // controlled operationally. OH is hard-excluded inside the RPC itself and
-  // cannot be sent to regardless of this filter.
-  const stateFilter = sm["outreach_state_filter"] || null;
+  // ── Walk the automatic state queue ──────────────────────────────────────────
+  let queue: QueuePhase[] = [];
+  try { queue = JSON.parse(sm["outreach_queue_json"] || "[]"); } catch { queue = []; }
+  const startIndex = parseInt(sm["outreach_queue_index"] ?? "0") || 0;
 
-  const { data: batchRaw, error: batchErr } = await supabase.rpc("get_next_outreach_batch", {
-    p_batch_size: batchSize,
-    p_state: stateFilter,
-  });
+  const resolved = await resolveBatch(supabase, queue, startIndex, batchSize, sm);
 
-  if (batchErr) {
+  if (resolved.gated) {
     return new Response(
-      JSON.stringify({ error: "Batch query failed", detail: batchErr.message }),
-      { headers: { "Content-Type": "application/json" }, status: 500 }
+      JSON.stringify({ skipped: "waiting_on_gate", phase: resolved.phase, requiresFlag: resolved.phase?.requires_flag }),
+      { headers: { "Content-Type": "application/json" } }
     );
   }
+  if (resolved.queueComplete) {
+    return new Response(JSON.stringify({ skipped: "queue_complete" }), {
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
-  const batch = batchRaw ?? [];
+  const batch = resolved.batch;
+  const phase = resolved.phase!;
+
+  // Persist auto-advancement (real runs only -- force_test previews the
+  // current phase without moving the queue forward)
+  if (!forceTest && resolved.index !== startIndex) {
+    await supabase.from("admin_settings").upsert(
+      [{ key: "outreach_queue_index", value: String(resolved.index) }],
+      { onConflict: "key" }
+    );
+  }
 
   let sent = 0;
   let failed = 0;
@@ -217,17 +320,19 @@ Deno.serve(async (req: Request) => {
       await supabase.from("unclaimed_profiles").update(updates).eq("id", profile.id);
     }
 
-    const html = buildEmailHtml({
-      businessName: profile.business_name,
-      licenseType: profile.license_type,
-      sourceState: profile.source_state,
-      claimUrl: `${SITE_URL}/build?claim=${claimToken}&business=${encodeURIComponent(profile.business_name)}`,
-      unsubscribeUrl: `${SITE_URL}/unsubscribe?token=${removeToken}&action=unsubscribe`,
-      removeUrl: `${SITE_URL}/unsubscribe?token=${removeToken}&action=remove`,
-      physicalAddress,
-    });
+    const claimUrl = `${SITE_URL}/build?claim=${claimToken}&business=${encodeURIComponent(profile.business_name)}`;
+    const unsubscribeUrl = `${SITE_URL}/unsubscribe?token=${removeToken}&action=unsubscribe`;
+    const removeUrl = `${SITE_URL}/unsubscribe?token=${removeToken}&action=remove`;
 
-    const subject = `Your contractor listing on TradePro Nexus`;
+    const isResend = phase.mode === "resend";
+    const html = isResend
+      ? buildResendEmailHtml({ sourceState: profile.source_state, claimUrl, unsubscribeUrl, removeUrl, physicalAddress })
+      : buildEmailHtml({ sourceState: profile.source_state, claimUrl, unsubscribeUrl, removeUrl, physicalAddress });
+
+    const subject = isResend
+      ? "We fixed it. Claiming your listing now takes one tap"
+      : "Your contractor listing on TradePro Nexus";
+
     const toEmail = testMode ? testEmail : profile.email;
 
     const result = toEmail
@@ -248,7 +353,7 @@ Deno.serve(async (req: Request) => {
         sendgrid_message_id: result.messageId,
         sent_at: result.ok ? new Date().toISOString() : null,
         error_detail: result.error,
-        email_number: 1,
+        email_number: isResend ? 5 : 1,
       });
     }
   }
@@ -271,6 +376,7 @@ Deno.serve(async (req: Request) => {
   return new Response(
     JSON.stringify({
       ok: true, sent, failed, candidates: batch.length, testMode,
+      phase: { state: phase.state, mode: phase.mode }, queueIndex: resolved.index,
       dailyCap, dailySent: dailySent + sent, rampDay,
     }),
     { headers: { "Content-Type": "application/json" } }
