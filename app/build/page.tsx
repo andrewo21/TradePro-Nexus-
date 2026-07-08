@@ -265,6 +265,11 @@ function BuildPageInner() {
         if (!data) return;
         setClaimData(data);
         setClaimTokenStatus("ok");
+        // The claim token already identifies the unclaimed_profiles record,
+        // which almost always has an email on file — pre-fill it so the
+        // magic-claim card never makes the user type it. Only falls back to
+        // a visible input if the record genuinely has none.
+        if (data.email) setMagicEmail(data.email);
         if (isAuthed) {
           setForm(prev => ({
             ...prev,
@@ -742,22 +747,25 @@ function BuildPageInner() {
                   </div>
                 ) : (
                   <>
-                    {/* Email + submit */}
+                    {/* Email comes from the claim token's unclaimed_profiles record --
+                        no input shown unless that record genuinely has no email on file. */}
                     <form onSubmit={handleMagicClaim} className="space-y-3">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">
-                          Enter your email to claim this profile
-                        </label>
-                        <input
-                          type="email"
-                          required
-                          value={magicEmail}
-                          onChange={e => setMagicEmail(e.target.value)}
-                          placeholder="you@company.com"
-                          autoComplete="email"
-                          className="w-full bg-slate-900 border border-slate-600 focus:border-orange-500 rounded-xl px-4 py-3 text-white text-base placeholder-slate-500 focus:outline-none transition-colors"
-                        />
-                      </div>
+                      {!claimData?.email && (
+                        <div>
+                          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">
+                            Enter your email to claim this profile
+                          </label>
+                          <input
+                            type="email"
+                            required
+                            value={magicEmail}
+                            onChange={e => setMagicEmail(e.target.value)}
+                            placeholder="you@company.com"
+                            autoComplete="email"
+                            className="w-full bg-slate-900 border border-slate-600 focus:border-orange-500 rounded-xl px-4 py-3 text-white text-base placeholder-slate-500 focus:outline-none transition-colors"
+                          />
+                        </div>
+                      )}
 
                       {magicError && (
                         <div className="bg-red-950/40 border border-red-800/50 text-red-400 text-sm rounded-xl px-4 py-3">
@@ -771,8 +779,8 @@ function BuildPageInner() {
                         className="w-full flex items-center justify-center gap-2 py-3.5 bg-orange-600 hover:bg-orange-500 disabled:opacity-50 text-white font-black rounded-xl text-base transition-colors"
                       >
                         {magicSubmitting
-                          ? <><Loader2 className="w-5 h-5 animate-spin" /> Setting up your profile...</>
-                          : <><CheckCircle className="w-5 h-5" /> Yes, this is my business</>
+                          ? <><Loader2 className="w-5 h-5 animate-spin" /> Verifying your account...</>
+                          : <><CheckCircle className="w-5 h-5" /> Accept and Verify</>
                         }
                       </button>
                     </form>
