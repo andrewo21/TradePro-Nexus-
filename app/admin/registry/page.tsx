@@ -63,6 +63,17 @@ interface StagingRecord {
   created_at: string;
 }
 
+interface OutreachEngagement {
+  totalSent: number;
+  delivered: number;
+  opened: number;
+  clicked: number;
+  bounced: number;
+  unsubscribed: number;
+  sentToday: number;
+  failed: number;
+}
+
 interface OutreachSettings {
   enabled: boolean;
   testMode: boolean;
@@ -76,7 +87,7 @@ interface OutreachSettings {
   dailySent: number;
   rampDay: number;
   startDate: string | null;
-  log: Record<string, number>;
+  engagement: OutreachEngagement;
 }
 
 interface StatusData {
@@ -507,10 +518,14 @@ export default function RegistryAdminPage() {
             )}
 
             <div className="mt-3 pt-3 border-t border-slate-700/50 flex flex-wrap gap-4 text-xs text-slate-400">
-              <span>Total sent: <span className="text-green-400 font-semibold">{(statusData.outreach.totalSentToDate ?? 0).toLocaleString()}</span></span>
-              <span>Today: <span className="text-green-400 font-semibold">{statusData.outreach.log.sent ?? 0}</span></span>
-              <span>Failed: <span className="text-red-400 font-semibold">{statusData.outreach.log.failed ?? 0}</span></span>
-              <span>Unsubscribed: <span className="text-slate-300 font-semibold">{statusData.outreach.log.unsubscribed ?? 0}</span></span>
+              <span>Total sent: <span className="text-green-400 font-semibold">{(statusData.outreach.engagement?.totalSent ?? 0).toLocaleString()}</span></span>
+              <span>Delivered: <span className="text-green-400 font-semibold">{(statusData.outreach.engagement?.delivered ?? 0).toLocaleString()}</span></span>
+              <span>Opened: <span className="text-blue-400 font-semibold">{(statusData.outreach.engagement?.opened ?? 0).toLocaleString()}</span></span>
+              <span>Clicked: <span className="text-blue-400 font-semibold">{(statusData.outreach.engagement?.clicked ?? 0).toLocaleString()}</span></span>
+              <span>Bounced: <span className="text-red-400 font-semibold">{(statusData.outreach.engagement?.bounced ?? 0).toLocaleString()}</span></span>
+              <span>Unsubscribed: <span className="text-slate-300 font-semibold">{(statusData.outreach.engagement?.unsubscribed ?? 0).toLocaleString()}</span></span>
+              <span>Failed: <span className="text-red-400 font-semibold">{(statusData.outreach.engagement?.failed ?? 0).toLocaleString()}</span></span>
+              <span>Sent today: <span className="text-green-400 font-semibold">{statusData.outreach.engagement?.sentToday ?? 0}</span></span>
               <span className="text-slate-500">
                 Last run: {statusData.outreach.lastRun === "never" ? "never" : toEasternTime(statusData.outreach.lastRun)}
               </span>

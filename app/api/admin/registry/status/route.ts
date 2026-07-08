@@ -74,14 +74,21 @@ export async function GET(request: NextRequest) {
   // Reset display to 0 if the counter is from a previous UTC day
   const dailySent = settingsMap.daily_emails_date === todayUtc ? rawDailySent : 0;
 
-  // Outreach log breakdown by status + total sent to date
-  const { data: outreachLog } = await db.from("outreach_log").select("status, is_test, email_number");
-  const outreachCounts: Record<string, number> = {};
-  let totalSentToDate = 0;
-  for (const row of outreachLog ?? []) {
-    outreachCounts[row.status] = (outreachCounts[row.status] ?? 0) + 1;
-    if (!row.is_test && row.email_number === 1 && row.status === "sent") totalSentToDate++;
-  }
+  // Real-time engagement stats, computed in SQL (not by pulling every
+  // outreach_log row into JS) so this scales as the table grows and so
+  // opened/clicked/delivered are actually counted -- they live in timestamp
+  // columns, not the `status` field, so a group-by-status query can never
+  // surface them no matter how often it's re-run.
+  const { data: engagementRows } = await db.rpc("outreach_engagement_summary");
+  const engagement = engagementRows?.[0] ?? {
+    total_sent: 0, delivered: 0, opened: 0, clicked: 0, bounced: 0, unsubscribed: 0, sent_today: 0,
+  };
+
+  const { count: failedCount } = await db
+    .from("outreach_log")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "failed")
+    .eq("is_test", false);
 
   return NextResponse.json({
     imports: imports ?? [],
@@ -99,8 +106,17 @@ export async function GET(request: NextRequest) {
       dailySent,
       rampDay,
       startDate: settingsMap.outreach_start_date ?? null,
-      totalSentToDate,
-      log: outreachCounts,
+      totalSentToDate: Number(engagement.total_sent),
+      engagement: {
+        totalSent: Number(engagement.total_sent),
+        delivered: Number(engagement.delivered),
+        opened: Number(engagement.opened),
+        clicked: Number(engagement.clicked),
+        bounced: Number(engagement.bounced),
+        unsubscribed: Number(engagement.unsubscribed),
+        sentToday: Number(engagement.sent_today),
+        failed: failedCount ?? 0,
+      },
     },
   });
 }

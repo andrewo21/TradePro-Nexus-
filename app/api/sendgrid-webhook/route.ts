@@ -5,6 +5,7 @@ import { getSupabaseAdmin } from "@/lib/supabaseServer";
 // Receives SendGrid Event Webhooks and writes engagement data back to outreach_log.
 //
 // Events handled:
+//   delivered      → delivered_at
 //   open           → opened_at
 //   click          → clicked_at
 //   bounce/blocked → bounced_at + status = 'bounced'
@@ -23,6 +24,7 @@ export const runtime = "nodejs";
 
 // SendGrid event type → which outreach_log field to set
 const EVENT_MAP: Record<string, { field: string; status?: string }> = {
+  delivered:         { field: "delivered_at" },
   open:              { field: "opened_at" },
   click:             { field: "clicked_at" },
   bounce:            { field: "bounced_at",       status: "bounced" },
