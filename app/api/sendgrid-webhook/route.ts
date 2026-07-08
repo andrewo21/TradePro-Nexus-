@@ -57,7 +57,13 @@ async function verifySignature(req: NextRequest, rawBody: Buffer): Promise<boole
   }
 
   try {
-    const { createVerify } = await import("crypto");
+    // Use the modern one-shot crypto.verify() rather than the legacy
+    // createVerify().update().verify() streaming API. The legacy Verify
+    // class does not reliably honor the `dsaEncoding` option for ECDSA
+    // keys — it was throwing "Malformed signature" even with dsaEncoding
+    // set, because it was still attempting to parse the raw IEEE P1363
+    // (r+s) signature as DER. The one-shot function respects it correctly.
+    const { verify: cryptoVerify } = await import("crypto");
 
     // Strip PEM headers/whitespace if the stored key already includes them,
     // then re-wrap so it parses regardless of how the value was pasted in.
@@ -70,15 +76,13 @@ async function verifySignature(req: NextRequest, rawBody: Buffer): Promise<boole
     // Sign over the raw bytes exactly as SendGrid sent them — string
     // concatenation risks an encoding mismatch, Buffer concatenation does not.
     const payload = Buffer.concat([Buffer.from(timestamp, "utf8"), rawBody]);
-    const verify  = createVerify("SHA256");
-    verify.update(payload);
+    const sigBuf  = Buffer.from(signature, "base64");
 
-    // SendGrid signs with ECDSA P-256; signature arrives in IEEE P1363 encoding
-    // (raw r+s), not DER. Node requires dsaEncoding to be set explicitly.
-    const result = verify.verify(
-      { key: pem, dsaEncoding: "ieee-p1363" } as Parameters<typeof verify.verify>[0],
-      signature,
-      "base64"
+    const result = cryptoVerify(
+      "sha256",
+      payload,
+      { key: pem, dsaEncoding: "ieee-p1363" },
+      sigBuf
     );
     if (!result) {
       diagLog(
