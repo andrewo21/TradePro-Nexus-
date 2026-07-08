@@ -1,5 +1,38 @@
 # TradePro Nexus — Product Roadmap
 
+## ✅ JULY 8 2026 — Outreach dashboard stats fix + fully automatic queue + LIVE
+
+Root cause of "stale" outreach stats: not caching (Route Handlers aren't
+cached by default in this Next.js version, confirmed via docs) — the status
+route grouped outreach_log by the `status` column only, and opened_at/
+clicked_at/delivered_at are separate timestamp columns that never touch
+`status`, so opened/clicked could never appear no matter how often the page
+was refreshed. Added `delivered_at` tracking (SendGrid's `delivered` event
+was previously ignored entirely) and a SQL `outreach_engagement_summary()`
+aggregate replacing a full-table JS loop. Dashboard now shows real total
+sent, delivered, opened, clicked, bounced, and unsubscribed. Verified live
+by inserting/updating/deleting a throwaway row and watching the numbers
+move instantly.
+
+Outreach queue is now fully automatic: `admin_settings.outreach_queue_json`
+holds an ordered phase list (NC → NJ → FL re-send → VA), `outreach_queue_index`
+auto-advances the moment a phase's candidate pool hits zero — no more
+manually flipping `outreach_state_filter`. New `get_fl_resend_batch()` RPC
+makes the FL "re-contact the full eligible list" phase possible at all
+(the standard batch RPC can only ever select records with zero
+`outreach_log` history by design), tagged `email_number = 5` with its own
+template that leads with "we fixed the bug" instead of repeating the
+original pitch. VA requires a human to set
+`outreach_va_bounce_confirmed = 'true'` after checking the SendGrid
+dashboard directly — never set automatically. All four states of the queue
+logic (active phase, gated phase, exhausted-phase auto-advance, queue
+complete) verified against the live function before calling this done.
+
+**Outreach is now enabled and running.** First real NC batch fired
+successfully (100 sent, 0 failed) immediately after enabling.
+
+---
+
 ## ✅ JULY 7-8 2026 — COMPLETE (Account Creation Incident, Claim Flow, Raffle, Outreach, Stats, Onboarding Drip)
 
 **Account creation incident:** organic `/signup` used client-side `supabase.auth.signUp()`
