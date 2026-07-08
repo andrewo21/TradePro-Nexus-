@@ -205,7 +205,7 @@ export default function LandingPage() {
         <div className="max-w-4xl mx-auto text-center">
           {/* Badge */}
           <div className="inline-flex items-center bg-[#1e293b] border border-[#f97316]/40 text-[#f97316] text-xs font-bold px-3 py-1.5 rounded-full mb-6">
-            Now Live in 7 States
+            Now Live in 16 States
           </div>
 
           {/* H1 */}
@@ -256,12 +256,12 @@ export default function LandingPage() {
               <p className="text-3xl font-black text-white mb-1">
                 {directoryCount > 0
                   ? `${directoryCount.toLocaleString()}+`
-                  : "500,000+"}
+                  : "828,486+"}
               </p>
               <p className="text-[#64748b] text-sm">Licensed contractors listed</p>
             </div>
             <div className="bg-[#1e293b] border border-[#334155] rounded-2xl p-6 text-center">
-              <p className="text-3xl font-black text-[#f97316] mb-1">7</p>
+              <p className="text-3xl font-black text-[#f97316] mb-1">16</p>
               <p className="text-[#64748b] text-sm">States covered</p>
             </div>
             <div className="bg-[#1e293b] border border-[#334155] rounded-2xl p-6 text-center">
@@ -360,7 +360,7 @@ export default function LandingPage() {
                 </h3>
               </div>
               <p className="text-[#64748b] text-sm mb-5">
-                Stop calling buddies. Search 500,000+ verified contractors by
+                Stop calling buddies. Search 828,486+ verified contractors by
                 trade, state, and availability.
               </p>
               <div className="space-y-3">
@@ -369,7 +369,7 @@ export default function LandingPage() {
                     <Search className="w-5 h-5 text-[#f97316] flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="text-[#0f172a] font-bold text-sm mb-1">
-                        Search 500,000+ Contractors
+                        Search 828,486+ Contractors
                       </p>
                       <p className="text-[#64748b] text-sm leading-relaxed">
                         Filter by trade, state, city, union status, and
@@ -451,7 +451,7 @@ export default function LandingPage() {
                 Get discovered or start searching
               </h3>
               <p className="text-[#94a3b8] text-sm leading-relaxed">
-                GCs find you by trade and location. Or search 500,000+ licensed
+                GCs find you by trade and location. Or search 828,486+ licensed
                 contractors yourself.
               </p>
             </div>
