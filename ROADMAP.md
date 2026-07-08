@@ -1,5 +1,76 @@
 # TradePro Nexus — Product Roadmap
 
+## ✅ JULY 7-8 2026 — COMPLETE (Account Creation Incident, Claim Flow, Raffle, Outreach, Stats, Onboarding Drip)
+
+**Account creation incident:** organic `/signup` used client-side `supabase.auth.signUp()`
+(requires email confirmation) while the claim flow used the admin API
+(auto-confirmed). A stale unconfirmed `auth.users` row plus cross-device PKCE
+failure meant a real signup attempt silently failed with no error logged and
+no `profiles` row created. Fixed: single auto-confirm auth model for both
+flows (`POST /api/auth/signup` via admin API), silent-failure logging added,
+welcome email fires synchronously and is verified before any success screen
+renders. Verified end-to-end via Playwright through the real production UI.
+
+**Claim flow, one page one button regardless of auth state:** an
+already-signed-in user clicking a claim link previously fell through to the
+full 6-step builder wizard instead of the fast prefilled card unauthenticated
+recipients get. `POST /api/registry/claim` now creates the `profiles` row
+and sends the welcome email itself (mirroring claim-magic), and `/build`
+shows the same one-page card with a single "Verify Account" button
+regardless of login state.
+
+**Removed the global "launching soon" waitlist banner** from every page —
+linked to a `/#waitlist` anchor that didn't exist anywhere, and contradicted
+the live product (signup is instant, not a waitlist).
+
+**Milwaukee M18 raffle system** (running through August 1, gated by
+`RAFFLE_ACTIVE` env var, not yet set in Vercel): `profiles.referral_code`
+(unique 6-char, backfilled for all existing users), `referral_entries` table,
+qualification (1 post + 2 referrals) via the `raffle_entrants` view,
+`/account` status widget, `/admin/raffle` entrant list + Pick Winner,
+homepage + Live Feed banners fetching `/api/raffle/config` live (not baked
+into static HTML) so the toggle takes effect with no redeploy.
+
+**SendGrid webhook root cause found and fixed:** every single engagement
+webhook call had been returning 401 for two-plus weeks — `opened_at`,
+`clicked_at`, `bounced_at` were 100% null across 15,027 sends. A prior fix
+(commit `3b3536c`) had diagnosed this backwards: it assumed SendGrid sends
+raw IEEE P1363 ECDSA signatures and forced `dsaEncoding: 'ieee-p1363'`, but
+SendGrid actually sends standard DER-encoded signatures (confirmed via
+diagnostic logging: observed signature length was 96 base64 chars, variable
+DER length, not P1363's fixed 88). Removed the override. Verified live —
+real opens/clicks/bounces now populating (VA bounce rate 2.72%, under the
+3% resume threshold, though Andrew still wants this cross-checked against
+the SendGrid dashboard directly since 2+ weeks of pre-fix bounces may not
+have backfilled).
+
+**Outreach queue priority:** `get_next_outreach_batch` now hard-excludes
+`source_state = 'OH'` unconditionally (verified: explicit `p_state='OH'`
+request returns 0 rows). `outreach_state_filter` staged to `'NC'` (next in
+the FL-warm-lead-resend → NC → NJ → VA order). `outreach_enabled` still
+`false` — nothing sends until explicitly authorized. FL warm-lead resend
+(clicked, no account, not bounced/unsubscribed) currently matches 0
+records; needs re-checking now that the webhook actually records clicks.
+
+**Stats corrected platform-wide:** the "828,487" contractor count (off by
+one from live truth, 828,486) fixed across advertise, pro/[slug], search,
+work, DesktopAdRail, FeedAdCard, FeedRightSidebar, manifest.json. Homepage
+hero's stale "7 States" corrected to "16 States" (verified live). "18,208
+verified multi-state contractors" has no existing display anywhere and no
+query matched that number — flagged rather than guessed at.
+
+**4-email onboarding drip** (`send-onboarding-drip`, daily cron 15:00 UTC):
+Email 1 ("Trade Card is live") is the existing synchronous welcome email,
+not duplicated. Days 3/7/14 each deliver one single action — add a photo,
+set availability, make your first post — tracked via three new `profiles`
+columns, sourcing recipient email from `auth.users` (most claim-flow
+profiles never populate `profiles.email` directly — only 5 of 21 real
+profiles had it set). Existing profiles backfilled as already-sent so this
+doesn't retroactively blast everyone. Verified end-to-end via a real
+force-test send.
+
+---
+
 ## 🔄 PWA APP STORE PREP, IN PROGRESS (PWABuilder Audit Fixes)
 
 PWABuilder audit at pwabuilder.com was showing 34 out of 45. Target is 40 or
