@@ -10,12 +10,12 @@ export async function GET() {
     const db = getSupabaseAdmin() as any;
 
     const [profileRes, companyRes, waitlistRes, verifiedRes, directoryRes, legacyRes] = await Promise.all([
-      db.from("profiles").select("*", { count: "exact", head: true }),
+      db.from("profiles").select("*", { count: "exact", head: true }).eq("is_admin", false),
       db.from("companies").select("*", { count: "exact", head: true }),
       db.from("waitlist").select("*", { count: "exact", head: true }),
-      db.from("profiles").select("*", { count: "exact", head: true }).eq("verification_status", "verified").neq("profile_type", "tradepro"),
+      db.from("profiles").select("*", { count: "exact", head: true }).eq("verification_status", "verified").neq("profile_type", "tradepro").eq("is_admin", false),
       db.from("unclaimed_profiles").select("*", { count: "exact", head: true }).eq("visible", true).eq("is_core_state", true),
-      db.from("profiles").select("*", { count: "exact", head: true }).eq("legacy_member_eligible", true).eq("is_seed_account", false),
+      db.from("profiles").select("*", { count: "exact", head: true }).eq("legacy_member_eligible", true).eq("is_seed_account", false).eq("is_admin", false),
     ]);
 
     return NextResponse.json({

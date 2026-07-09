@@ -45,6 +45,18 @@ function LegacyBadge({ legacyMember }: { legacyMember: boolean }) {
   );
 }
 
+// Founder badge — exactly one profile on the platform. Distinct navy/orange
+// treatment so it never gets confused with the gold Legacy or blue Union badges.
+function FounderBadge({ isAdmin }: { isAdmin: boolean }) {
+  if (!isAdmin) return null;
+  return (
+    <span className="inline-flex items-center gap-1.5 font-black text-white bg-gradient-to-r from-slate-900 to-slate-800 border border-orange-500/60 px-3 py-1.5 rounded-xl shadow shadow-orange-900/30">
+      <ShieldCheck className="w-3.5 h-3.5 flex-shrink-0 text-orange-400" />
+      <span className="text-[11px] font-black tracking-wide">FOUNDER</span>
+    </span>
+  );
+}
+
 // Union Member badge — self-reported only, never auto-assigned.
 // Prominently styled in IBEW/union blue to signal union affiliation at a glance.
 function UnionBadge({ unionMember, unionName, unionLocalNumber }: {
@@ -105,6 +117,9 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
 
   // Legacy member
   const legacyMember = !!(profile as any).legacy_member;
+
+  // Admin/founder profile — excluded from outreach, raffle, and public stats counts
+  const isAdmin = !!(profile as any).is_admin;
 
   // Union fields — self-reported, optional
   const unionMember = !!(profile as any).union_member;
@@ -179,6 +194,7 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
                 <div>
                   <h1 className="text-xl font-black text-white flex items-center gap-2 flex-wrap">
                     {profile.first_name} {profile.last_name}
+                    <FounderBadge isAdmin={isAdmin} />
                     <LegacyBadge legacyMember={legacyMember} />
                     <UnionBadge
                       unionMember={unionMember}
@@ -186,6 +202,7 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
                       unionLocalNumber={unionLocalNumber}
                     />
                   </h1>
+                  {isAdmin && <p className="text-slate-300 text-sm font-bold">Founder, TradePro Nexus</p>}
                   <p className="text-orange-400 font-semibold">{profile.trade}</p>
                 </div>
                 <VerificationBadge status={profile.verification_status ?? "pending"} profileType={profileType} />
@@ -237,7 +254,7 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
           {/* Profile type badge + firm name */}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <span className="text-[10px] font-bold text-slate-400 bg-slate-800 border border-slate-700 px-2 py-0.5 rounded-full uppercase tracking-widest">
-              {typeConfig.label}
+              {isAdmin ? "Founder" : typeConfig.label}
             </span>
             {firmName && <span className="text-xs text-slate-400">{firmName}</span>}
           </div>
