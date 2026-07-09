@@ -11,6 +11,7 @@ import ProfileViewTracker from "@/components/ProfileViewTracker";
 import { PROFILE_TYPES, canBeVerified } from "@/lib/constants";
 import BadgeDisplay from "@/components/BadgeDisplay";
 import OwnerProfileBar from "@/components/OwnerProfileBar";
+import RaffleStatus from "@/components/RaffleStatus";
 
 function VerificationBadge({ status, profileType }: { status: string; profileType: string }) {
   // Individual trade workers are never verified — show nothing at all.
@@ -154,6 +155,8 @@ export default async function TradeCardPage({ params }: { params: Promise<{ slug
             initialYears={(profile as any).years_experience ?? 0}
           />
         )}
+
+        {isOwner && <RaffleStatus />}
 
         {/* Trade Card sponsor banner -- full width, 90px, below header */}
         <a

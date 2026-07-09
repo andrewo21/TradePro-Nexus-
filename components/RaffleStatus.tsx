@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Copy, Check, Gift, CheckCircle2, Circle } from "lucide-react";
+import { Copy, Check, Gift, CheckCircle2, Circle, Share2 } from "lucide-react";
 
 type Status = {
   referralCode: string | null;
@@ -14,6 +14,7 @@ type Status = {
 };
 
 export default function RaffleStatus() {
+  const [active, setActive] = useState(false);
   const [status, setStatus] = useState<Status | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -24,9 +25,16 @@ export default function RaffleStatus() {
     } catch { /* ignore */ }
   }, []);
 
-  useEffect(() => { fetchStatus(); }, [fetchStatus]);
+  useEffect(() => {
+    fetch("/api/raffle/config")
+      .then(res => res.ok ? res.json() : null)
+      .then(data => setActive(!!data?.active))
+      .catch(() => {});
+  }, []);
 
-  if (!status || !status.referralLink) return null;
+  useEffect(() => { if (active) fetchStatus(); }, [active, fetchStatus]);
+
+  if (!active || !status || !status.referralLink) return null;
 
   function copyLink() {
     if (!status?.referralLink) return;
@@ -36,9 +44,19 @@ export default function RaffleStatus() {
     }).catch(() => {});
   }
 
+  function shareLink() {
+    if (!status?.referralLink) return;
+    const shareText = "Join me on TradePro Nexus and I get an entry in the Milwaukee M18 raffle. Sign up free:";
+    if (navigator.share) {
+      navigator.share({ title: "TradePro Nexus", text: shareText, url: status.referralLink }).catch(() => {});
+    } else {
+      copyLink();
+    }
+  }
+
   return (
     <div className="bg-slate-800/60 border border-slate-700/50 rounded-2xl p-5 mb-4">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
         <h2 className="text-xs font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
           <Gift className="w-3.5 h-3.5 text-orange-400" /> Milwaukee M18 Raffle
         </h2>
@@ -53,40 +71,56 @@ export default function RaffleStatus() {
         )}
       </div>
 
-      {status.qualified ? (
+      {status.qualified && (
         <div className="bg-green-950/30 border border-green-800/40 rounded-xl p-4 mb-4">
           <p className="text-sm font-bold text-green-400 mb-1">You are entered to win.</p>
           <p className="text-xs text-slate-400">Drawing August 1st. We will email the winner directly.</p>
         </div>
-      ) : (
-        <div className="bg-slate-900/60 border border-slate-700/40 rounded-xl p-4 mb-4 space-y-2">
-          <div className="flex items-center gap-2 text-xs">
-            {status.hasPost ? <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" /> : <Circle className="w-4 h-4 text-slate-600 flex-shrink-0" />}
-            <span className={status.hasPost ? "text-slate-300" : "text-slate-500"}>Create one post on the Live Feed</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            {status.referralCount >= 2 ? <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" /> : <Circle className="w-4 h-4 text-slate-600 flex-shrink-0" />}
-            <span className={status.referralCount >= 2 ? "text-slate-300" : "text-slate-500"}>Refer 2 friends who sign up ({status.referralCount}/2)</span>
-          </div>
-        </div>
       )}
 
+      <div className="bg-slate-900/60 border border-slate-700/40 rounded-xl p-4 mb-4 space-y-2">
+        <div className="flex items-center gap-2 text-xs">
+          <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
+          <span className="text-slate-300">Signed up</span>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          {status.hasPost ? <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" /> : <Circle className="w-4 h-4 text-slate-600 flex-shrink-0" />}
+          <span className={status.hasPost ? "text-slate-300" : "text-slate-500"}>Posted once on the Live Feed</span>
+        </div>
+        <div className="flex items-center gap-2 text-xs">
+          {status.referralCount >= 2 ? <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" /> : <Circle className="w-4 h-4 text-slate-600 flex-shrink-0" />}
+          <span className={status.referralCount >= 2 ? "text-slate-300" : "text-slate-500"}>Referred 2 friends ({Math.min(status.referralCount, 2)}/2)</span>
+        </div>
+      </div>
+
       <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Your referral link</p>
-      <div className="flex items-center gap-2">
-        <div className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 font-mono truncate">
+      <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap mb-3">
+        <div className="w-full sm:flex-1 sm:min-w-0 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 font-mono truncate">
           {status.referralLink}
         </div>
-        <button
-          onClick={copyLink}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors flex-shrink-0 ${
-            copied
-              ? "bg-green-700/30 border-green-700/50 text-green-400"
-              : "bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
-          }`}
-        >
-          {copied ? <><Check className="w-3.5 h-3.5" /> Copied</> : <><Copy className="w-3.5 h-3.5" /> Copy</>}
-        </button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            onClick={copyLink}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-colors ${
+              copied
+                ? "bg-green-700/30 border-green-700/50 text-green-400"
+                : "bg-slate-700 border-slate-600 text-white hover:bg-slate-600"
+            }`}
+          >
+            {copied ? <><Check className="w-3.5 h-3.5" /> Copied</> : <><Copy className="w-3.5 h-3.5" /> Copy Link</>}
+          </button>
+          <button
+            onClick={shareLink}
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 bg-orange-600 hover:bg-orange-500 text-white text-xs font-bold rounded-xl transition-colors"
+          >
+            <Share2 className="w-3.5 h-3.5" /> Share
+          </button>
+        </div>
       </div>
+
+      <p className="text-xs text-slate-500">
+        Share your link with 2 friends. When they sign up you get credit toward the raffle.
+      </p>
     </div>
   );
 }
