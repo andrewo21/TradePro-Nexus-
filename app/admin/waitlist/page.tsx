@@ -4,8 +4,7 @@ import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import { getSupabaseAdmin, getSupabaseServer } from "@/lib/supabaseServer";
 import NewsFeedAdmin from "@/components/NewsFeedAdmin";
-
-const ADMIN_EMAIL = "andrew@tradeprotech.ai";
+import { ADMIN_EMAILS } from "@/lib/constants";
 
 interface WaitlistRow {
   id: string;
@@ -21,7 +20,7 @@ interface WaitlistRow {
 export default async function AdminWaitlistPage() {
   const supabase = await getSupabaseServer() as any;
   const { data: { user } } = await supabase.auth.getUser();
-  if (user?.email !== ADMIN_EMAIL) notFound();
+  if (!ADMIN_EMAILS.includes(user?.email ?? "")) notFound();
 
   const db = getSupabaseAdmin() as any;
 

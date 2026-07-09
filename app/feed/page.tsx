@@ -13,7 +13,7 @@ import {
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
-import { canBeVerified } from "@/lib/constants";
+import { canBeVerified, ADMIN_EMAILS } from "@/lib/constants";
 import FeedAdCard from "@/components/FeedAdCard";
 import DesktopAdRail from "@/components/DesktopAdRail";
 import BadgeCelebration from "@/components/BadgeCelebration";
@@ -1186,7 +1186,7 @@ function FeedPageInner() {
       if (!user) return;
       setCurrentUser(user);
       setIsGC(user.user_metadata?.role === "gc");
-      setIsAdmin(user.email === "andrew@tradeprotech.ai");
+      setIsAdmin(ADMIN_EMAILS.includes(user.email ?? ""));
 
       // Onboarding: show for any logged-in user who hasn't dismissed or posted yet
       if (typeof window !== "undefined" && localStorage.getItem("feed_onboarding_dismissed") !== "1") {

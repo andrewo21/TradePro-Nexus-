@@ -6,8 +6,7 @@ import Navbar from "@/components/Navbar";
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
 import type { Job } from "@/types/database";
-
-const ADMIN_EMAIL = "andrew@tradeprotech.ai";
+import { ADMIN_EMAILS } from "@/lib/constants";
 
 const STATUS_STYLE: Record<string, string> = {
   pending: "text-yellow-400 bg-yellow-900/20 border-yellow-800/40",
@@ -46,7 +45,7 @@ export default function AdminJobsPage() {
   useEffect(() => {
     const db = getSupabase();
     db?.auth.getUser().then(({ data: { user } }) => {
-      if (user?.email === ADMIN_EMAIL) {
+      if (ADMIN_EMAILS.includes(user?.email ?? "")) {
         setAuthorized(true);
         fetchJobs();
       } else {

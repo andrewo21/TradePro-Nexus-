@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { getSupabase } from "@/lib/supabase";
+import { ADMIN_EMAILS } from "@/lib/constants";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -231,7 +232,7 @@ export default function RegistryAdminPage() {
 
   useEffect(() => {
     getSupabase()?.auth.getUser().then(({ data: { user } }) => {
-      if (user?.email !== "andrew@tradeprotech.ai") router.push("/");
+      if (!ADMIN_EMAILS.includes(user?.email ?? "")) router.push("/");
     });
     fetchStatus();
   }, [fetchStatus, router]);

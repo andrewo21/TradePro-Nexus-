@@ -3,14 +3,14 @@
 // global suppression list. Run once after any bulk suppression changes.
 import { NextResponse } from "next/server";
 import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabaseServer";
+import { ADMIN_EMAILS } from "@/lib/constants";
 
 const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY_NEXUS ?? "";
-const ADMIN_EMAIL      = "andrew@tradeprotech.ai";
 
 export async function POST() {
   const authDb = await getSupabaseServer();
   const { data: { user } } = await (authDb as any).auth.getUser();
-  if (user?.email !== ADMIN_EMAIL) {
+  if (!ADMIN_EMAILS.includes(user?.email ?? "")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

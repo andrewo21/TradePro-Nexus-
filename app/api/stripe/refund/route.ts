@@ -1,14 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabaseServer";
+import { ADMIN_EMAILS } from "@/lib/constants";
 import { stripe, VERIFICATION_REFUND_CENTS } from "@/lib/stripe";
-
-const ADMIN_EMAIL = "andrew@tradeprotech.ai";
 
 export async function POST(request: NextRequest) {
   try {
     const authDb = (await getSupabaseServer()) as any;
     const { data: { user } } = await authDb.auth.getUser();
-    if (user?.email !== ADMIN_EMAIL) {
+    if (!ADMIN_EMAILS.includes(user?.email ?? "")) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 403 });
     }
 

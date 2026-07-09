@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabaseServer";
+import { ADMIN_EMAILS } from "@/lib/constants";
 
-const ADMIN_EMAIL      = "andrew@tradeprotech.ai";
 const SENDGRID_KEY     = process.env.SENDGRID_API_KEY_NEXUS ?? "";
 const FROM_EMAIL       = "andrew@tradepronexus.com";
 const FROM_NAME        = "Andrew O'Neill at TradePro Nexus";
@@ -136,7 +136,7 @@ export async function POST(req: NextRequest) {
   // Admin auth check
   const authDb = await getSupabaseServer();
   const { data: { user: adminUser } } = await (authDb as any).auth.getUser();
-  if (adminUser?.email !== ADMIN_EMAIL) {
+  if (!ADMIN_EMAILS.includes(adminUser?.email ?? "")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

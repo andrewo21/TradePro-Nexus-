@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseServer } from "@/lib/supabaseServer";
+import { ADMIN_EMAILS } from "@/lib/constants";
 
 export async function POST(_req: NextRequest) {
   const supabase = await getSupabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
-  if (user?.email !== "andrew@tradeprotech.ai") {
+  if (!ADMIN_EMAILS.includes(user?.email ?? "")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

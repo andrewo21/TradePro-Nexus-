@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabaseServer";
-
-const ADMIN_EMAIL = "andrew@tradeprotech.ai";
+import { ADMIN_EMAILS } from "@/lib/constants";
 
 async function getAuthorId(db: any, user: any): Promise<{ id: string; type: "profile" | "company" } | null> {
   const [profRes, compRes] = await Promise.all([
@@ -45,7 +44,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   const { data: { user } } = await db.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
-  const isAdmin = user.email === ADMIN_EMAIL;
+  const isAdmin = ADMIN_EMAILS.includes(user.email ?? "");
 
   if (isAdmin) {
     // Admin can delete any post — use service role to bypass RLS

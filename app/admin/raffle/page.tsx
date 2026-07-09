@@ -4,8 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Loader2, Gift, Trophy, Mail } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import { getSupabase } from "@/lib/supabase";
-
-const ADMIN_EMAIL = "andrew@tradeprotech.ai";
+import { ADMIN_EMAILS } from "@/lib/constants";
 
 type Entrant = {
   user_id: string;
@@ -42,7 +41,7 @@ export default function AdminRafflePage() {
   useEffect(() => {
     const db = getSupabase();
     db?.auth.getUser().then(({ data: { user } }) => {
-      if (user?.email === ADMIN_EMAIL) {
+      if (ADMIN_EMAILS.includes(user?.email ?? "")) {
         setAuthorized(true);
         fetchEntrants();
       } else {

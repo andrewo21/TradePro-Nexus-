@@ -7,15 +7,15 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabaseServer";
+import { ADMIN_EMAILS } from "@/lib/constants";
 import { cleanPhone, isValidEmail } from "@/lib/scraper/utils";
 
-const ADMIN_EMAIL = "andrew@tradeprotech.ai";
 const QUALITY_THRESHOLD = 6;
 
 export async function POST(request: NextRequest) {
   const authDb = (await getSupabaseServer()) as any;
   const { data: { user } } = await authDb.auth.getUser();
-  if (user?.email !== ADMIN_EMAIL) {
+  if (!ADMIN_EMAILS.includes(user?.email ?? "")) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 403 });
   }
 

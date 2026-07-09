@@ -5,8 +5,7 @@ import { Trash2, Loader2, Newspaper, HardHat, Building2, RefreshCw, ShieldCheck,
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
-
-const ADMIN_EMAIL = "andrew@tradeprotech.ai";
+import { ADMIN_EMAILS } from "@/lib/constants";
 
 interface Post {
   id: string;
@@ -86,7 +85,7 @@ export default function ModerationPage() {
   useEffect(() => {
     const db = getSupabase();
     db?.auth.getUser().then(({ data: { user } }) => {
-      if (user?.email === ADMIN_EMAIL) {
+      if (ADMIN_EMAILS.includes(user?.email ?? "")) {
         setAuthorized(true);
         fetchPosts();
       } else {

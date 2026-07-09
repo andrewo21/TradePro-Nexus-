@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabaseServer";
+import { ADMIN_EMAILS } from "@/lib/constants";
 
-const ADMIN_EMAIL = "andrew@tradeprotech.ai";
 const VALID_STATUSES = ["pending", "approved", "removed"];
 
 // PATCH /api/jobs/[id] — admin: approve / unapprove / remove a job posting
@@ -9,7 +9,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const { id } = await params;
   const db = (await getSupabaseServer()) as any;
   const { data: { user } } = await db.auth.getUser();
-  if (user?.email !== ADMIN_EMAIL) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!ADMIN_EMAILS.includes(user?.email ?? "")) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const { status } = await request.json() as { status: string };
   if (!VALID_STATUSES.includes(status)) {
@@ -27,7 +27,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   const { id } = await params;
   const db = (await getSupabaseServer()) as any;
   const { data: { user } } = await db.auth.getUser();
-  if (user?.email !== ADMIN_EMAIL) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!ADMIN_EMAILS.includes(user?.email ?? "")) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const adminDb = getSupabaseAdmin() as any;
   const { error } = await adminDb.from("jobs").delete().eq("id", id);

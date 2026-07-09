@@ -323,3 +323,7 @@ export const AVAILABILITY_CONFIG = {
     dot: "bg-red-400",
   },
 } as const;
+
+// Emails allowed into /admin/* pages -- keep in sync with ADMIN_ALLOWED_EMAILS
+// in proxy.ts, which gates the /api/admin/* routes those pages call.
+export const ADMIN_EMAILS: string[] = ["andrew@tradepronexus.com", "andrew@tradeprotech.ai"];

@@ -5,9 +5,9 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabaseServer";
+import { ADMIN_EMAILS } from "@/lib/constants";
 import { parseCSV, normalizeCsvRecord, isValidLicenseNumber } from "@/lib/scraper/utils";
 
-const ADMIN_EMAIL = "andrew@tradeprotech.ai";
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
 export async function POST(
@@ -19,7 +19,7 @@ export async function POST(
 
   const authDb = (await getSupabaseServer()) as any;
   const { data: { user } } = await authDb.auth.getUser();
-  if (user?.email !== ADMIN_EMAIL) {
+  if (!ADMIN_EMAILS.includes(user?.email ?? "")) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 403 });
   }
 

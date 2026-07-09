@@ -10,7 +10,7 @@ import {
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
 import { getSupabase } from "@/lib/supabase";
-import { ALL_TRADES } from "@/lib/constants";
+import { ALL_TRADES, ADMIN_EMAILS } from "@/lib/constants";
 import { Building2, HardHat } from "lucide-react";
 
 const US_STATES = [
@@ -35,7 +35,7 @@ export default function AdminCreateProfilePage() {
   const [authed, setAuthed] = useState<boolean | null>(null);
   useState(() => {
     getSupabase()?.auth.getUser().then(({ data: { user } }) => {
-      if (user?.email !== "andrew@tradeprotech.ai") {
+      if (!ADMIN_EMAILS.includes(user?.email ?? "")) {
         router.replace("/");
       } else {
         setAuthed(true);

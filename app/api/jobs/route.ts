@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseAdmin, getSupabaseServer } from "@/lib/supabaseServer";
-import { JOB_TYPES, UNION_JOB_REQUIREMENTS } from "@/lib/constants";
+import { JOB_TYPES, UNION_JOB_REQUIREMENTS, ADMIN_EMAILS } from "@/lib/constants";
 
-const ADMIN_EMAIL = "andrew@tradeprotech.ai";
 const MAX_NOTIFICATIONS = 10;
 
 async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }) {
@@ -81,7 +80,7 @@ function matchNotificationEmail({ firstName, trade, location }: { firstName: str
 export async function GET(request: NextRequest) {
   const auth = (await getSupabaseServer()) as any;
   const { data: { user } } = await auth.auth.getUser();
-  if (user?.email !== ADMIN_EMAIL) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!ADMIN_EMAILS.includes(user?.email ?? "")) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const db = getSupabaseAdmin() as any;
   const { data, error } = await db.from("jobs").select("*").order("created_at", { ascending: false });

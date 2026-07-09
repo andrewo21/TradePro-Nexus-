@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabaseServer";
-
-const ADMIN_EMAIL = "andrew@tradeprotech.ai";
+import { ADMIN_EMAILS } from "@/lib/constants";
 
 export async function POST() {
   const supabase = (await getSupabaseServer()) as any;
   const { data: { user } } = await supabase.auth.getUser();
-  if (user?.email !== ADMIN_EMAIL) {
+  if (!ADMIN_EMAILS.includes(user?.email ?? "")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
@@ -29,7 +28,7 @@ export async function POST() {
 export async function PATCH(request: Request) {
   const supabase = (await getSupabaseServer()) as any;
   const { data: { user } } = await supabase.auth.getUser();
-  if (user?.email !== ADMIN_EMAIL) {
+  if (!ADMIN_EMAILS.includes(user?.email ?? "")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 

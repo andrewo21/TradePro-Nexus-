@@ -5,8 +5,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseServer, getSupabaseAdmin } from "@/lib/supabaseServer";
-
-const ADMIN_EMAIL = "andrew@tradeprotech.ai";
+import { ADMIN_EMAILS } from "@/lib/constants";
 
 // Keys that are allowed to be changed via this endpoint
 const ALLOWED_KEYS = [
@@ -20,7 +19,7 @@ const ALLOWED_KEYS = [
 export async function PATCH(request: NextRequest) {
   const authDb = (await getSupabaseServer()) as any;
   const { data: { user } } = await authDb.auth.getUser();
-  if (user?.email !== ADMIN_EMAIL) {
+  if (!ADMIN_EMAILS.includes(user?.email ?? "")) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 403 });
   }
 
