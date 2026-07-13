@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
   // surface them no matter how often it's re-run.
   const { data: engagementRows } = await db.rpc("outreach_engagement_summary");
   const engagement = engagementRows?.[0] ?? {
-    total_sent: 0, delivered: 0, opened: 0, clicked: 0, bounced: 0, unsubscribed: 0, sent_today: 0,
+    total_sent: 0, delivered: 0, opened: 0, clicked: 0, real_clicks: 0, bounced: 0, unsubscribed: 0, sent_today: 0,
   };
 
   const { count: failedCount } = await db
@@ -111,6 +111,7 @@ export async function GET(request: NextRequest) {
         delivered: Number(engagement.delivered),
         opened: Number(engagement.opened),
         clicked: Number(engagement.clicked),
+        realClicks: Number(engagement.real_clicks ?? 0),
         bounced: Number(engagement.bounced),
         unsubscribed: Number(engagement.unsubscribed),
         sentToday: Number(engagement.sent_today),

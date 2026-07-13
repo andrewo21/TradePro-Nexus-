@@ -69,6 +69,7 @@ interface OutreachEngagement {
   delivered: number;
   opened: number;
   clicked: number;
+  realClicks: number;
   bounced: number;
   unsubscribed: number;
   sentToday: number;
@@ -523,6 +524,9 @@ export default function RegistryAdminPage() {
               <span>Delivered: <span className="text-green-400 font-semibold">{(statusData.outreach.engagement?.delivered ?? 0).toLocaleString()}</span></span>
               <span>Opened: <span className="text-blue-400 font-semibold">{(statusData.outreach.engagement?.opened ?? 0).toLocaleString()}</span></span>
               <span>Clicked: <span className="text-blue-400 font-semibold">{(statusData.outreach.engagement?.clicked ?? 0).toLocaleString()}</span></span>
+              <span title="Opened before clicked, and clicked more than 30 seconds after sending -- filters out bot and scanner clicks">
+                Real Human Clicks: <span className="text-orange-400 font-semibold">{(statusData.outreach.engagement?.realClicks ?? 0).toLocaleString()}</span>
+              </span>
               <span>Bounced: <span className="text-red-400 font-semibold">{(statusData.outreach.engagement?.bounced ?? 0).toLocaleString()}</span></span>
               <span>Unsubscribed: <span className="text-slate-300 font-semibold">{(statusData.outreach.engagement?.unsubscribed ?? 0).toLocaleString()}</span></span>
               <span>Failed: <span className="text-red-400 font-semibold">{(statusData.outreach.engagement?.failed ?? 0).toLocaleString()}</span></span>
