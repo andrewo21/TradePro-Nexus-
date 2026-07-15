@@ -132,6 +132,10 @@ export default function AdminCreateProfilePage() {
         <p className="text-slate-400 text-sm mb-3">
           Manually create a fully claimed profile for a contractor contact.
         </p>
+        <p className="text-slate-500 text-xs mb-3">
+          Trade Pro / Sub creates a record in <span className="font-mono text-slate-400">profiles</span>, viewable at /pro/[slug].
+          GC / Developer creates a record in <span className="font-mono text-slate-400">companies</span>, viewable at /company/[slug] -- not in profiles.
+        </p>
 
         {/* Admin note */}
         <div className="bg-amber-950/30 border border-amber-800/50 rounded-xl px-4 py-3 mb-6 flex items-start gap-2">

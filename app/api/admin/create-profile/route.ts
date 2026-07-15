@@ -265,12 +265,18 @@ export async function POST(req: NextRequest) {
     }
     profileUrl = `${SITE_URL}/pro/${slug}`;
 
-    // Check for matching unclaimed_profiles record and mark as claimed
+    // Check for matching unclaimed_profiles record and mark as claimed.
+    // Uses .limit(1) instead of .maybeSingle() -- the ilike fuzzy match on
+    // business_name can hit more than one row for short/common names, and
+    // .maybeSingle() errors (silently, since it wasn't checked) whenever
+    // more than one row matches, which meant the matching listing would
+    // never get marked claimed with no sign anything went wrong.
     const biz = businessName?.trim() || (firstName?.trim() + " " + lastName?.trim());
     if (biz || email) {
       let uq = db.from("unclaimed_profiles").select("id").eq("claimed", false).eq("visible", true);
       if (biz) uq = uq.ilike("business_name", `%${biz}%`); else uq = uq.eq("email", email);
-      const { data: unclaimed } = await uq.maybeSingle();
+      const { data: unclaimedRows } = await uq.limit(1);
+      const unclaimed = unclaimedRows?.[0];
       if (unclaimed) {
         await db.from("unclaimed_profiles").update({
           claimed: true, claimed_by: userId, claimed_at: new Date().toISOString(),
