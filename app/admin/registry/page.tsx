@@ -113,7 +113,7 @@ const STATE_NAMES: Record<string, string> = {
   AZ: "Arizona", NV: "Nevada", CA: "California", WA: "Washington",
 };
 
-const IMPLEMENTED_STATES = ["FL"];
+const IMPLEMENTED_STATES = ["FL", "PA"];
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
