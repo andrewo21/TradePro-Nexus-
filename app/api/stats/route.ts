@@ -15,7 +15,13 @@ export async function GET() {
       db.from("waitlist").select("*", { count: "exact", head: true }),
       db.from("profiles").select("*", { count: "exact", head: true }).eq("verification_status", "verified").neq("profile_type", "tradepro").eq("is_admin", false),
       db.from("unclaimed_profiles").select("*", { count: "exact", head: true }).eq("visible", true).eq("is_core_state", true),
-      db.from("profiles").select("*", { count: "exact", head: true }).eq("legacy_member_eligible", true).eq("is_seed_account", false).eq("is_admin", false),
+      // Legacy Member requires BOTH eligibility (first 100 signups) AND
+      // having posted at least once -- legacy_member is only ever set true
+      // by the badge-award trigger once both conditions are met, matching
+      // the "Sign up and post once" copy shown alongside this count.
+      // legacy_member_eligible alone only means "reserved a slot," not
+      // "qualified" -- counting that instead silently overstated progress.
+      db.from("profiles").select("*", { count: "exact", head: true }).eq("legacy_member", true).eq("is_seed_account", false).eq("is_admin", false),
     ]);
 
     return NextResponse.json({
