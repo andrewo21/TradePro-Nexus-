@@ -30,12 +30,11 @@ const STATIC_PATHS = [
   "/policy/no-grades",
   "/policy/supply-house",
   "/policy/disclaimer",
-  "/policy/terms-of-service",
-  "/policy/privacy-policy",
   "/policy/documents",
   "/policy/web-scan",
   "/terms-of-use",
   "/privacy-policy",
+  "/membership-agreement",
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
