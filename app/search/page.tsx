@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import {
   Search, Building2, MapPin, Users, Shield, HardHat,
   X, Loader2, ChevronRight, Zap, Clock, Filter,
@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Megaphone } from "lucide-react";
 
 // ── Filter constants ──────────────────────────────────────────────────────────
@@ -127,11 +128,19 @@ function isFiltersDefault(f: Filters) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-export default function SearchPage() {
+function SearchPageInner() {
+  const searchParams = useSearchParams();
   const [mode, setMode] = useState<Mode>("crews");
   const [bannerDismissed, setBannerDismissed] = useState(true);
   const [filtersOpen, setFiltersOpen] = useState(true);
-  const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<Filters>(() => ({
+    ...DEFAULT_FILTERS,
+    trade:  searchParams.get("trade")  ?? DEFAULT_FILTERS.trade,
+    sector: searchParams.get("sector") ?? DEFAULT_FILTERS.sector,
+    state:  searchParams.get("state")  ?? DEFAULT_FILTERS.state,
+    county: searchParams.get("county") ?? DEFAULT_FILTERS.county,
+    q:      searchParams.get("q")      ?? DEFAULT_FILTERS.q,
+  }));
 
   const [results, setResults] = useState<SearchResult[]>([]);
   const [total, setTotal] = useState<number | null>(null);
@@ -610,6 +619,18 @@ export default function SearchPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
+        <Loader2 className="w-6 h-6 text-orange-500 animate-spin" />
+      </div>
+    }>
+      <SearchPageInner />
+    </Suspense>
   );
 }
 

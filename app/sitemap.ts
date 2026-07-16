@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { getSupabaseAdmin } from "@/lib/supabaseServer";
+import { CITY_TRADE_PAGES, STATE_ONLY_PAGES } from "@/lib/seoContractorPages";
 
 export const revalidate = 3600;
 
@@ -60,5 +61,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
-  return [...staticEntries, ...profileEntries];
+  const contractorCityTradeEntries: MetadataRoute.Sitemap = CITY_TRADE_PAGES.map((p) => ({
+    url: `${BASE_URL}/contractors/${p.stateSlug}/${p.citySlug}/${p.tradeSlug}`,
+    lastModified: new Date(),
+    changeFrequency: "weekly",
+    priority: 0.7,
+  }));
+
+  const contractorStateEntries: MetadataRoute.Sitemap = STATE_ONLY_PAGES.map((p) => ({
+    url: `${BASE_URL}/contractors/${p.stateSlug}`,
+    lastModified: new Date(),
+    changeFrequency: "weekly",
+    priority: 0.6,
+  }));
+
+  return [...staticEntries, ...profileEntries, ...contractorCityTradeEntries, ...contractorStateEntries];
 }
